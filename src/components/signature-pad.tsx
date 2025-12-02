@@ -71,6 +71,8 @@ export function SignaturePad({
             : "border-muted-foreground/25 hover:border-muted-foreground/40"
         )}
         style={{ width: canvasSize.width, height: canvasSize.height }}
+        role="application"
+        aria-label="Signature canvas - draw your signature here"
       >
         <SignatureCanvas
           ref={sigCanvas}
@@ -79,14 +81,16 @@ export function SignaturePad({
             height: canvasSize.height,
             className: "rounded-lg cursor-crosshair",
             style: { touchAction: "none" },
+            role: "img",
+            "aria-label": isEmpty ? "Empty signature canvas" : "Your signature",
           }}
           backgroundColor="white"
           penColor="black"
           onEnd={handleEnd}
         />
         {isEmpty && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-muted-foreground text-sm">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+            <p className="text-muted-foreground text-sm" id="signature-instructions">
               Sign here with your finger or mouse
             </p>
           </div>

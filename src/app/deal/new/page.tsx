@@ -79,6 +79,8 @@ export default function NewDealPage() {
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
         handleFieldChange(field.id, e.target.value),
       placeholder: field.placeholder,
+      "aria-required": field.required,
+      "aria-describedby": field.required ? `${field.id}-required` : undefined,
     };
 
     switch (field.type) {
@@ -91,7 +93,7 @@ export default function NewDealPage() {
       case "currency":
         return (
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true">
               $
             </span>
             <Input {...commonProps} type="number" step="0.01" className="pl-7" />
@@ -176,10 +178,19 @@ export default function NewDealPage() {
                     key={template.id}
                     className="cursor-pointer hover:border-primary hover:shadow-md transition-all"
                     onClick={() => handleTemplateSelect(template)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleTemplateSelect(template);
+                      }
+                    }}
+                    aria-label={`${template.name}: ${template.description}`}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
-                        <div className="text-3xl">{template.icon}</div>
+                        <div className="text-3xl" aria-hidden="true">{template.icon}</div>
                         <div>
                           <h3 className="font-semibold mb-1">{template.name}</h3>
                           <p className="text-sm text-muted-foreground">
@@ -216,12 +227,16 @@ export default function NewDealPage() {
               <Card>
                 <CardContent className="p-6 space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="recipientName">Recipient&apos;s Name *</Label>
+                    <Label htmlFor="recipientName">
+                      Recipient&apos;s Name <span aria-hidden="true">*</span>
+                      <span className="sr-only">(required)</span>
+                    </Label>
                     <Input
                       id="recipientName"
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
                       placeholder="Who is this deal with?"
+                      aria-required="true"
                     />
                   </div>
 
@@ -231,7 +246,12 @@ export default function NewDealPage() {
                     <div key={field.id} className="space-y-2">
                       <Label htmlFor={field.id}>
                         {field.label}
-                        {field.required && " *"}
+                        {field.required && (
+                          <>
+                            <span aria-hidden="true"> *</span>
+                            <span className="sr-only">(required)</span>
+                          </>
+                        )}
                       </Label>
                       {renderField(field)}
                     </div>
