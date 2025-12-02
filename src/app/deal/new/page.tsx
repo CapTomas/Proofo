@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,6 @@ import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
 import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
-import { useRouter } from "next/navigation";
 
 type Step = "template" | "details" | "review" | "share";
 
@@ -48,7 +47,6 @@ const defaultUser = {
 };
 
 export default function NewDealPage() {
-  const router = useRouter();
   const { user, addDeal, addAuditLog } = useAppStore();
   const [currentStep, setCurrentStep] = useState<Step>("template");
   const [selectedTemplate, setSelectedTemplate] = useState<DealTemplate | null>(null);

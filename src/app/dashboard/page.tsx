@@ -81,7 +81,7 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 };
 
 export default function DashboardPage() {
-  const { deals: storeDeals, user, voidDeal, addDeal } = useAppStore();
+  const { deals: storeDeals, user, voidDeal } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -113,7 +113,7 @@ export default function DashboardPage() {
   }, [allDeals]);
 
   const copyToClipboard = async (dealId: string, publicId: string) => {
-    const link = `${window.location.origin}/d/${publicId}`;
+    const link = `${typeof window !== "undefined" ? window.location.origin : ""}/d/${publicId}`;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedId(dealId);
@@ -137,9 +137,11 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDuplicate = (deal: Deal) => {
-    // Navigate to new deal page with pre-filled data (handled via URL params in a real impl)
-    window.location.href = "/deal/new";
+  const handleDuplicate = () => {
+    // Navigate to new deal page
+    if (typeof window !== "undefined") {
+      window.location.assign("/deal/new");
+    }
   };
 
   const userName = user?.name || "Guest";

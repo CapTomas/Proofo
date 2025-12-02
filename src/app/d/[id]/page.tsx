@@ -71,28 +71,41 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [signature, setSignature] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [isSealing, setIsSealing] = useState(false);
-  const [deal, setDeal] = useState<Deal | null>(null);
   const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
-  // Find the deal by public ID
-  useEffect(() => {
+  // Find the deal by public ID using useMemo to avoid effect-based setState
+  const deal = useMemo(() => {
     const foundDeal = getDealByPublicId(resolvedParams.id);
-    
     if (foundDeal) {
-      setDeal(foundDeal);
-      // Check deal status
-      if (foundDeal.status === "confirmed") {
-        setCurrentStep("already_signed");
-        setConfirmedDeal(foundDeal);
-      } else if (foundDeal.status === "voided") {
-        setCurrentStep("voided");
-      } else if (foundDeal.status === "sealing") {
-        setCurrentStep("sign");
-      }
-      
-      // Log deal view
+      return foundDeal;
+    } else if (resolvedParams.id === "demo123") {
+      return demoDeal;
+    }
+    return null;
+  }, [resolvedParams.id, getDealByPublicId]);
+
+  // Set initial step based on deal status
+  useEffect(() => {
+    if (!deal) {
+      setCurrentStep("not_found");
+      return;
+    }
+    
+    if (deal.status === "confirmed") {
+      setCurrentStep("already_signed");
+      setConfirmedDeal(deal);
+    } else if (deal.status === "voided") {
+      setCurrentStep("voided");
+    } else if (deal.status === "sealing") {
+      setCurrentStep("sign");
+    } else {
+      setCurrentStep("review");
+    }
+    
+    // Log deal view for non-demo deals
+    if (deal.id !== "demo123") {
       addAuditLog({
-        dealId: foundDeal.id,
+        dealId: deal.id,
         eventType: "deal_viewed",
         actorId: user?.id || null,
         actorType: "recipient",
@@ -101,13 +114,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
           isLoggedIn: !!user,
         },
       });
-    } else if (resolvedParams.id === "demo123") {
-      // Allow demo deal
-      setDeal(demoDeal);
-    } else {
-      setCurrentStep("not_found");
     }
-  }, [resolvedParams.id, getDealByPublicId, addAuditLog, user]);
+  }, [deal, addAuditLog, user]);
 
   // Get creator initials
   const creatorInitials = useMemo(() => {
