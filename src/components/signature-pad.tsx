@@ -3,7 +3,7 @@
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
-import { Eraser, Check } from "lucide-react";
+import { Eraser, Check, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SignaturePadProps {
@@ -17,7 +17,7 @@ interface SignaturePadProps {
 export function SignaturePad({
   onSignatureChange,
   width = 400,
-  height = 200,
+  height = 180,
   className,
   disabled = false,
 }: SignaturePadProps) {
@@ -62,48 +62,65 @@ export function SignaturePad({
   }, [onSignatureChange]);
 
   return (
-    <div className={cn("space-y-3", className)} ref={containerRef}>
+    <div className={cn("space-y-4", className)} ref={containerRef}>
       <div
         className={cn(
-          "relative rounded-lg border-2 border-dashed bg-white transition-colors",
+          "relative rounded-xl border-2 border-dashed bg-white overflow-hidden transition-all duration-200",
           disabled
             ? "border-muted cursor-not-allowed opacity-50"
-            : "border-muted-foreground/25 hover:border-muted-foreground/40"
+            : isEmpty
+              ? "border-muted-foreground/20 hover:border-primary/40"
+              : "border-primary/50 shadow-sm"
         )}
         style={{ width: canvasSize.width, height: canvasSize.height }}
         role="application"
         aria-label="Signature canvas - draw your signature here"
       >
+        {/* Signature line */}
+        <div className="absolute bottom-8 left-6 right-6 h-px bg-muted-foreground/20" />
+        <div className="absolute bottom-4 left-6 text-[10px] text-muted-foreground/50 tracking-wide uppercase">
+          Sign here
+        </div>
+        
         <SignatureCanvas
           ref={sigCanvas}
           canvasProps={{
             width: canvasSize.width,
             height: canvasSize.height,
-            className: "rounded-lg cursor-crosshair",
+            className: "cursor-crosshair",
             style: { touchAction: "none" },
             role: "img",
             "aria-label": isEmpty ? "Empty signature canvas" : "Your signature",
           }}
           backgroundColor="white"
-          penColor="black"
+          penColor="#1a1625"
+          minWidth={1.5}
+          maxWidth={3}
           onEnd={handleEnd}
         />
+        
         {isEmpty && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
-            <p className="text-muted-foreground text-sm" id="signature-instructions">
-              Sign here with your finger or mouse
-            </p>
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center">
+                <PenLine className="h-5 w-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-muted-foreground/60 text-sm font-medium" id="signature-instructions">
+                Draw your signature
+              </p>
+            </div>
           </div>
         )}
       </div>
-      <div className="flex gap-2">
+      
+      <div className="flex gap-3">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={handleClear}
           disabled={isEmpty || disabled}
-          className="flex-1"
+          className="flex-1 h-10"
         >
           <Eraser className="h-4 w-4 mr-2" />
           Clear
@@ -113,10 +130,13 @@ export function SignaturePad({
           variant={isEmpty ? "outline" : "default"}
           size="sm"
           disabled={isEmpty || disabled}
-          className="flex-1"
+          className={cn(
+            "flex-1 h-10 transition-all",
+            !isEmpty && "shadow-lg shadow-primary/20"
+          )}
         >
           <Check className="h-4 w-4 mr-2" />
-          {isEmpty ? "Sign Above" : "Signed"}
+          {isEmpty ? "Sign Above" : "Signed ✓"}
         </Button>
       </div>
     </div>
