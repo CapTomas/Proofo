@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Plus,
   Search,
@@ -17,6 +18,16 @@ import {
   Copy,
   ExternalLink,
   RefreshCw,
+  Home,
+  Settings,
+  User,
+  LogOut,
+  ChevronDown,
+  Eye,
+  Trash2,
+  Edit3,
+  TrendingUp,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { Deal, DealStatus } from "@/types";
@@ -72,18 +83,36 @@ const demoDeals: Deal[] = [
     createdAt: "2024-01-10T09:00:00Z",
     voidedAt: "2024-01-12T15:00:00Z",
   },
+  {
+    id: "4",
+    publicId: "jkl012",
+    creatorId: "user1",
+    creatorName: "You",
+    recipientName: "Sarah Wilson",
+    title: "Equipment Rental",
+    description: "Renting audio equipment for event",
+    terms: [
+      { id: "1", label: "Equipment", value: "PA System + Microphones", type: "text" },
+      { id: "2", label: "Duration", value: "3 days", type: "text" },
+      { id: "3", label: "Value", value: "$800", type: "currency" },
+    ],
+    status: "confirmed",
+    createdAt: "2024-01-22T09:00:00Z",
+    confirmedAt: "2024-01-22T10:30:00Z",
+  },
 ];
 
-const statusConfig: Record<DealStatus, { label: string; color: "default" | "secondary" | "destructive" | "success" | "warning" }> = {
-  pending: { label: "Pending", color: "warning" },
-  sealing: { label: "Sealing", color: "secondary" },
-  confirmed: { label: "Confirmed", color: "success" },
-  voided: { label: "Voided", color: "destructive" },
+const statusConfig: Record<DealStatus, { label: string; color: "default" | "secondary" | "destructive" | "success" | "warning"; icon: typeof Clock; dotClass: string }> = {
+  pending: { label: "Pending", color: "warning", icon: Clock, dotClass: "bg-amber-500" },
+  sealing: { label: "Sealing", color: "secondary", icon: RefreshCw, dotClass: "bg-blue-500" },
+  confirmed: { label: "Confirmed", color: "success", icon: CheckCircle2, dotClass: "bg-emerald-500" },
+  voided: { label: "Voided", color: "destructive", icon: XCircle, dotClass: "bg-red-500" },
 };
 
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const filteredDeals = demoDeals.filter((deal) => {
     const matchesSearch =
@@ -98,196 +127,373 @@ export default function DashboardPage() {
     pending: demoDeals.filter((d) => d.status === "pending").length,
     confirmed: demoDeals.filter((d) => d.status === "confirmed").length,
     voided: demoDeals.filter((d) => d.status === "voided").length,
+    confirmationRate: Math.round((demoDeals.filter((d) => d.status === "confirmed").length / demoDeals.length) * 100),
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
+        {/* Logo */}
+        <div className="h-14 flex items-center px-4 border-b">
           <Link href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
+            <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
+              <span className="text-background font-semibold text-xs">P</span>
             </div>
-            <span className="font-bold text-xl">Proofo</span>
+            <span className="font-semibold">Proofo</span>
           </Link>
-          <div className="flex items-center gap-3">
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          <Link href="/dashboard">
+            <Button variant="secondary" className="w-full justify-start gap-2 h-9 text-sm">
+              <Home className="h-4 w-4" />
+              Dashboard
+            </Button>
+          </Link>
+          <Link href="/deal/new">
+            <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm">
+              <Plus className="h-4 w-4" />
+              New Deal
+            </Button>
+          </Link>
+          <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-muted-foreground">
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+        </nav>
+
+        {/* User Menu */}
+        <div className="p-3 border-t">
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                JD
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium">John Doe</p>
+                <p className="text-xs text-muted-foreground">Free</p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </button>
+
+            <AnimatePresence>
+              {showUserMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  className="absolute bottom-full left-0 right-0 mb-1 p-1 bg-popover border rounded-lg shadow-lg"
+                >
+                  <Button variant="ghost" className="w-full justify-start gap-2 h-8 text-sm" size="sm">
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start gap-2 h-8 text-sm" size="sm">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Button>
+                  <div className="my-1 border-t" />
+                  <Button variant="ghost" className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" size="sm">
+                    <LogOut className="h-4 w-4" />
+                    Log Out
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 lg:pl-56">
+        {/* Top Bar */}
+        <header className="h-14 border-b bg-background sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
+          <div className="lg:hidden flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
+                <span className="text-background font-semibold text-xs">P</span>
+              </div>
+              <span className="font-semibold">Proofo</span>
+            </Link>
+          </div>
+
+          <div className="hidden lg:block">
+            <h1 className="text-lg font-medium">Dashboard</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link href="/deal/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                New Deal
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">New Deal</span>
               </Button>
             </Link>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileCheck className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Deals</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.confirmed}</p>
-                  <p className="text-sm text-muted-foreground">Confirmed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.voided}</p>
-                  <p className="text-sm text-muted-foreground">Voided</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search deals..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="p-4 lg:p-6 space-y-6">
+          {/* Welcome Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Welcome back, John</h2>
+              <p className="text-sm text-muted-foreground">
+                Here&apos;s an overview of your deals
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+            </div>
           </div>
-          <div className="flex gap-2">
-            {(["all", "pending", "confirmed", "voided"] as const).map((status) => (
-              <Button
-                key={status}
-                variant={statusFilter === status ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter(status)}
-              >
-                {status === "all" ? "All" : statusConfig[status].label}
-              </Button>
-            ))}
-          </div>
-        </div>
 
-        {/* Deals List */}
-        <div className="space-y-4">
-          {filteredDeals.length === 0 ? (
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
-              <CardContent className="p-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <FileCheck className="h-8 w-8 text-muted-foreground" />
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <FileCheck className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Total</span>
                 </div>
-                <h3 className="font-semibold text-lg mb-2">No deals found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {searchQuery || statusFilter !== "all"
-                    ? "Try adjusting your search or filters"
-                    : "Create your first deal to get started"}
-                </p>
-                <Link href="/deal/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create New Deal
-                  </Button>
-                </Link>
+                <p className="text-2xl font-semibold">{stats.total}</p>
+                <p className="text-xs text-muted-foreground">Deals</p>
               </CardContent>
             </Card>
-          ) : (
-            filteredDeals.map((deal, index) => (
-              <motion.div
-                key={deal.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <Card className={deal.status === "voided" ? "opacity-60" : ""}>
-                  <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-lg">{deal.title}</h3>
-                          <Badge variant={statusConfig[deal.status].color}>
-                            {statusConfig[deal.status].label}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          With {deal.recipientName} • Created{" "}
-                          {new Date(deal.createdAt).toLocaleDateString()}
-                        </p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {deal.terms.slice(0, 2).map((term) => (
-                            <Badge key={term.id} variant="outline" className="font-normal">
-                              {term.label}: {term.value}
-                            </Badge>
-                          ))}
-                          {deal.terms.length > 2 && (
-                            <Badge variant="outline" className="font-normal">
-                              +{deal.terms.length - 2} more
-                            </Badge>
-                          )}
-                        </div>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div className="h-2 w-2 rounded-full bg-amber-500" />
+                </div>
+                <p className="text-2xl font-semibold">{stats.pending}</p>
+                <p className="text-xs text-muted-foreground">Pending</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {stats.confirmationRate}%
+                  </span>
+                </div>
+                <p className="text-2xl font-semibold">{stats.confirmed}</p>
+                <p className="text-xs text-muted-foreground">Confirmed</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <XCircle className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-2xl font-semibold">{stats.voided}</p>
+                <p className="text-xs text-muted-foreground">Voided</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Deals Section */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle className="text-base font-medium">Your Deals</CardTitle>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 h-8 w-full sm:w-48 text-sm"
+                    />
+                  </div>
+                  {/* Filter */}
+                  <div className="flex gap-1 p-0.5 bg-muted rounded-md">
+                    {(["all", "pending", "confirmed", "voided"] as const).map((status) => (
+                      <Button
+                        key={status}
+                        variant={statusFilter === status ? "secondary" : "ghost"}
+                        size="sm"
+                        onClick={() => setStatusFilter(status)}
+                        className={`h-7 text-xs px-2 ${statusFilter === status ? "bg-background shadow-sm" : ""}`}
+                      >
+                        {status === "all" ? "All" : statusConfig[status].label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Deals List */}
+              <div className="space-y-2">
+                <AnimatePresence mode="popLayout">
+                  {filteredDeals.length === 0 ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-center py-12"
+                    >
+                      <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mx-auto mb-3">
+                        <FileCheck className="h-6 w-6 text-muted-foreground" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        {deal.status === "pending" && (
-                          <>
-                            <Button variant="outline" size="sm">
-                              <Copy className="h-4 w-4 mr-2" />
-                              Copy Link
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Resend
-                            </Button>
-                          </>
-                        )}
-                        <Link href={`/deal/${deal.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
+                      <h3 className="font-medium mb-1">No deals found</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {searchQuery || statusFilter !== "all"
+                          ? "Try adjusting your search"
+                          : "Create your first deal"}
+                      </p>
+                      <Link href="/deal/new">
+                        <Button size="sm">
+                          <Plus className="h-4 w-4 mr-1.5" />
+                          New Deal
                         </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
+                      </Link>
+                    </motion.div>
+                  ) : (
+                    filteredDeals.map((deal, index) => {
+                      const StatusIcon = statusConfig[deal.status].icon;
+                      return (
+                        <motion.div
+                          key={deal.id}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2, delay: index * 0.03 }}
+                        >
+                          <div
+                            className={`group relative p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors ${
+                              deal.status === "voided" ? "opacity-60" : ""
+                            }`}
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center gap-3">
+                              {/* Deal Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-medium text-sm truncate">{deal.title}</h3>
+                                  <Badge 
+                                    variant="outline"
+                                    className="shrink-0 gap-1 text-xs h-5"
+                                  >
+                                    <StatusIcon className="h-3 w-3" />
+                                    {statusConfig[deal.status].label}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    {deal.recipientName}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(deal.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {/* Terms Preview */}
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {deal.terms.slice(0, 2).map((term) => (
+                                    <Badge key={term.id} variant="secondary" className="font-normal text-xs h-5">
+                                      {term.label}: {term.value}
+                                    </Badge>
+                                  ))}
+                                  {deal.terms.length > 2 && (
+                                    <Badge variant="secondary" className="font-normal text-xs h-5">
+                                      +{deal.terms.length - 2} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {deal.status === "pending" && (
+                                  <>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => copyToClipboard(`${window.location.origin}/d/${deal.publicId}`)}
+                                      className="h-7 text-xs gap-1"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                      <span className="hidden sm:inline">Copy</span>
+                                    </Button>
+                                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                                      <RefreshCw className="h-3 w-3" />
+                                      <span className="hidden sm:inline">Resend</span>
+                                    </Button>
+                                  </>
+                                )}
+                                <Link href={`/deal/${deal.id}`}>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                </Link>
+                                <div className="relative group/menu">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <div className="hidden group-hover/menu:block absolute right-0 top-full mt-1 w-36 p-1 bg-popover border rounded-lg shadow-lg z-10">
+                                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs">
+                                      <ExternalLink className="h-3 w-3" />
+                                      View
+                                    </Button>
+                                    {deal.status === "pending" && (
+                                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs">
+                                        <Edit3 className="h-3 w-3" />
+                                        Edit
+                                      </Button>
+                                    )}
+                                    {deal.status !== "voided" && (
+                                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive">
+                                        <Trash2 className="h-3 w-3" />
+                                        Void
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </AnimatePresence>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Tips */}
+          {stats.pending > 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 text-sm">
+                    <span className="font-medium">{stats.pending} pending</span>
+                    <span className="text-muted-foreground"> — send a reminder</span>
+                  </div>
+                  <Button variant="outline" size="sm" className="h-7 text-xs shrink-0">
+                    Remind
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </main>

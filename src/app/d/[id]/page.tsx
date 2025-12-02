@@ -16,7 +16,14 @@ import {
   Mail,
   AlertCircle,
   Sparkles,
+  ArrowRight,
+  Calendar,
+  Lock,
+  Clock,
+  Download,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -26,6 +33,7 @@ interface DealPageProps {
 const demoDeal = {
   id: "demo123",
   creatorName: "Alex Johnson",
+  creatorAvatar: "AJ",
   recipientName: "You",
   title: "Lend Camera Equipment",
   description: "Agreement to lend camera equipment",
@@ -61,7 +69,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     setIsSealing(true);
     // Simulate sealing animation
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
     setIsSealing(false);
     setCurrentStep("email");
   };
@@ -75,20 +83,20 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-center">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
               <span className="text-primary-foreground font-bold text-lg">P</span>
             </div>
-            <span className="font-bold text-xl">Proofo</span>
-          </div>
+            <span className="font-bold text-xl tracking-tight">Proofo</span>
+          </Link>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <main className="container mx-auto px-4 sm:px-6 py-8 max-w-2xl">
         <AnimatePresence mode="wait">
           {/* Step 1: Review Deal */}
           {currentStep === "review" && (
@@ -100,11 +108,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               transition={{ duration: 0.3 }}
             >
               <div className="text-center mb-8">
-                <Badge variant="secondary" className="mb-4">
-                  <Shield className="h-3 w-3 mr-1" />
+                <Badge variant="secondary" className="mb-4 px-4 py-1.5">
+                  <Shield className="h-3.5 w-3.5 mr-1.5 text-primary" />
                   Secure Agreement
                 </Badge>
-                <h1 className="text-2xl font-bold mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
                   {demoDeal.creatorName} wants to make a deal
                 </h1>
                 <p className="text-muted-foreground">
@@ -112,44 +120,90 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </p>
               </div>
 
+              {/* Creator Info */}
               <Card className="mb-6">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{demoDeal.template.icon}</span>
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold">
+                      {demoDeal.creatorAvatar}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{demoDeal.creatorName}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" />
+                        Created {new Date(demoDeal.createdAt).toLocaleDateString('en-US', { 
+                          month: 'long', 
+                          day: 'numeric', 
+                          year: 'numeric' 
+                        })}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="gap-1.5">
+                      <Clock className="h-3 w-3" />
+                      Pending
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Deal Details */}
+              <Card className="mb-6 overflow-hidden">
+                <CardHeader className="bg-muted/30 border-b pb-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl">{demoDeal.template.icon}</span>
                     <div>
-                      <CardTitle>{demoDeal.title}</CardTitle>
-                      <CardDescription>
-                        {demoDeal.template.name} • Created{" "}
-                        {new Date(demoDeal.createdAt).toLocaleDateString()}
+                      <CardTitle className="text-xl">{demoDeal.title}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {demoDeal.template.name}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <Separator />
-                  {demoDeal.terms.map((term) => (
-                    <div key={term.id} className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                <CardContent className="p-6 space-y-4">
+                  {demoDeal.terms.map((term, index) => (
+                    <motion.div 
+                      key={term.id} 
+                      className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
                       <span className="text-muted-foreground text-sm">{term.label}</span>
                       <span className="font-medium">{term.value}</span>
-                    </div>
+                    </motion.div>
                   ))}
                 </CardContent>
               </Card>
 
               {/* Trust Indicators */}
-              <div className="flex flex-wrap justify-center gap-4 mb-8 text-sm text-muted-foreground">
+              <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-green-500" />
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-emerald-600" />
+                  </div>
                   <span>Encrypted & Secure</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-green-500" />
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Lock className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <span>Cryptographically Sealed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <FileCheck className="h-4 w-4 text-emerald-600" />
+                  </div>
                   <span>Legally Binding</span>
                 </div>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handleProceedToSign}>
+              <Button 
+                className="w-full shadow-xl shadow-primary/25" 
+                size="xl" 
+                onClick={handleProceedToSign}
+              >
                 Review Complete — Sign to Accept
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </motion.div>
           )}
@@ -164,14 +218,18 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               transition={{ duration: 0.3 }}
             >
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold mb-2">Sign to Accept</h1>
+                <Badge variant="secondary" className="mb-4 px-4 py-1.5">
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                  Almost Done
+                </Badge>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">Sign to Accept</h1>
                 <p className="text-muted-foreground">
                   Draw your signature below to seal this agreement
                 </p>
               </div>
 
               <Card className="mb-6">
-                <CardContent className="p-6">
+                <CardContent className="p-6 sm:p-8">
                   <SignaturePad
                     onSignatureChange={setSignature}
                     className="flex flex-col items-center"
@@ -179,7 +237,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </CardContent>
               </Card>
 
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -188,7 +246,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   Back
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 shadow-xl shadow-primary/25"
                   size="lg"
                   onClick={handleSign}
                   disabled={!signature || isSealing}
@@ -199,12 +257,15 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       >
-                        <Sparkles className="h-4 w-4 mr-2" />
+                        <Sparkles className="h-5 w-5 mr-2" />
                       </motion.div>
                       Sealing...
                     </>
                   ) : (
-                    "Agree & Seal"
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      Agree & Seal
+                    </>
                   )}
                 </Button>
               </div>
@@ -216,28 +277,64 @@ export default function DealConfirmPage({ params }: DealPageProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background/90 backdrop-blur-md z-50 flex items-center justify-center"
             >
               <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
+                initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-                className="text-center"
+                transition={{ delay: 0.1, type: "spring" }}
+                className="text-center max-w-sm mx-auto px-4"
               >
-                <motion.div
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 10, -10, 0],
-                  }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4"
+                {/* Animated Seal */}
+                <div className="relative h-32 w-32 mx-auto mb-8">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.2, 1],
+                    }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full bg-primary/20"
+                  />
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.1, 1],
+                    }}
+                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                    className="absolute inset-2 rounded-full bg-primary/30"
+                  />
+                  <motion.div
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-4 rounded-full border-4 border-dashed border-primary/40"
+                  />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.5, type: "spring" }}
+                    className="absolute inset-6 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/30"
+                  >
+                    <FileCheck className="h-10 w-10 text-primary-foreground" />
+                  </motion.div>
+                </div>
+
+                <motion.h2 
+                  className="text-2xl font-bold mb-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
                 >
-                  <FileCheck className="h-12 w-12 text-primary" />
-                </motion.div>
-                <h2 className="text-xl font-bold mb-2">Sealing Your Deal</h2>
-                <p className="text-muted-foreground">
+                  Sealing Your Deal
+                </motion.h2>
+                <motion.p 
+                  className="text-muted-foreground"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
                   Creating cryptographic proof...
-                </p>
+                </motion.p>
               </motion.div>
             </motion.div>
           )}
@@ -255,49 +352,54 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="h-16 w-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4"
+                  className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30"
                 >
-                  <CheckCircle2 className="h-8 w-8 text-white" />
+                  <CheckCircle2 className="h-10 w-10 text-white" />
                 </motion.div>
-                <h1 className="text-2xl font-bold mb-2">Deal Sealed!</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">Deal Sealed! 🎉</h1>
                 <p className="text-muted-foreground">
                   Where should we send your receipt?
                 </p>
               </div>
 
               <Card className="mb-6">
-                <CardContent className="p-6 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address (Optional)</Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="your@email.com"
-                          className="pl-10"
-                        />
-                      </div>
+                <CardContent className="p-6 sm:p-8 space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="email" className="text-sm font-medium">
+                      Email Address <span className="text-muted-foreground">(Optional)</span>
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        className="pl-11"
+                      />
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border">
+                    <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                     <p className="text-sm text-muted-foreground">
-                      We&apos;ll send you a PDF copy of this agreement with the cryptographic seal for your records.
+                      We&apos;ll send you a PDF copy of this agreement with the cryptographic seal for your records. Your email is never shared.
                     </p>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <Button variant="outline" className="flex-1" onClick={handleSkipEmail}>
-                  Skip
+                  Skip for Now
                 </Button>
-                <Button className="flex-1" onClick={handleComplete} disabled={!email}>
+                <Button 
+                  className="flex-1 shadow-xl shadow-primary/25" 
+                  onClick={handleComplete} 
+                  disabled={!email}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
                   Send Receipt
                 </Button>
               </div>
@@ -317,46 +419,76 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="h-20 w-20 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-6"
+                className="h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/30"
               >
-                <CheckCircle2 className="h-10 w-10 text-white" />
+                <CheckCircle2 className="h-12 w-12 text-white" />
               </motion.div>
 
-              <h1 className="text-3xl font-bold mb-4">You&apos;re All Set!</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-4 tracking-tight">You&apos;re All Set!</h1>
               <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                This agreement has been cryptographically sealed and is now legally binding.
+                This agreement has been cryptographically sealed and is now enforceable.
                 {email && " A copy has been sent to your email."}
               </p>
 
-              <Card className="mb-8">
+              <Card className="mb-8 text-left">
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-muted-foreground">Deal ID</span>
-                    <Badge variant="outline" className="font-mono">
-                      {resolvedParams.id}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-muted-foreground">Status</span>
-                    <Badge variant="success">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Confirmed
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Sealed At</span>
-                    <span className="font-medium">
-                      {new Date().toLocaleString()}
-                    </span>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between py-2 border-b">
+                      <span className="text-muted-foreground text-sm">Deal ID</span>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {resolvedParams.id}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b">
+                      <span className="text-muted-foreground text-sm">Status</span>
+                      <Badge variant="success" className="gap-1.5">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Confirmed
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b">
+                      <span className="text-muted-foreground text-sm">Sealed At</span>
+                      <span className="font-medium text-sm">
+                        {new Date().toLocaleString('en-US', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-muted-foreground text-sm">With</span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground text-xs font-medium">
+                          {demoDeal.creatorAvatar}
+                        </div>
+                        <span className="font-medium text-sm">{demoDeal.creatorName}</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="text-sm text-muted-foreground">
-                <p className="mb-2">Want to create your own deals?</p>
-                <Button variant="outline">
-                  Get Started with Proofo
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Download PDF
                 </Button>
+                <Button variant="outline" className="gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  View Details
+                </Button>
+              </div>
+
+              <Separator className="my-8" />
+
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-4">Want to create your own deals?</p>
+                <Link href="/dashboard">
+                  <Button className="shadow-lg shadow-primary/20 gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Get Started with Proofo
+                  </Button>
+                </Link>
               </div>
             </motion.div>
           )}
@@ -365,8 +497,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
       {/* Footer */}
       <footer className="py-8 border-t mt-auto">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Powered by Proofo • Evidence that holds up</p>
+        <div className="container mx-auto px-4 sm:px-6 text-center text-sm text-muted-foreground">
+          <p className="flex items-center justify-center gap-2">
+            <Shield className="h-4 w-4" />
+            Powered by Proofo • Evidence that holds up
+          </p>
         </div>
       </footer>
     </div>
