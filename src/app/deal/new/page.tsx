@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,9 @@ import {
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
-import { DealTemplate, TemplateField } from "@/types";
+import { DealTemplate, TemplateField, Deal } from "@/types";
+import { useAppStore, createNewDeal } from "@/store";
+import { useRouter } from "next/navigation";
 
 type Step = "template" | "details" | "review" | "share";
 
@@ -37,17 +39,34 @@ const stepInfo = {
   share: { number: 4, title: "Share", description: "Send to the other party" },
 };
 
+// Default demo user for when no user is logged in
+const defaultUser = {
+  id: "demo-user",
+  email: "demo@proofo.app",
+  name: "You",
+  createdAt: new Date().toISOString(),
+};
+
 export default function NewDealPage() {
+  const router = useRouter();
+  const { user, addDeal, addAuditLog } = useAppStore();
   const [currentStep, setCurrentStep] = useState<Step>("template");
   const [selectedTemplate, setSelectedTemplate] = useState<DealTemplate | null>(null);
   const [recipientName, setRecipientName] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
+  const [createdDeal, setCreatedDeal] = useState<Deal | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Generate a mock deal link
-  const dealLink = typeof window !== 'undefined' 
-    ? `${window.location.origin}/d/demo123` 
-    : 'https://proofo.app/d/demo123';
+  // Use logged in user or demo user
+  const currentUser = user || defaultUser;
+
+  // Generate the deal link
+  const dealLink = createdDeal
+    ? typeof window !== "undefined"
+      ? `${window.location.origin}/d/${createdDeal.publicId}`
+      : `https://proofo.app/d/${createdDeal.publicId}`
+    : "";
 
   const handleTemplateSelect = (template: DealTemplate) => {
     setSelectedTemplate(template);
@@ -64,12 +83,56 @@ export default function NewDealPage() {
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
   };
 
+  const handleCreateDeal = async () => {
+    if (!selectedTemplate) return;
+
+    setIsCreating(true);
+
+    // Build terms from form data
+    const terms = selectedTemplate.fields
+      .filter((field) => formData[field.id])
+      .map((field) => ({
+        label: field.label,
+        value: field.type === "currency" 
+          ? `$${formData[field.id]}` 
+          : formData[field.id],
+        type: field.type === "textarea" ? "text" : field.type,
+      }));
+
+    // Create the new deal
+    const newDeal = createNewDeal(currentUser, {
+      templateId: selectedTemplate.id,
+      title: selectedTemplate.name,
+      recipientName,
+      terms,
+      description: `${selectedTemplate.name} agreement with ${recipientName}`,
+    });
+
+    // Add to store
+    addDeal(newDeal);
+
+    // Add audit log entry
+    addAuditLog({
+      dealId: newDeal.id,
+      eventType: "deal_created",
+      actorId: currentUser.id,
+      actorType: "creator",
+      metadata: {
+        templateId: selectedTemplate.id,
+        recipientName,
+      },
+    });
+
+    setCreatedDeal(newDeal);
+    setIsCreating(false);
+    setCurrentStep("share");
+  };
+
   const handleNext = () => {
     if (currentStep === "details") {
       setCurrentStep("review");
     } else if (currentStep === "review") {
-      // Simulate deal creation
-      setCurrentStep("share");
+      handleCreateDeal();
     }
   };
 
@@ -82,10 +145,39 @@ export default function NewDealPage() {
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(dealLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(dealLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement("textarea");
+      textArea.value = dealLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share && createdDeal) {
+      try {
+        await navigator.share({
+          title: `${selectedTemplate?.name} - Proofo Agreement`,
+          text: `${currentUser.name} has sent you an agreement to sign on Proofo.`,
+          url: dealLink,
+        });
+      } catch {
+        // User cancelled or share failed, fall back to copy
+        copyToClipboard();
+      }
+    } else {
+      copyToClipboard();
+    }
   };
 
   const renderField = (field: TemplateField) => {
@@ -395,13 +487,27 @@ export default function NewDealPage() {
                   </div>
 
                   <div className="flex justify-between pt-6 gap-4">
-                    <Button variant="outline" onClick={handleBack} className="gap-2">
+                    <Button variant="outline" onClick={handleBack} className="gap-2" disabled={isCreating}>
                       <ArrowLeft className="h-4 w-4" />
                       Edit
                     </Button>
-                    <Button onClick={handleNext} className="gap-2 shadow-lg shadow-primary/20">
-                      Create Deal
-                      <Check className="h-4 w-4" />
+                    <Button onClick={handleNext} className="gap-2 shadow-lg shadow-primary/20" disabled={isCreating}>
+                      {isCreating ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          >
+                            <Sparkles className="h-4 w-4" />
+                          </motion.div>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          Create Deal
+                          <Check className="h-4 w-4" />
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -476,17 +582,36 @@ export default function NewDealPage() {
                     </div>
                   </div>
 
+                  {/* Deal ID for verification */}
+                  {createdDeal && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                      <span>Deal ID:</span>
+                      <Badge variant="outline" className="font-mono">
+                        {createdDeal.publicId}
+                      </Badge>
+                    </div>
+                  )}
+
                   {/* Share Options */}
                   <div className="grid sm:grid-cols-3 gap-3">
                     <Button onClick={copyToClipboard} className="gap-2 shadow-lg shadow-primary/20">
                       <Copy className="h-4 w-4" />
                       Copy Link
                     </Button>
-                    <Button variant="outline" className="gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="gap-2"
+                      onClick={() => {
+                        window.open(
+                          `mailto:?subject=${encodeURIComponent(`${selectedTemplate?.name || "Agreement"} - Please Sign`)}&body=${encodeURIComponent(`Hi ${recipientName},\n\n${currentUser.name} has sent you an agreement to sign on Proofo.\n\nPlease review and sign here:\n${dealLink}\n\nNo account needed - just click the link, review the terms, and sign.\n\nThanks!`)}`,
+                          "_blank"
+                        );
+                      }}
+                    >
                       <Mail className="h-4 w-4" />
                       Send Email
                     </Button>
-                    <Button variant="outline" className="gap-2">
+                    <Button variant="outline" className="gap-2" onClick={handleShare}>
                       <Share2 className="h-4 w-4" />
                       Share
                     </Button>
@@ -501,12 +626,20 @@ export default function NewDealPage() {
                         Go to Dashboard
                       </Button>
                     </Link>
-                    <Link href="/deal/new">
-                      <Button variant="ghost" className="w-full sm:w-auto gap-2">
-                        Create Another Deal
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full sm:w-auto gap-2"
+                      onClick={() => {
+                        setCurrentStep("template");
+                        setSelectedTemplate(null);
+                        setRecipientName("");
+                        setFormData({});
+                        setCreatedDeal(null);
+                      }}
+                    >
+                      Create Another Deal
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

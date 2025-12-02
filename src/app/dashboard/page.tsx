@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,16 +28,20 @@ import {
   Edit3,
   TrendingUp,
   Calendar,
+  Sparkles,
+  Crown,
 } from "lucide-react";
 import Link from "next/link";
 import { Deal, DealStatus } from "@/types";
+import { useAppStore } from "@/store";
+import { timeAgo } from "@/lib/crypto";
 
-// Demo data
+// Demo data for when no deals exist
 const demoDeals: Deal[] = [
   {
-    id: "1",
+    id: "demo-1",
     publicId: "abc123",
-    creatorId: "user1",
+    creatorId: "demo-user",
     creatorName: "You",
     recipientName: "John Doe",
     title: "Lend Camera Equipment",
@@ -52,9 +56,9 @@ const demoDeals: Deal[] = [
     confirmedAt: "2024-01-15T11:00:00Z",
   },
   {
-    id: "2",
+    id: "demo-2",
     publicId: "def456",
-    creatorId: "user1",
+    creatorId: "demo-user",
     creatorName: "You",
     recipientName: "Jane Smith",
     title: "Payment Agreement",
@@ -67,39 +71,6 @@ const demoDeals: Deal[] = [
     status: "pending",
     createdAt: "2024-01-20T14:00:00Z",
   },
-  {
-    id: "3",
-    publicId: "ghi789",
-    creatorId: "user1",
-    creatorName: "You",
-    recipientName: "Mike Johnson",
-    title: "Freelance Work Agreement",
-    description: "Website development project",
-    terms: [
-      { id: "1", label: "Project", value: "Portfolio website", type: "text" },
-      { id: "2", label: "Payment", value: "$2,000", type: "currency" },
-    ],
-    status: "voided",
-    createdAt: "2024-01-10T09:00:00Z",
-    voidedAt: "2024-01-12T15:00:00Z",
-  },
-  {
-    id: "4",
-    publicId: "jkl012",
-    creatorId: "user1",
-    creatorName: "You",
-    recipientName: "Sarah Wilson",
-    title: "Equipment Rental",
-    description: "Renting audio equipment for event",
-    terms: [
-      { id: "1", label: "Equipment", value: "PA System + Microphones", type: "text" },
-      { id: "2", label: "Duration", value: "3 days", type: "text" },
-      { id: "3", label: "Value", value: "$800", type: "currency" },
-    ],
-    status: "confirmed",
-    createdAt: "2024-01-22T09:00:00Z",
-    confirmedAt: "2024-01-22T10:30:00Z",
-  },
 ];
 
 const statusConfig: Record<DealStatus, { label: string; color: "default" | "secondary" | "destructive" | "success" | "warning"; icon: typeof Clock; dotClass: string }> = {
@@ -110,29 +81,75 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 };
 
 export default function DashboardPage() {
+  const { deals: storeDeals, user, voidDeal, addDeal } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const filteredDeals = demoDeals.filter((deal) => {
-    const matchesSearch =
-      deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      deal.recipientName?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || deal.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Use store deals if available, otherwise show demo deals
+  const allDeals = storeDeals.length > 0 ? storeDeals : demoDeals;
+  const isUsingDemoData = storeDeals.length === 0;
 
-  const stats = {
-    total: demoDeals.length,
-    pending: demoDeals.filter((d) => d.status === "pending").length,
-    confirmed: demoDeals.filter((d) => d.status === "confirmed").length,
-    voided: demoDeals.filter((d) => d.status === "voided").length,
-    confirmationRate: Math.round((demoDeals.filter((d) => d.status === "confirmed").length / demoDeals.length) * 100),
+  const filteredDeals = useMemo(() => {
+    return allDeals.filter((deal) => {
+      const matchesSearch =
+        deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        deal.recipientName?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === "all" || deal.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [allDeals, searchQuery, statusFilter]);
+
+  const stats = useMemo(() => {
+    const total = allDeals.length;
+    const pending = allDeals.filter((d) => d.status === "pending").length;
+    const confirmed = allDeals.filter((d) => d.status === "confirmed").length;
+    const voided = allDeals.filter((d) => d.status === "voided").length;
+    const confirmationRate = total > 0 
+      ? Math.round((confirmed / total) * 100) 
+      : 0;
+    return { total, pending, confirmed, voided, confirmationRate };
+  }, [allDeals]);
+
+  const copyToClipboard = async (dealId: string, publicId: string) => {
+    const link = `${window.location.origin}/d/${publicId}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedId(dealId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // Fallback
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopiedId(dealId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleVoidDeal = (dealId: string) => {
+    if (confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
+      voidDeal(dealId);
+    }
   };
+
+  const handleDuplicate = (deal: Deal) => {
+    // Navigate to new deal page with pre-filled data (handled via URL params in a real impl)
+    window.location.href = "/deal/new";
+  };
+
+  const userName = user?.name || "Guest";
+  const userInitials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+  const isPro = user?.isPro || false;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -168,6 +185,24 @@ export default function DashboardPage() {
           </Button>
         </nav>
 
+        {/* Pro Upgrade Banner */}
+        {!isPro && (
+          <div className="px-3 pb-3">
+            <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Crown className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Go Pro</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Remove watermarks & keep deals forever
+              </p>
+              <Button size="sm" className="w-full h-7 text-xs">
+                Upgrade
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* User Menu */}
         <div className="p-3 border-t">
           <div className="relative">
@@ -176,11 +211,11 @@ export default function DashboardPage() {
               className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted transition-colors"
             >
               <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                JD
+                {userInitials || "G"}
               </div>
               <div className="flex-1 text-left">
-                <p className="text-sm font-medium">John Doe</p>
-                <p className="text-xs text-muted-foreground">Free</p>
+                <p className="text-sm font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground">{isPro ? "Pro" : "Free"}</p>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -242,10 +277,30 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-4 lg:p-6 space-y-6">
+          {/* Demo Mode Banner */}
+          {isUsingDemoData && (
+            <Card className="border-dashed bg-muted/30">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                  <div className="flex-1 text-sm">
+                    <span className="font-medium">Demo Mode</span>
+                    <span className="text-muted-foreground"> — these are sample deals. Create your first real deal to get started!</span>
+                  </div>
+                  <Link href="/deal/new">
+                    <Button size="sm" className="h-7 text-xs shrink-0">
+                      Create Deal
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Welcome Section */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Welcome back, John</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Welcome back, {userName.split(" ")[0]}</h2>
               <p className="text-sm text-muted-foreground">
                 Here&apos;s an overview of your deals
               </p>
@@ -401,7 +456,7 @@ export default function DashboardPage() {
                                   </span>
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
-                                    {new Date(deal.createdAt).toLocaleDateString()}
+                                    {timeAgo(deal.createdAt)}
                                   </span>
                                 </div>
                                 {/* Terms Preview */}
@@ -424,21 +479,35 @@ export default function DashboardPage() {
                                 {deal.status === "pending" && (
                                   <>
                                     <Button 
-                                      variant="outline" 
+                                      variant={copiedId === deal.id ? "default" : "outline"}
                                       size="sm"
-                                      onClick={() => copyToClipboard(`${window.location.origin}/d/${deal.publicId}`)}
+                                      onClick={() => copyToClipboard(deal.id, deal.publicId)}
                                       className="h-7 text-xs gap-1"
                                     >
-                                      <Copy className="h-3 w-3" />
-                                      <span className="hidden sm:inline">Copy</span>
+                                      {copiedId === deal.id ? (
+                                        <>
+                                          <CheckCircle2 className="h-3 w-3" />
+                                          <span className="hidden sm:inline">Copied!</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="h-3 w-3" />
+                                          <span className="hidden sm:inline">Copy</span>
+                                        </>
+                                      )}
                                     </Button>
-                                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-7 text-xs gap-1"
+                                      onClick={() => copyToClipboard(deal.id, deal.publicId)}
+                                    >
                                       <RefreshCw className="h-3 w-3" />
-                                      <span className="hidden sm:inline">Resend</span>
+                                      <span className="hidden sm:inline">Nudge</span>
                                     </Button>
                                   </>
                                 )}
-                                <Link href={`/deal/${deal.id}`}>
+                                <Link href={`/d/${deal.publicId}`}>
                                   <Button variant="ghost" size="icon" className="h-7 w-7">
                                     <Eye className="h-3.5 w-3.5" />
                                   </Button>
@@ -448,18 +517,30 @@ export default function DashboardPage() {
                                     <MoreHorizontal className="h-3.5 w-3.5" />
                                   </Button>
                                   <div className="hidden group-hover/menu:block absolute right-0 top-full mt-1 w-36 p-1 bg-popover border rounded-lg shadow-lg z-10">
-                                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs">
-                                      <ExternalLink className="h-3 w-3" />
-                                      View
-                                    </Button>
-                                    {deal.status === "pending" && (
+                                    <Link href={`/d/${deal.publicId}`}>
                                       <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs">
+                                        <ExternalLink className="h-3 w-3" />
+                                        View
+                                      </Button>
+                                    </Link>
+                                    {deal.status === "pending" && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="w-full justify-start gap-2 h-8 text-xs"
+                                        onClick={() => handleDuplicate(deal)}
+                                      >
                                         <Edit3 className="h-3 w-3" />
-                                        Edit
+                                        Duplicate
                                       </Button>
                                     )}
-                                    {deal.status !== "voided" && (
-                                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive">
+                                    {deal.status !== "voided" && !isUsingDemoData && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
+                                        onClick={() => handleVoidDeal(deal.id)}
+                                      >
                                         <Trash2 className="h-3 w-3" />
                                         Void
                                       </Button>

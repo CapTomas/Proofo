@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,25 +22,26 @@ import {
   Clock,
   Download,
   ExternalLink,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useAppStore } from "@/store";
+import { Deal } from "@/types";
+import { formatDate } from "@/lib/crypto";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Demo deal data
-const demoDeal = {
+// Demo deal data for when deal is not found
+const demoDeal: Deal = {
   id: "demo123",
+  publicId: "demo123",
+  creatorId: "demo-creator",
   creatorName: "Alex Johnson",
-  creatorAvatar: "AJ",
   recipientName: "You",
   title: "Lend Camera Equipment",
   description: "Agreement to lend camera equipment",
-  template: {
-    name: "Lend Item",
-    icon: "📦",
-  },
   terms: [
     { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
     { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
@@ -51,25 +52,94 @@ const demoDeal = {
   status: "pending",
 };
 
-type Step = "review" | "sign" | "email" | "complete";
+type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found";
+
+// Template icons mapping
+const templateIcons: Record<string, string> = {
+  "lend-item": "📦",
+  "simple-agreement": "🤝",
+  "payment-promise": "💰",
+  "service-exchange": "🔄",
+  "custom": "✏️",
+};
 
 export default function DealConfirmPage({ params }: DealPageProps) {
   const resolvedParams = use(params);
+  const { getDealByPublicId, confirmDeal, addAuditLog, user } = useAppStore();
+  
   const [currentStep, setCurrentStep] = useState<Step>("review");
   const [signature, setSignature] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [isSealing, setIsSealing] = useState(false);
+  const [deal, setDeal] = useState<Deal | null>(null);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
+
+  // Find the deal by public ID
+  useEffect(() => {
+    const foundDeal = getDealByPublicId(resolvedParams.id);
+    
+    if (foundDeal) {
+      setDeal(foundDeal);
+      // Check deal status
+      if (foundDeal.status === "confirmed") {
+        setCurrentStep("already_signed");
+        setConfirmedDeal(foundDeal);
+      } else if (foundDeal.status === "voided") {
+        setCurrentStep("voided");
+      } else if (foundDeal.status === "sealing") {
+        setCurrentStep("sign");
+      }
+      
+      // Log deal view
+      addAuditLog({
+        dealId: foundDeal.id,
+        eventType: "deal_viewed",
+        actorId: user?.id || null,
+        actorType: "recipient",
+        metadata: { 
+          viewedAt: new Date().toISOString(),
+          isLoggedIn: !!user,
+        },
+      });
+    } else if (resolvedParams.id === "demo123") {
+      // Allow demo deal
+      setDeal(demoDeal);
+    } else {
+      setCurrentStep("not_found");
+    }
+  }, [resolvedParams.id, getDealByPublicId, addAuditLog, user]);
+
+  // Get creator initials
+  const creatorInitials = useMemo(() => {
+    if (!deal) return "??";
+    return deal.creatorName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  }, [deal]);
 
   const handleProceedToSign = () => {
     setCurrentStep("sign");
   };
 
   const handleSign = async () => {
-    if (!signature) return;
+    if (!signature || !deal) return;
 
     setIsSealing(true);
-    // Simulate sealing animation
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    
+    // If it's a real deal (not demo), confirm it in the store
+    if (deal.id !== "demo123") {
+      const result = await confirmDeal(deal.id, signature, email || undefined);
+      if (result) {
+        setConfirmedDeal(result);
+      }
+    } else {
+      // Demo delay
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+    
     setIsSealing(false);
     setCurrentStep("email");
   };
@@ -81,6 +151,25 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const handleSkipEmail = () => {
     setCurrentStep("complete");
   };
+
+  // Show loading if deal is not loaded yet
+  if (!deal && currentStep !== "not_found" && currentStep !== "voided" && currentStep !== "already_signed") {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"
+          />
+          <p className="text-muted-foreground">Loading deal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Current deal data to display
+  const displayDeal = confirmedDeal || deal || demoDeal;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
@@ -98,8 +187,77 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
       <main className="container mx-auto px-4 sm:px-6 py-8 max-w-2xl">
         <AnimatePresence mode="wait">
+          {/* Not Found State */}
+          {currentStep === "not_found" && (
+            <motion.div
+              key="not_found"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h1 className="text-2xl font-bold mb-3">Deal Not Found</h1>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                This deal doesn&apos;t exist or the link may have expired. Please check with the person who sent you this link.
+              </p>
+              <Link href="/">
+                <Button>Go to Proofo</Button>
+              </Link>
+            </motion.div>
+          )}
+
+          {/* Voided State */}
+          {currentStep === "voided" && displayDeal && (
+            <motion.div
+              key="voided"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+                <XCircle className="h-10 w-10 text-destructive" />
+              </div>
+              <h1 className="text-2xl font-bold mb-3">Deal Voided</h1>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                This deal has been voided by {displayDeal.creatorName} and is no longer available for signing.
+              </p>
+              <Link href="/">
+                <Button variant="outline">Go to Proofo</Button>
+              </Link>
+            </motion.div>
+          )}
+
+          {/* Already Signed State */}
+          {currentStep === "already_signed" && displayDeal && (
+            <motion.div
+              key="already_signed"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="h-20 w-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              </div>
+              <h1 className="text-2xl font-bold mb-3">Already Signed</h1>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                This deal has already been signed and sealed on {displayDeal.confirmedAt ? formatDate(displayDeal.confirmedAt) : "a previous date"}.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Download Receipt
+                </Button>
+                <Link href="/">
+                  <Button>Create Your Own Deals</Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
           {/* Step 1: Review Deal */}
-          {currentStep === "review" && (
+          {currentStep === "review" && displayDeal && (
             <motion.div
               key="review"
               initial={{ opacity: 0, y: 20 }}
@@ -113,11 +271,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   Secure Agreement
                 </Badge>
                 <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  {demoDeal.creatorName} wants to make a deal
+                  {displayDeal.creatorName} wants to make a deal
                 </h1>
                 <p className="text-muted-foreground">
                   Review the terms below before signing
                 </p>
+                {user && (
+                  <Badge variant="outline" className="mt-3 gap-1.5">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    Signing as {user.name}
+                  </Badge>
+                )}
               </div>
 
               {/* Creator Info */}
@@ -125,17 +289,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <CardContent className="p-5">
                   <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold">
-                      {demoDeal.creatorAvatar}
+                      {creatorInitials}
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold">{demoDeal.creatorName}</p>
+                      <p className="font-semibold">{displayDeal.creatorName}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5" />
-                        Created {new Date(demoDeal.createdAt).toLocaleDateString('en-US', { 
-                          month: 'long', 
-                          day: 'numeric', 
-                          year: 'numeric' 
-                        })}
+                        Created {formatDate(displayDeal.createdAt)}
                       </p>
                     </div>
                     <Badge variant="outline" className="gap-1.5">
@@ -150,17 +310,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               <Card className="mb-6 overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b pb-4">
                   <div className="flex items-center gap-4">
-                    <span className="text-4xl">{demoDeal.template.icon}</span>
+                    <span className="text-4xl">{templateIcons["simple-agreement"] || "🤝"}</span>
                     <div>
-                      <CardTitle className="text-xl">{demoDeal.title}</CardTitle>
+                      <CardTitle className="text-xl">{displayDeal.title}</CardTitle>
                       <CardDescription className="mt-1">
-                        {demoDeal.template.name}
+                        {displayDeal.description || "Agreement"}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
-                  {demoDeal.terms.map((term, index) => (
+                  {displayDeal.terms.map((term, index) => (
                     <motion.div 
                       key={term.id} 
                       className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
@@ -209,7 +369,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
           )}
 
           {/* Step 2: Sign */}
-          {currentStep === "sign" && (
+          {currentStep === "sign" && displayDeal && (
             <motion.div
               key="sign"
               initial={{ opacity: 0, y: 20 }}
@@ -449,19 +609,29 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <div className="flex items-center justify-between py-2 border-b">
                       <span className="text-muted-foreground text-sm">Sealed At</span>
                       <span className="font-medium text-sm">
-                        {new Date().toLocaleString('en-US', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
+                        {confirmedDeal?.confirmedAt
+                          ? formatDate(confirmedDeal.confirmedAt)
+                          : new Date().toLocaleString('en-US', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
                       </span>
                     </div>
+                    {confirmedDeal?.dealSeal && (
+                      <div className="flex items-center justify-between py-2 border-b">
+                        <span className="text-muted-foreground text-sm">Seal Hash</span>
+                        <Badge variant="outline" className="font-mono text-xs max-w-[200px] truncate">
+                          {confirmedDeal.dealSeal.slice(0, 16)}...
+                        </Badge>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between py-2">
                       <span className="text-muted-foreground text-sm">With</span>
                       <div className="flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground text-xs font-medium">
-                          {demoDeal.creatorAvatar}
+                          {creatorInitials}
                         </div>
-                        <span className="font-medium text-sm">{demoDeal.creatorName}</span>
+                        <span className="font-medium text-sm">{displayDeal.creatorName}</span>
                       </div>
                     </div>
                   </div>
