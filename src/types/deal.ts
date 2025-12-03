@@ -7,13 +7,16 @@ export interface Deal {
   creatorName: string;
   recipientName?: string;
   recipientEmail?: string;
+  recipientId?: string;
   title: string;
   description: string;
+  templateId?: string;
   terms: DealTerm[];
   status: DealStatus;
   createdAt: string;
   confirmedAt?: string;
   voidedAt?: string;
+  viewedAt?: string;
   signatureUrl?: string;
   dealSeal?: string;
   accessToken?: string;
@@ -48,6 +51,7 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  isPro?: boolean;
   createdAt: string;
 }
 
@@ -63,4 +67,25 @@ export interface ConfirmDealInput {
   accessToken: string;
   signatureData: string;
   recipientEmail?: string;
+}
+
+export type AuditEventType = 
+  | "deal_created"
+  | "deal_viewed"
+  | "deal_signed"
+  | "deal_confirmed"
+  | "deal_voided"
+  | "email_sent"
+  | "pdf_generated";
+
+export interface AuditLogEntry {
+  id: string;
+  dealId: string;
+  eventType: AuditEventType;
+  actorId: string | null;
+  actorType: "creator" | "recipient" | "system";
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
 }
