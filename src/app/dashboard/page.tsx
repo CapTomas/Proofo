@@ -39,6 +39,7 @@ import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { signOut, isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, voidDealAction } from "@/app/actions/deal-actions";
+import { OnboardingModal } from "@/components/onboarding-modal";
 
 // Demo data for when no deals exist
 const demoDeals: Deal[] = [
@@ -93,7 +94,16 @@ export default function DashboardPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasInitializedRef = useRef(false);
+
+  // Check if user needs onboarding (new user without a name)
+  useEffect(() => {
+    if (user && !user.name) {
+      setShowOnboarding(true);
+    }
+  }, [user]);
 
   // Fetch deals from database
   const refreshDeals = useCallback(async () => {
@@ -119,12 +129,24 @@ export default function DashboardPage() {
 
   // Handle logout
   const handleLogout = async () => {
-    if (isSupabaseConfigured()) {
-      await signOut();
+    setIsLoggingOut(true);
+    try {
+      if (isSupabaseConfigured()) {
+        await signOut();
+      }
+      // Clear local state
+      setUser(null);
+      setDeals([]);
+      // Clear persisted storage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("proofo-storage");
+      }
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setIsLoggingOut(false);
     }
-    setUser(null);
-    setDeals([]);
-    router.push("/");
   };
 
   // Use store deals if available, otherwise show demo deals
@@ -211,21 +233,27 @@ export default function DashboardPage() {
   const isPro = user?.isPro || false;
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
-        {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
-              <span className="text-background font-semibold text-xs">P</span>
-            </div>
-            <span className="font-semibold">Proofo</span>
-          </Link>
-        </div>
+    <>
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModal onComplete={() => setShowOnboarding(false)} />
+      )}
+      
+      <div className="min-h-screen bg-background flex">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
+          {/* Logo */}
+          <div className="h-14 flex items-center px-4 border-b">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
+                <span className="text-background font-semibold text-xs">P</span>
+              </div>
+              <span className="font-semibold">Proofo</span>
+            </Link>
+          </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+          {/* Navigation */}
+          <nav className="flex-1 px-3 py-4 space-y-1">
           <Link href="/dashboard">
             <Button variant="secondary" className="w-full justify-start gap-2 h-9 text-sm">
               <Home className="h-4 w-4" />
@@ -303,9 +331,14 @@ export default function DashboardPage() {
                     className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" 
                     size="sm"
                     onClick={handleLogout}
+                    disabled={isLoggingOut}
                   >
-                    <LogOut className="h-4 w-4" />
-                    Log Out
+                    {isLoggingOut ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogOut className="h-4 w-4" />
+                    )}
+                    {isLoggingOut ? "Logging out..." : "Log Out"}
                   </Button>
                 </motion.div>
               )}
@@ -657,5 +690,6 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+    </>
   );
 }

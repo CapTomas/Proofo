@@ -19,7 +19,9 @@ import {
   Clock,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAppStore } from "@/store";
 
 const features = [
   {
@@ -125,6 +127,8 @@ const itemVariants = {
 };
 
 export default function Home() {
+  const router = useRouter();
+  const { user } = useAppStore();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -133,6 +137,13 @@ export default function Home() {
   
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
+
+  // Redirect to dashboard if user is logged in
+  useEffect(() => {
+    if (user && !user.id.startsWith("demo-")) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -158,17 +169,28 @@ export default function Home() {
           </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-                Log In
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button size="sm">
-                Get Started
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </Link>
+            {user ? (
+              <Link href="/dashboard">
+                <Button size="sm">
+                  Dashboard
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
+                    Log In
+                  </Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button size="sm">
+                    Get Started
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
