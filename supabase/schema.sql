@@ -1,25 +1,39 @@
--- Proofo Database Schema for Supabase
--- This file creates all the necessary tables, types, and RLS policies
--- Run this in your Supabase SQL Editor to set up the database
+-- Proofo Database Schema
+-- Run this in Supabase SQL Editor
 
--- Enable UUID extension
+-- 1. Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create custom types
-CREATE TYPE deal_status AS ENUM ('pending', 'sealing', 'confirmed', 'voided');
-CREATE TYPE actor_type AS ENUM ('creator', 'recipient', 'system');
-CREATE TYPE audit_event_type AS ENUM (
-  'deal_created',
-  'deal_viewed', 
-  'deal_signed',
-  'deal_confirmed',
-  'deal_voided',
-  'email_sent',
-  'pdf_generated'
-);
+-- 2. Create custom types
+-- We use DO blocks to prevent errors if types already exist
+DO $$ BEGIN
+    CREATE TYPE deal_status AS ENUM ('pending', 'sealing', 'confirmed', 'voided');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- Profiles table (extends Supabase auth.users)
-CREATE TABLE profiles (
+DO $$ BEGIN
+    CREATE TYPE actor_type AS ENUM ('creator', 'recipient', 'system');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE audit_event_type AS ENUM (
+      'deal_created',
+      'deal_viewed',
+      'deal_signed',
+      'deal_confirmed',
+      'deal_voided',
+      'email_sent',
+      'pdf_generated'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- 3. Profiles table (extends Supabase auth.users)
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   name TEXT,
@@ -29,12 +43,12 @@ CREATE TABLE profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Deals table (core table)
-CREATE TABLE deals (
+-- 4. Deals table (core table)
+CREATE TABLE IF NOT EXISTS public.deals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   public_id TEXT UNIQUE NOT NULL,
-  creator_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  recipient_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  creator_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  recipient_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   recipient_name TEXT,
   recipient_email TEXT,
   title TEXT NOT NULL,
@@ -50,22 +64,22 @@ CREATE TABLE deals (
   viewed_at TIMESTAMPTZ
 );
 
--- Access tokens table (for secure recipient access)
-CREATE TABLE access_tokens (
+-- 5. Access tokens table (for secure recipient access)
+CREATE TABLE IF NOT EXISTS public.access_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  deal_id UUID NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+  deal_id UUID NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
   token TEXT NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Audit log table (append-only event log)
-CREATE TABLE audit_log (
+-- 6. Audit log table (append-only event log)
+CREATE TABLE IF NOT EXISTS public.audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  deal_id UUID NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+  deal_id UUID NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
   event_type audit_event_type NOT NULL,
-  actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   actor_type actor_type NOT NULL,
   ip_address INET,
   user_agent TEXT,
@@ -73,91 +87,76 @@ CREATE TABLE audit_log (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create indexes for performance
-CREATE INDEX idx_deals_public_id ON deals(public_id);
-CREATE INDEX idx_deals_creator_id ON deals(creator_id);
-CREATE INDEX idx_deals_recipient_id ON deals(recipient_id);
-CREATE INDEX idx_deals_recipient_email ON deals(recipient_email);
-CREATE INDEX idx_deals_status ON deals(status);
-CREATE INDEX idx_deals_created_at ON deals(created_at DESC);
-CREATE INDEX idx_access_tokens_token ON access_tokens(token);
-CREATE INDEX idx_access_tokens_deal_id ON access_tokens(deal_id);
-CREATE INDEX idx_audit_log_deal_id ON audit_log(deal_id);
-CREATE INDEX idx_audit_log_created_at ON audit_log(created_at DESC);
+-- 7. Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_deals_public_id ON public.deals(public_id);
+CREATE INDEX IF NOT EXISTS idx_deals_creator_id ON public.deals(creator_id);
+CREATE INDEX IF NOT EXISTS idx_deals_recipient_id ON public.deals(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_deals_recipient_email ON public.deals(recipient_email);
+CREATE INDEX IF NOT EXISTS idx_deals_status ON public.deals(status);
+CREATE INDEX IF NOT EXISTS idx_deals_created_at ON public.deals(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_token ON public.access_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id ON public.access_tokens(deal_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_deal_id ON public.audit_log(deal_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON public.audit_log(created_at DESC);
 
--- Enable Row Level Security
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE access_tokens ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+-- 8. Enable Row Level Security
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.access_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for profiles
-CREATE POLICY "Users can view their own profile"
-  ON profiles FOR SELECT
-  USING (auth.uid() = id);
+-- 9. RLS Policies
+-- Profiles
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile"
-  ON profiles FOR UPDATE
-  USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert their own profile"
-  ON profiles FOR INSERT
-  WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- RLS Policies for deals
-CREATE POLICY "Creators can view their own deals"
-  ON deals FOR SELECT
-  USING (auth.uid() = creator_id);
+-- Deals
+DROP POLICY IF EXISTS "Creators can view their own deals" ON public.deals;
+CREATE POLICY "Creators can view their own deals" ON public.deals FOR SELECT USING (auth.uid() = creator_id);
 
-CREATE POLICY "Recipients can view deals assigned to them"
-  ON deals FOR SELECT
-  USING (auth.uid() = recipient_id);
+DROP POLICY IF EXISTS "Recipients can view deals assigned to them" ON public.deals;
+CREATE POLICY "Recipients can view deals assigned to them" ON public.deals FOR SELECT USING (auth.uid() = recipient_id);
 
-CREATE POLICY "Authenticated users can create deals"
-  ON deals FOR INSERT
-  WITH CHECK (auth.uid() = creator_id);
+DROP POLICY IF EXISTS "Authenticated users can create deals" ON public.deals;
+CREATE POLICY "Authenticated users can create deals" ON public.deals FOR INSERT WITH CHECK (auth.uid() = creator_id);
 
-CREATE POLICY "Creators can update their own deals"
-  ON deals FOR UPDATE
-  USING (auth.uid() = creator_id);
+DROP POLICY IF EXISTS "Creators can update their own deals" ON public.deals;
+CREATE POLICY "Creators can update their own deals" ON public.deals FOR UPDATE USING (auth.uid() = creator_id);
 
--- RLS Policies for access_tokens
-CREATE POLICY "Creators can view their deal tokens"
-  ON access_tokens FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM deals 
-      WHERE deals.id = access_tokens.deal_id 
-      AND deals.creator_id = auth.uid()
-    )
-  );
+-- Access Tokens
+DROP POLICY IF EXISTS "Creators can view their deal tokens" ON public.access_tokens;
+CREATE POLICY "Creators can view their deal tokens" ON public.access_tokens FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.deals WHERE deals.id = access_tokens.deal_id AND deals.creator_id = auth.uid())
+);
 
-CREATE POLICY "Creators can create tokens for their deals"
-  ON access_tokens FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM deals 
-      WHERE deals.id = access_tokens.deal_id 
-      AND deals.creator_id = auth.uid()
-    )
-  );
+DROP POLICY IF EXISTS "Creators can create tokens for their deals" ON public.access_tokens;
+CREATE POLICY "Creators can create tokens for their deals" ON public.access_tokens FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.deals WHERE deals.id = access_tokens.deal_id AND deals.creator_id = auth.uid())
+);
 
--- RLS Policies for audit_log
-CREATE POLICY "Users can view audit logs for their deals"
-  ON audit_log FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM deals 
-      WHERE deals.id = audit_log.deal_id 
-      AND (deals.creator_id = auth.uid() OR deals.recipient_id = auth.uid())
-    )
-  );
+-- Audit Log
+DROP POLICY IF EXISTS "Users can view audit logs for their deals" ON public.audit_log;
+CREATE POLICY "Users can view audit logs for their deals" ON public.audit_log FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.deals
+    WHERE deals.id = audit_log.deal_id
+    AND (deals.creator_id = auth.uid() OR deals.recipient_id = auth.uid())
+  )
+);
 
--- Function to handle new user signup
-CREATE OR REPLACE FUNCTION handle_new_user()
+-- 10. Functions & Triggers
+
+-- FIXED: Handle new user signup with explicit schema and search_path
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, name)
+  INSERT INTO public.profiles (id, email, name)
   VALUES (
     NEW.id,
     NEW.email,
@@ -165,35 +164,34 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Trigger to create profile on signup
-CREATE OR REPLACE TRIGGER on_auth_user_created
+-- Trigger for new user
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Function to retroactively sync deals for new users
-CREATE OR REPLACE FUNCTION sync_deals_for_new_user()
+-- Function to retroactively sync deals
+CREATE OR REPLACE FUNCTION public.sync_deals_for_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Find any deals where this user's email is the recipient
-  -- and link them to the new user
-  UPDATE deals
+  UPDATE public.deals
   SET recipient_id = NEW.id
   WHERE recipient_email = NEW.email
     AND recipient_id IS NULL;
-  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to sync deals when profile is created
-CREATE OR REPLACE TRIGGER on_profile_created
-  AFTER INSERT ON profiles
-  FOR EACH ROW EXECUTE FUNCTION sync_deals_for_new_user();
+-- Trigger for syncing deals
+DROP TRIGGER IF EXISTS on_profile_created ON public.profiles;
+CREATE TRIGGER on_profile_created
+  AFTER INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.sync_deals_for_new_user();
 
 -- Function to confirm deal with token validation
-CREATE OR REPLACE FUNCTION confirm_deal_with_token(
+CREATE OR REPLACE FUNCTION public.confirm_deal_with_token(
   p_deal_id UUID,
   p_token TEXT,
   p_signature_data TEXT,
@@ -201,14 +199,14 @@ CREATE OR REPLACE FUNCTION confirm_deal_with_token(
   p_recipient_email TEXT DEFAULT NULL,
   p_recipient_id UUID DEFAULT NULL
 )
-RETURNS deals AS $$
+RETURNS public.deals AS $$
 DECLARE
-  v_deal deals;
+  v_deal public.deals;
   v_token_valid BOOLEAN;
 BEGIN
   -- Validate the token
   SELECT EXISTS(
-    SELECT 1 FROM access_tokens
+    SELECT 1 FROM public.access_tokens
     WHERE deal_id = p_deal_id
       AND token = p_token
       AND expires_at > NOW()
@@ -220,13 +218,13 @@ BEGIN
   END IF;
 
   -- Mark token as used
-  UPDATE access_tokens
+  UPDATE public.access_tokens
   SET used_at = NOW()
   WHERE deal_id = p_deal_id AND token = p_token;
 
   -- Update the deal
-  UPDATE deals
-  SET 
+  UPDATE public.deals
+  SET
     status = 'confirmed',
     signature_url = p_signature_data,
     deal_seal = p_deal_seal,
@@ -242,7 +240,7 @@ BEGIN
   END IF;
 
   -- Add audit log entry
-  INSERT INTO audit_log (deal_id, event_type, actor_id, actor_type, metadata)
+  INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata)
   VALUES (p_deal_id, 'deal_confirmed', p_recipient_id, 'recipient', jsonb_build_object(
     'has_seal', p_deal_seal IS NOT NULL,
     'has_email', p_recipient_email IS NOT NULL
@@ -252,26 +250,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get deal by public ID (for public access)
-CREATE OR REPLACE FUNCTION get_deal_by_public_id(p_public_id TEXT)
-RETURNS deals AS $$
+-- Function to get deal by public ID
+CREATE OR REPLACE FUNCTION public.get_deal_by_public_id(p_public_id TEXT)
+RETURNS public.deals AS $$
 DECLARE
-  v_deal deals;
+  v_deal public.deals;
 BEGIN
   SELECT * INTO v_deal
-  FROM deals
+  FROM public.deals
   WHERE public_id = p_public_id;
-  
   RETURN v_deal;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to validate access token
-CREATE OR REPLACE FUNCTION validate_access_token(p_deal_id UUID, p_token TEXT)
+CREATE OR REPLACE FUNCTION public.validate_access_token(p_deal_id UUID, p_token TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS(
-    SELECT 1 FROM access_tokens
+    SELECT 1 FROM public.access_tokens
     WHERE deal_id = p_deal_id
       AND token = p_token
       AND expires_at > NOW()
@@ -281,7 +278,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Updated at trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -290,11 +287,18 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger for profiles updated_at
-CREATE OR REPLACE TRIGGER update_profiles_updated_at
-  BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- Grant execute permissions on functions to authenticated and anon users
-GRANT EXECUTE ON FUNCTION get_deal_by_public_id(TEXT) TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION validate_access_token(UUID, TEXT) TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated, anon;
+-- 11. Permissions (Critical for API access)
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
+-- 12. Public Function Grants
+GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated, anon;
