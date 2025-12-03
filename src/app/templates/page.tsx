@@ -37,6 +37,7 @@ const iconMap: Record<string, LucideIcon> = {
 
 export default function TemplatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
 
   // Filter templates based on search
   const filteredTemplates = dealTemplates.filter((template) =>
@@ -132,14 +133,21 @@ export default function TemplatesPage() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {template.fields.slice(0, 3).map((field) => (
+                      {(expandedTemplateId === template.id ? template.fields : template.fields.slice(0, 3)).map((field) => (
                         <Badge key={field.id} variant="outline" className="text-xs font-normal">
                           {field.label}
                         </Badge>
                       ))}
                       {template.fields.length > 3 && (
-                        <Badge variant="outline" className="text-xs font-normal">
-                          +{template.fields.length - 3} more
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs font-normal cursor-pointer hover:bg-secondary/80 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedTemplateId(expandedTemplateId === template.id ? null : template.id);
+                          }}
+                        >
+                          {expandedTemplateId === template.id ? "Show less" : `+${template.fields.length - 3} more`}
                         </Badge>
                       )}
                     </div>
