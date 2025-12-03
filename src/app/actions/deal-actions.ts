@@ -475,13 +475,14 @@ export async function ensureProfileExistsAction(): Promise<{
       .single();
 
     if (existingProfile && !selectError) {
-      // Profile exists
+      // Profile exists - check if onboarding is needed
+      const hasValidName = !!existingProfile.name && existingProfile.name.trim() !== "";
       return {
         profile: {
           id: existingProfile.id,
           email: existingProfile.email,
           name: existingProfile.name,
-          hasCompletedOnboarding: !!existingProfile.name && existingProfile.name.trim() !== "",
+          hasCompletedOnboarding: hasValidName,
         },
         error: null,
       };
@@ -490,8 +491,10 @@ export async function ensureProfileExistsAction(): Promise<{
     // Profile doesn't exist, create it
     const defaultName = user.user_metadata?.full_name || 
                         user.user_metadata?.name || 
-                        user.email?.split("@")[0] || 
                         "";
+    
+    // Check if we have a meaningful name (not just email prefix)
+    const hasValidDefaultName = !!defaultName && defaultName.trim() !== "";
     
     const { data: newProfile, error: insertError } = await supabase
       .from("profiles")
@@ -513,8 +516,8 @@ export async function ensureProfileExistsAction(): Promise<{
         id: newProfile.id,
         email: newProfile.email,
         name: newProfile.name,
-        // New profile needs onboarding if no name or name is just email prefix
-        hasCompletedOnboarding: false,
+        // Mark onboarding complete if user came with a valid name from OAuth (e.g., Google)
+        hasCompletedOnboarding: hasValidDefaultName,
       },
       error: null,
     };
