@@ -22,20 +22,25 @@ async function createServerSupabaseClient() {
           try {
             cookieStore.set({ name, value, ...options });
           } catch {
-            // This can fail in some edge cases, ignore
+            // Cookies can fail during static generation or in middleware
+            // This is expected behavior in Next.js and can be safely ignored
           }
         },
         remove(name: string, options) {
           try {
             cookieStore.delete({ name, ...options });
           } catch {
-            // This can fail in some edge cases, ignore
+            // Cookies can fail during static generation or in middleware
+            // This is expected behavior in Next.js and can be safely ignored
           }
         },
       },
     }
   );
 }
+
+// App URL configuration
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // Generate secure IDs on the server
 export async function generateSecureIds(): Promise<{ publicId: string; accessToken: string }> {
@@ -168,8 +173,7 @@ export async function createDealAction(data: {
       .eq("id", user.id)
       .single();
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const shareUrl = `${baseUrl}/d/${publicId}`;
+    const shareUrl = `${APP_URL}/d/${publicId}`;
 
     return {
       deal: {
@@ -305,11 +309,13 @@ export async function confirmDealAction(data: {
     );
 
     if (uploadError || !signatureUrl) {
-      // If storage fails, store the base64 directly (fallback)
-      console.warn("Storage upload failed, using base64 fallback");
+      // If storage upload fails, return an error instead of using base64 fallback
+      // Base64 storage in database would cause performance issues
+      console.error("Signature upload failed:", uploadError);
+      return { deal: null, error: "Failed to upload signature. Please try again." };
     }
 
-    const finalSignatureUrl = signatureUrl || data.signatureBase64;
+    const finalSignatureUrl = signatureUrl;
 
     // Calculate seal on the server
     const timestamp = new Date().toISOString();

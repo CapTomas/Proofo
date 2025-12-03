@@ -109,8 +109,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
-      // Use void to suppress the lint warning about not awaiting
-      void refreshDeals();
+      // Fire-and-forget pattern for initial data fetch
+      // Errors are logged inside refreshDeals, no need to handle here
+      refreshDeals().catch((err) => {
+        console.error("Failed to refresh deals on mount:", err);
+      });
     }
   }, [user, refreshDeals]);
 

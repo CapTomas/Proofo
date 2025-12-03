@@ -51,7 +51,17 @@ export default function VerifyPage() {
         setSearchedDeal(deal);
         // Fetch audit logs
         const { logs } = await getAuditLogsAction(deal.id);
-        setAuditLogs(logs as AuditLogEntry[]);
+        // Transform logs to match AuditLogEntry type
+        const transformedLogs: AuditLogEntry[] = logs.map((log) => ({
+          id: log.id,
+          dealId: log.dealId,
+          eventType: log.eventType as AuditLogEntry["eventType"],
+          actorId: log.actorId,
+          actorType: log.actorType as AuditLogEntry["actorType"],
+          metadata: log.metadata || {},
+          createdAt: log.createdAt,
+        }));
+        setAuditLogs(transformedLogs);
       } else {
         setSearchedDeal(null);
         setAuditLogs([]);

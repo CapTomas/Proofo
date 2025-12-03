@@ -166,9 +166,9 @@ export default function NewDealPage() {
       });
 
       setCreatedDeal(newDeal);
-      setShareUrl(typeof window !== "undefined" 
-        ? `${window.location.origin}/d/${newDeal.publicId}` 
-        : `https://proofo.app/d/${newDeal.publicId}`);
+      // Use window.location.origin for consistent URL generation in demo mode
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      setShareUrl(`${baseUrl}/d/${newDeal.publicId}`);
     }
 
     setIsCreating(false);
