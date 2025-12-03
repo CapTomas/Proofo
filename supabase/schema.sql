@@ -325,3 +325,32 @@ GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, a
 GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticated, anon;
+
+-- ============================================
+-- STORAGE SETUP (Run in Supabase Dashboard)
+-- ============================================
+-- Note: Storage buckets cannot be created via SQL directly.
+-- You need to create them in the Supabase Dashboard:
+--
+-- 1. Go to Storage in your Supabase Dashboard
+-- 2. Click "New bucket"
+-- 3. Create a bucket named "signatures" with these settings:
+--    - Public bucket: YES (to allow public access to signature images)
+--    - Allowed MIME types: image/png, image/jpeg
+--    - Max file size: 1MB
+--
+-- 4. Add a policy for the "signatures" bucket:
+--    - Policy name: "Allow public read access"
+--    - Allowed operation: SELECT
+--    - Target roles: public
+--    - Policy definition: true
+--
+-- 5. Add another policy:
+--    - Policy name: "Allow authenticated uploads"  
+--    - Allowed operation: INSERT
+--    - Target roles: public (for anonymous recipients)
+--    - Policy definition: true
+--
+-- Alternative: Create bucket via Supabase Dashboard Storage Settings:
+-- Navigate to Storage > Configuration > "Create a new bucket"
+-- ============================================

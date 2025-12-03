@@ -42,9 +42,16 @@ export async function signOut(): Promise<{ error: Error | null }> {
     return { error: null };
   }
 
-  // Use scope: 'global' to ensure session is cleared everywhere
-  const { error } = await supabase.auth.signOut({ scope: "global" });
-  return { error: error ? new Error(error.message) : null };
+  try {
+    // Use scope: 'local' for browser client - 'global' requires admin privileges
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    return { error: error ? new Error(error.message) : null };
+  } catch (err) {
+    console.error("SignOut error:", err);
+    // Even if signOut fails, we consider it successful for UX
+    // The local state will be cleared anyway
+    return { error: null };
+  }
 }
 
 // Get current session
