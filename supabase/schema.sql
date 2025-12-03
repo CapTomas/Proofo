@@ -298,6 +298,11 @@ RETURNS TEXT AS $$
 DECLARE
   v_token TEXT;
 BEGIN
+  -- Validate input
+  IF p_deal_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
   SELECT token INTO v_token
   FROM public.access_tokens
   WHERE deal_id = p_deal_id

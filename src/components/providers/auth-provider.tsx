@@ -24,12 +24,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(user);
         // Fetch user's deals from Supabase using server action
         const { deals, error } = await getUserDealsAction();
-        if (!error && deals.length > 0) {
-          setDeals(deals);
-        } else {
-          // Clear deals if none found or error
-          setDeals([]);
+        if (error) {
+          console.error("Error fetching user deals:", error);
         }
+        // Set deals regardless of error (empty array if error or no deals)
+        setDeals(deals || []);
       } else {
         setUser(null);
         setDeals([]);
