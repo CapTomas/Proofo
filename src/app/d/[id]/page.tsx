@@ -140,9 +140,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
           setIsLoadingDeal(false);
           return;
         }
+        
+        // If Supabase failed, fall through to local store
       }
 
-      // Fall back to local store (for demo/local mode without Supabase)
+      // Fall back to local store (for demo/local mode without Supabase or if Supabase fetch failed)
       const localDeal = getDealByPublicId(resolvedParams.id);
       if (localDeal) {
         setDbDeal(localDeal);
