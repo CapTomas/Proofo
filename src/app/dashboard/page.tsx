@@ -87,7 +87,15 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { deals: storeDeals, user, voidDeal: storeVoidDeal, setUser, setDeals } = useAppStore();
+  const { 
+    deals: storeDeals, 
+    user, 
+    voidDeal: storeVoidDeal, 
+    setUser, 
+    setDeals,
+    needsOnboarding,
+    setNeedsOnboarding 
+  } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -98,12 +106,19 @@ export default function DashboardPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Check if user needs onboarding (new user without a name)
+  // Check if user needs onboarding
   useEffect(() => {
-    if (user && !user.name) {
+    // Show onboarding if user is logged in (not a demo user) and needs onboarding
+    if (user && !user.id.startsWith("demo-") && needsOnboarding) {
       setShowOnboarding(true);
     }
-  }, [user]);
+  }, [user, needsOnboarding]);
+
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    setNeedsOnboarding(false);
+  };
 
   // Fetch deals from database
   const refreshDeals = useCallback(async () => {
@@ -236,7 +251,7 @@ export default function DashboardPage() {
     <>
       {/* Onboarding Modal */}
       {showOnboarding && (
-        <OnboardingModal onComplete={() => setShowOnboarding(false)} />
+        <OnboardingModal onComplete={handleOnboardingComplete} />
       )}
       
       <div className="min-h-screen bg-background flex">

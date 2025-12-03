@@ -454,6 +454,76 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
   }
 }
 
+// Ensure user profile exists in database (upsert)
+export async function ensureProfileExistsAction(): Promise<{ 
+  profile: { id: string; email: string; name: string | null; hasCompletedOnboarding: boolean } | null; 
+  error: string | null 
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { profile: null, error: "Not authenticated" };
+    }
+
+    // Try to get existing profile
+    const { data: existingProfile, error: selectError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (existingProfile && !selectError) {
+      // Profile exists
+      return {
+        profile: {
+          id: existingProfile.id,
+          email: existingProfile.email,
+          name: existingProfile.name,
+          hasCompletedOnboarding: !!existingProfile.name && existingProfile.name.trim() !== "",
+        },
+        error: null,
+      };
+    }
+
+    // Profile doesn't exist, create it
+    const defaultName = user.user_metadata?.full_name || 
+                        user.user_metadata?.name || 
+                        user.email?.split("@")[0] || 
+                        "";
+    
+    const { data: newProfile, error: insertError } = await supabase
+      .from("profiles")
+      .insert({
+        id: user.id,
+        email: user.email || "",
+        name: defaultName || null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error creating profile:", insertError);
+      return { profile: null, error: insertError.message };
+    }
+
+    return {
+      profile: {
+        id: newProfile.id,
+        email: newProfile.email,
+        name: newProfile.name,
+        // New profile needs onboarding if no name or name is just email prefix
+        hasCompletedOnboarding: false,
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error ensuring profile exists:", error);
+    return { profile: null, error: "Server error" };
+  }
+}
+
 // Update user profile
 export async function updateProfileAction(updates: {
   name?: string;
@@ -465,6 +535,12 @@ export async function updateProfileAction(updates: {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
+    }
+
+    // First ensure profile exists
+    const { error: ensureError } = await ensureProfileExistsAction();
+    if (ensureError) {
+      return { error: ensureError };
     }
 
     const { error } = await supabase

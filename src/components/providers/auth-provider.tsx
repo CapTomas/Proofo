@@ -3,10 +3,10 @@
 import { useEffect, useRef, useCallback } from "react";
 import { supabase, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
 import { useAppStore } from "@/store";
-import { getUserDealsAction } from "@/app/actions/deal-actions";
+import { getUserDealsAction, ensureProfileExistsAction } from "@/app/actions/deal-actions";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setDeals, setIsLoading } = useAppStore();
+  const { setUser, setDeals, setIsLoading, setNeedsOnboarding } = useAppStore();
   const isInitializedRef = useRef(false);
 
   // Memoize the sync function to prevent recreating on each render
@@ -18,10 +18,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setIsLoading(true);
+      
+      // First ensure profile exists and check onboarding status
+      const { profile, error: profileError } = await ensureProfileExistsAction();
+      
+      if (profileError || !profile) {
+        // Not authenticated or error
+        setUser(null);
+        setDeals([]);
+        setNeedsOnboarding(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Get full user info
       const user = await getCurrentUser();
       
       if (user) {
         setUser(user);
+        // Set onboarding flag based on profile status
+        setNeedsOnboarding(!profile.hasCompletedOnboarding);
+        
         // Fetch user's deals from Supabase using server action
         const { deals, error } = await getUserDealsAction();
         if (error) {
@@ -32,15 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
         setDeals([]);
+        setNeedsOnboarding(false);
       }
     } catch (error) {
       console.error("Error syncing auth state:", error);
       setUser(null);
       setDeals([]);
+      setNeedsOnboarding(false);
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setDeals, setIsLoading]);
+  }, [setUser, setDeals, setIsLoading, setNeedsOnboarding]);
 
   useEffect(() => {
     // Prevent double initialization in development mode
@@ -60,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setDeals([]);
+          setNeedsOnboarding(false);
         }
       }
     );
@@ -67,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [syncUserAndDeals, setUser, setDeals]);
+  }, [syncUserAndDeals, setUser, setDeals, setNeedsOnboarding]);
 
   return <>{children}</>;
 }
