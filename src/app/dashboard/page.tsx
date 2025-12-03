@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +38,7 @@ import { Deal, DealStatus } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { signOut, isSupabaseConfigured } from "@/lib/supabase";
+import { getUserDealsAction, voidDealAction } from "@/app/actions/deal-actions";
 
 // Demo data for when no deals exist
 const demoDeals: Deal[] = [
@@ -85,12 +86,33 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { deals: storeDeals, user, voidDeal, setUser } = useAppStore();
+  const { deals: storeDeals, user, voidDeal: storeVoidDeal, setUser, setDeals } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
+  const [isVoiding, setIsVoiding] = useState<string | null>(null);
+  const hasInitializedRef = useRef(false);
+
+  // Fetch deals from database
+  const refreshDeals = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
+    
+    const { deals, error } = await getUserDealsAction();
+    if (!error && deals.length > 0) {
+      setDeals(deals);
+    }
+  }, [setDeals]);
+
+  // Refresh deals on mount (only once)
+  useEffect(() => {
+    if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
+      hasInitializedRef.current = true;
+      // Use void to suppress the lint warning about not awaiting
+      void refreshDeals();
+    }
+  }, [user, refreshDeals]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -98,6 +120,7 @@ export default function DashboardPage() {
       await signOut();
     }
     setUser(null);
+    setDeals([]);
     router.push("/");
   };
 
@@ -145,14 +168,31 @@ export default function DashboardPage() {
     }
   };
 
-  const handleVoidDeal = (dealId: string) => {
-    if (confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
-      voidDeal(dealId);
+  const handleVoidDeal = async (dealId: string) => {
+    if (!confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
+      return;
     }
+
+    setIsVoiding(dealId);
+
+    // Check if using Supabase
+    if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
+      const { error } = await voidDealAction(dealId);
+      if (!error) {
+        // Refresh deals to get updated state
+        await refreshDeals();
+      }
+    } else {
+      // Use local store
+      storeVoidDeal(dealId);
+    }
+
+    setIsVoiding(null);
   };
 
   const handleDuplicate = () => {
-    // Navigate to new deal page
+    // Navigate to new deal page with pre-filled data (via query params or state)
+    // For now, just navigate to new deal page
     if (typeof window !== "undefined") {
       window.location.assign("/deal/new");
     }
@@ -570,9 +610,14 @@ export default function DashboardPage() {
                                         size="sm" 
                                         className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
                                         onClick={() => handleVoidDeal(deal.id)}
+                                        disabled={isVoiding === deal.id}
                                       >
-                                        <Trash2 className="h-3 w-3" />
-                                        Void
+                                        {isVoiding === deal.id ? (
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="h-3 w-3" />
+                                        )}
+                                        {isVoiding === deal.id ? "Voiding..." : "Void"}
                                       </Button>
                                     )}
                                   </div>

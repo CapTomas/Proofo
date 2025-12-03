@@ -36,6 +36,13 @@ import Link from "next/link";
 import { useAppStore } from "@/store";
 import { Deal } from "@/types";
 import { formatDate } from "@/lib/crypto";
+import { 
+  getDealByPublicIdAction, 
+  getAccessTokenAction, 
+  confirmDealAction,
+  markDealViewedAction 
+} from "@/app/actions/deal-actions";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -92,29 +99,91 @@ function getInitialStep(deal: Deal | null): Step {
 
 export default function DealConfirmPage({ params }: DealPageProps) {
   const resolvedParams = use(params);
-  const { getDealByPublicId, confirmDeal, addAuditLog, user } = useAppStore();
+  const { getDealByPublicId, confirmDeal: storeConfirmDeal, addAuditLog, user } = useAppStore();
   const hasLoggedViewRef = useRef(false);
+  const hasFetchedRef = useRef(false);
   
-  // Find the deal by public ID using useMemo
-  const deal = useMemo(() => {
-    const foundDeal = getDealByPublicId(resolvedParams.id);
-    if (foundDeal) {
-      return foundDeal;
-    } else if (resolvedParams.id === "demo123") {
-      return demoDeal;
-    }
-    return null;
-  }, [resolvedParams.id, getDealByPublicId]);
+  // State for database deal
+  const [dbDeal, setDbDeal] = useState<Deal | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoadingDeal, setIsLoadingDeal] = useState(true);
+  const [sealError, setSealError] = useState<string | null>(null);
 
-  // Use lazy initialization for initial step - safe because URL params don't change during lifecycle
-  // and the deal status is determined on initial load
-  const [currentStep, setCurrentStep] = useState<Step>(() => getInitialStep(deal));
+  // Fetch deal from database on mount
+  useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    const fetchDeal = async () => {
+      // First check local store (for demo/local mode)
+      const localDeal = getDealByPublicId(resolvedParams.id);
+      if (localDeal) {
+        setDbDeal(localDeal);
+        setIsLoadingDeal(false);
+        return;
+      }
+
+      // Handle demo deal
+      if (resolvedParams.id === "demo123") {
+        setDbDeal(demoDeal);
+        setIsLoadingDeal(false);
+        return;
+      }
+
+      // Try to fetch from Supabase
+      if (isSupabaseConfigured()) {
+        const { deal: fetchedDeal, error } = await getDealByPublicIdAction(resolvedParams.id);
+        
+        if (fetchedDeal && !error) {
+          setDbDeal(fetchedDeal);
+          
+          // Get access token for this deal
+          const { token } = await getAccessTokenAction(fetchedDeal.id);
+          if (token) {
+            setAccessToken(token);
+          }
+          
+          // Mark as viewed
+          await markDealViewedAction(resolvedParams.id);
+        }
+      }
+      
+      setIsLoadingDeal(false);
+    };
+
+    fetchDeal();
+  }, [resolvedParams.id, getDealByPublicId]);
+  
+  // Get the deal to display
+  const deal = dbDeal;
+
+  // Track the step state - initial value depends on whether deal is loaded
+  const [stepOverride, setStepOverride] = useState<Step | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [isSealing, setIsSealing] = useState(false);
-  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(() => 
-    deal?.status === "confirmed" ? deal : null
-  );
+  // Track the deal that was confirmed by user action
+  const [sealedDeal, setSealedDeal] = useState<Deal | null>(null);
+
+  // Calculate current step based on deal state and any user navigation
+  const currentStep = useMemo(() => {
+    // If user has navigated to a specific step, use that
+    if (stepOverride) return stepOverride;
+    // If still loading, show loading (not a step per se, handled separately)
+    if (isLoadingDeal) return "review";
+    // If no deal, show not found
+    if (!deal) return "not_found";
+    // Otherwise determine from deal status
+    return getInitialStep(deal);
+  }, [stepOverride, isLoadingDeal, deal]);
+
+  // Helper to navigate to a step
+  const setCurrentStep = (step: Step) => {
+    setStepOverride(step);
+  };
+
+  // The confirmed deal is either one we just sealed, or one that was already confirmed in DB
+  const confirmedDeal = sealedDeal || (deal?.status === "confirmed" ? deal : null);
 
   // Log deal view for non-demo deals (using ref to track)
   useEffect(() => {
@@ -152,16 +221,39 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     if (!signature || !deal) return;
 
     setIsSealing(true);
+    setSealError(null);
     
-    // If it's a real deal (not demo), confirm it in the store
-    if (deal.id !== "demo123") {
-      const result = await confirmDeal(deal.id, signature, email || undefined);
-      if (result) {
-        setConfirmedDeal(result);
-      }
-    } else {
-      // Demo delay
+    // If it's a demo deal, use local store
+    if (deal.id === "demo123") {
       await new Promise((resolve) => setTimeout(resolve, 2500));
+      setIsSealing(false);
+      setCurrentStep("email");
+      return;
+    }
+
+    // Check if we have an access token and should use Supabase
+    if (accessToken && isSupabaseConfigured()) {
+      // Use server action for secure sealing
+      const { deal: confirmedResult, error } = await confirmDealAction({
+        dealId: deal.id,
+        token: accessToken,
+        signatureBase64: signature,
+        recipientEmail: email || undefined,
+      });
+
+      if (error || !confirmedResult) {
+        setSealError(error || "Failed to seal deal");
+        setIsSealing(false);
+        return;
+      }
+
+      setSealedDeal(confirmedResult);
+    } else {
+      // Use local store (demo mode)
+      const result = await storeConfirmDeal(deal.id, signature, email || undefined);
+      if (result) {
+        setSealedDeal(result);
+      }
     }
     
     setIsSealing(false);
@@ -176,8 +268,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     setCurrentStep("complete");
   };
 
-  // Show loading if deal is not loaded yet
-  if (!deal && currentStep !== "not_found" && currentStep !== "voided" && currentStep !== "already_signed") {
+  // Show loading if deal is being fetched
+  if (isLoadingDeal) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
         <div className="text-center">
@@ -187,6 +279,26 @@ export default function DealConfirmPage({ params }: DealPageProps) {
             className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"
           />
           <p className="text-muted-foreground">Loading deal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show not found if no deal after loading
+  if (!deal && !isLoadingDeal) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
+        <div className="text-center py-12">
+          <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold mb-3">Deal Not Found</h1>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            This deal doesn&apos;t exist or the link may have expired. Please check with the person who sent you this link.
+          </p>
+          <Link href="/">
+            <Button>Go to Proofo</Button>
+          </Link>
         </div>
       </div>
     );
@@ -440,6 +552,15 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   Draw your signature below to seal this agreement
                 </p>
               </div>
+
+              {sealError && (
+                <Card className="mb-6 border-destructive/50 bg-destructive/5">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+                    <p className="text-sm text-destructive">{sealError}</p>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="mb-6">
                 <CardContent className="p-6 sm:p-8">

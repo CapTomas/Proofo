@@ -34,6 +34,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
 import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
+import { createDealAction } from "@/app/actions/deal-actions";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 // Icon mapping for templates
 const iconMap: Record<string, LucideIcon> = {
@@ -70,16 +72,18 @@ export default function NewDealPage() {
   const [copied, setCopied] = useState(false);
   const [createdDeal, setCreatedDeal] = useState<Deal | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string>("");
 
   // Use logged in user or demo user
   const currentUser = user || defaultUser;
 
-  // Generate the deal link
-  const dealLink = createdDeal
+  // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
+  const dealLink = shareUrl || (createdDeal
     ? typeof window !== "undefined"
       ? `${window.location.origin}/d/${createdDeal.publicId}`
       : `https://proofo.app/d/${createdDeal.publicId}`
-    : "";
+    : "");
 
   const handleTemplateSelect = (template: DealTemplate) => {
     setSelectedTemplate(template);
@@ -100,6 +104,7 @@ export default function NewDealPage() {
     if (!selectedTemplate) return;
 
     setIsCreating(true);
+    setCreateError(null);
 
     // Build terms from form data
     const terms = selectedTemplate.fields
@@ -112,31 +117,60 @@ export default function NewDealPage() {
         type: field.type === "textarea" ? "text" : field.type,
       }));
 
-    // Create the new deal
-    const newDeal = createNewDeal(currentUser, {
-      templateId: selectedTemplate.id,
-      title: selectedTemplate.name,
-      recipientName,
-      terms,
-      description: `${selectedTemplate.name} agreement with ${recipientName}`,
-    });
-
-    // Add to store
-    addDeal(newDeal);
-
-    // Add audit log entry
-    addAuditLog({
-      dealId: newDeal.id,
-      eventType: "deal_created",
-      actorId: currentUser.id,
-      actorType: "creator",
-      metadata: {
+    // Try to use server action if user is authenticated with Supabase
+    const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
+    
+    if (isRealUser) {
+      // Use server action for real database storage
+      const { deal, shareUrl: serverShareUrl, error } = await createDealAction({
+        title: selectedTemplate.name,
+        description: `${selectedTemplate.name} agreement with ${recipientName}`,
         templateId: selectedTemplate.id,
         recipientName,
-      },
-    });
+        terms,
+      });
 
-    setCreatedDeal(newDeal);
+      if (error || !deal) {
+        setCreateError(error || "Failed to create deal");
+        setIsCreating(false);
+        return;
+      }
+
+      // Add to local store for immediate display
+      addDeal(deal);
+      setCreatedDeal(deal);
+      setShareUrl(serverShareUrl || "");
+    } else {
+      // Demo mode - use local storage
+      const newDeal = createNewDeal(currentUser, {
+        templateId: selectedTemplate.id,
+        title: selectedTemplate.name,
+        recipientName,
+        terms,
+        description: `${selectedTemplate.name} agreement with ${recipientName}`,
+      });
+
+      // Add to store
+      addDeal(newDeal);
+
+      // Add audit log entry (local)
+      addAuditLog({
+        dealId: newDeal.id,
+        eventType: "deal_created",
+        actorId: currentUser.id,
+        actorType: "creator",
+        metadata: {
+          templateId: selectedTemplate.id,
+          recipientName,
+        },
+      });
+
+      setCreatedDeal(newDeal);
+      setShareUrl(typeof window !== "undefined" 
+        ? `${window.location.origin}/d/${newDeal.publicId}` 
+        : `https://proofo.app/d/${newDeal.publicId}`);
+    }
+
     setIsCreating(false);
     setCurrentStep("share");
   };
@@ -488,6 +522,12 @@ export default function NewDealPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 sm:p-8 space-y-4">
+                  {createError && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {createError}
+                    </div>
+                  )}
                   {selectedTemplate.fields.map((field, index) => (
                     <motion.div 
                       key={field.id} 
