@@ -115,14 +115,6 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     hasFetchedRef.current = true;
 
     const fetchDeal = async () => {
-      // First check local store (for demo/local mode)
-      const localDeal = getDealByPublicId(resolvedParams.id);
-      if (localDeal) {
-        setDbDeal(localDeal);
-        setIsLoadingDeal(false);
-        return;
-      }
-
       // Handle demo deal
       if (resolvedParams.id === "demo123") {
         setDbDeal(demoDeal);
@@ -130,7 +122,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         return;
       }
 
-      // Try to fetch from Supabase
+      // Try to fetch from Supabase first (authoritative source)
       if (isSupabaseConfigured()) {
         const { deal: fetchedDeal, error } = await getDealByPublicIdAction(resolvedParams.id);
         
@@ -145,7 +137,15 @@ export default function DealConfirmPage({ params }: DealPageProps) {
           
           // Mark as viewed
           await markDealViewedAction(resolvedParams.id);
+          setIsLoadingDeal(false);
+          return;
         }
+      }
+
+      // Fall back to local store (for demo/local mode without Supabase)
+      const localDeal = getDealByPublicId(resolvedParams.id);
+      if (localDeal) {
+        setDbDeal(localDeal);
       }
       
       setIsLoadingDeal(false);

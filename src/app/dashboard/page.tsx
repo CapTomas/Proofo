@@ -125,8 +125,9 @@ export default function DashboardPage() {
     if (!isSupabaseConfigured()) return;
     
     const { deals, error } = await getUserDealsAction();
-    if (!error && deals.length > 0) {
-      setDeals(deals);
+    if (!error) {
+      // Always update deals from database, even if empty
+      setDeals(deals || []);
     }
   }, [setDeals]);
 

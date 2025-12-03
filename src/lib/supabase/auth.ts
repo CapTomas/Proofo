@@ -42,7 +42,8 @@ export async function signOut(): Promise<{ error: Error | null }> {
     return { error: null };
   }
 
-  const { error } = await supabase.auth.signOut();
+  // Use scope: 'global' to ensure session is cleared everywhere
+  const { error } = await supabase.auth.signOut({ scope: "global" });
   return { error: error ? new Error(error.message) : null };
 }
 
