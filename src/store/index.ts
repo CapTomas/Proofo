@@ -8,6 +8,10 @@ interface AppState {
   user: User | null;
   setUser: (user: User | null) => void;
 
+  // Onboarding state
+  needsOnboarding: boolean;
+  setNeedsOnboarding: (needs: boolean) => void;
+
   // Deals state
   deals: Deal[];
   setDeals: (deals: Deal[]) => void;
@@ -39,6 +43,10 @@ export const useAppStore = create<AppState>()(
       // User state
       user: null,
       setUser: (user) => set({ user }),
+
+      // Onboarding state
+      needsOnboarding: false,
+      setNeedsOnboarding: (needs) => set({ needsOnboarding: needs }),
 
       // Deals state
       deals: [],

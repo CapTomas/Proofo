@@ -16,31 +16,52 @@ import {
   Zap,
 } from "lucide-react";
 import { useAppStore } from "@/store";
+import { updateProfileAction } from "@/app/actions/deal-actions";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 interface OnboardingModalProps {
   onComplete: () => void;
 }
 
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
-  const { setUser } = useAppStore();
+  const { user, setUser } = useAppStore();
   const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(user?.name || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
     
     setIsSubmitting(true);
+    setError(null);
     
-    // Create user
-    setUser({
-      id: `user-${Date.now()}`,
-      name: name.trim(),
-      email: "",
-      createdAt: new Date().toISOString(),
-    });
+    // If user is already logged in with Supabase, update their profile
+    if (isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-")) {
+      const { error: updateError } = await updateProfileAction({ name: name.trim() });
+      
+      if (updateError) {
+        setError(updateError);
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Update local state
+      setUser({
+        ...user,
+        name: name.trim(),
+      });
+    } else {
+      // Demo mode - just create a local user
+      setUser({
+        id: user?.id || `user-${Date.now()}`,
+        name: name.trim(),
+        email: user?.email || "",
+        createdAt: user?.createdAt || new Date().toISOString(),
+      });
+    }
     
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     setIsSubmitting(false);
     setStep(2);
   };
@@ -75,6 +96,11 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-4">
+                  {error && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                      {error}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-medium">
                       What should we call you?

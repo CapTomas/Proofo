@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +38,8 @@ import { Deal, DealStatus } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { signOut, isSupabaseConfigured } from "@/lib/supabase";
+import { getUserDealsAction, voidDealAction } from "@/app/actions/deal-actions";
+import { OnboardingModal } from "@/components/onboarding-modal";
 
 // Demo data for when no deals exist
 const demoDeals: Deal[] = [
@@ -85,20 +87,82 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { deals: storeDeals, user, voidDeal, setUser } = useAppStore();
+  const { 
+    deals: storeDeals, 
+    user, 
+    voidDeal: storeVoidDeal, 
+    setUser, 
+    setDeals,
+    needsOnboarding,
+    setNeedsOnboarding 
+  } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
+  const [isVoiding, setIsVoiding] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const hasInitializedRef = useRef(false);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    // Show onboarding if user is logged in (not a demo user) and needs onboarding
+    if (user && !user.id.startsWith("demo-") && needsOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, [user, needsOnboarding]);
+
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    setNeedsOnboarding(false);
+  };
+
+  // Fetch deals from database
+  const refreshDeals = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
+    
+    const { deals, error } = await getUserDealsAction();
+    if (!error) {
+      // Always update deals from database, even if empty
+      setDeals(deals || []);
+    }
+  }, [setDeals]);
+
+  // Refresh deals on mount (only once)
+  useEffect(() => {
+    if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
+      hasInitializedRef.current = true;
+      // Fire-and-forget pattern for initial data fetch
+      // Errors are logged inside refreshDeals, no need to handle here
+      refreshDeals().catch((err) => {
+        console.error("Failed to refresh deals on mount:", err);
+      });
+    }
+  }, [user, refreshDeals]);
 
   // Handle logout
   const handleLogout = async () => {
-    if (isSupabaseConfigured()) {
-      await signOut();
+    setIsLoggingOut(true);
+    try {
+      if (isSupabaseConfigured()) {
+        await signOut();
+      }
+      // Clear local state
+      setUser(null);
+      setDeals([]);
+      // Clear persisted storage
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("proofo-storage");
+      }
+      router.push("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setIsLoggingOut(false);
     }
-    setUser(null);
-    router.push("/");
   };
 
   // Use store deals if available, otherwise show demo deals
@@ -145,14 +209,31 @@ export default function DashboardPage() {
     }
   };
 
-  const handleVoidDeal = (dealId: string) => {
-    if (confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
-      voidDeal(dealId);
+  const handleVoidDeal = async (dealId: string) => {
+    if (!confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
+      return;
     }
+
+    setIsVoiding(dealId);
+
+    // Check if using Supabase
+    if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
+      const { error } = await voidDealAction(dealId);
+      if (!error) {
+        // Refresh deals to get updated state
+        await refreshDeals();
+      }
+    } else {
+      // Use local store
+      storeVoidDeal(dealId);
+    }
+
+    setIsVoiding(null);
   };
 
   const handleDuplicate = () => {
-    // Navigate to new deal page
+    // Navigate to new deal page with pre-filled data (via query params or state)
+    // For now, just navigate to new deal page
     if (typeof window !== "undefined") {
       window.location.assign("/deal/new");
     }
@@ -168,21 +249,27 @@ export default function DashboardPage() {
   const isPro = user?.isPro || false;
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
-        {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
-              <span className="text-background font-semibold text-xs">P</span>
-            </div>
-            <span className="font-semibold">Proofo</span>
-          </Link>
-        </div>
+    <>
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModal onComplete={handleOnboardingComplete} />
+      )}
+      
+      <div className="min-h-screen bg-background flex">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
+          {/* Logo */}
+          <div className="h-14 flex items-center px-4 border-b">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
+                <span className="text-background font-semibold text-xs">P</span>
+              </div>
+              <span className="font-semibold">Proofo</span>
+            </Link>
+          </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+          {/* Navigation */}
+          <nav className="flex-1 px-3 py-4 space-y-1">
           <Link href="/dashboard">
             <Button variant="secondary" className="w-full justify-start gap-2 h-9 text-sm">
               <Home className="h-4 w-4" />
@@ -260,9 +347,14 @@ export default function DashboardPage() {
                     className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" 
                     size="sm"
                     onClick={handleLogout}
+                    disabled={isLoggingOut}
                   >
-                    <LogOut className="h-4 w-4" />
-                    Log Out
+                    {isLoggingOut ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogOut className="h-4 w-4" />
+                    )}
+                    {isLoggingOut ? "Logging out..." : "Log Out"}
                   </Button>
                 </motion.div>
               )}
@@ -570,9 +662,14 @@ export default function DashboardPage() {
                                         size="sm" 
                                         className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
                                         onClick={() => handleVoidDeal(deal.id)}
+                                        disabled={isVoiding === deal.id}
                                       >
-                                        <Trash2 className="h-3 w-3" />
-                                        Void
+                                        {isVoiding === deal.id ? (
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="h-3 w-3" />
+                                        )}
+                                        {isVoiding === deal.id ? "Voiding..." : "Void"}
                                       </Button>
                                     )}
                                   </div>
@@ -609,5 +706,6 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+    </>
   );
 }

@@ -22,24 +22,58 @@ import {
 import Link from "next/link";
 import { useAppStore } from "@/store";
 import { formatDate, formatDateTime } from "@/lib/crypto";
+import { getDealByPublicIdAction, getAuditLogsAction } from "@/app/actions/deal-actions";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { Deal, AuditLogEntry } from "@/types";
 
 export default function VerifyPage() {
   const { getDealByPublicId, getAuditLogsForDeal } = useAppStore();
   const [dealId, setDealId] = useState("");
-  const [searchedDeal, setSearchedDeal] = useState<ReturnType<typeof getDealByPublicId>>(undefined);
+  const [searchedDeal, setSearchedDeal] = useState<Deal | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const deal = getDealByPublicId(dealId.trim());
-    setSearchedDeal(deal);
+    setIsSearching(true);
+    
+    // First try local store
+    const localDeal = getDealByPublicId(dealId.trim());
+    if (localDeal) {
+      setSearchedDeal(localDeal);
+      const localLogs = getAuditLogsForDeal(localDeal.id);
+      setAuditLogs(localLogs);
+    } else if (isSupabaseConfigured()) {
+      // Try Supabase
+      const { deal, error } = await getDealByPublicIdAction(dealId.trim());
+      if (deal && !error) {
+        setSearchedDeal(deal);
+        // Fetch audit logs
+        const { logs } = await getAuditLogsAction(deal.id);
+        // Transform logs to match AuditLogEntry type
+        const transformedLogs: AuditLogEntry[] = logs.map((log) => ({
+          id: log.id,
+          dealId: log.dealId,
+          eventType: log.eventType as AuditLogEntry["eventType"],
+          actorId: log.actorId,
+          actorType: log.actorType as AuditLogEntry["actorType"],
+          metadata: log.metadata || {},
+          createdAt: log.createdAt,
+        }));
+        setAuditLogs(transformedLogs);
+      } else {
+        setSearchedDeal(null);
+        setAuditLogs([]);
+      }
+    } else {
+      setSearchedDeal(null);
+      setAuditLogs([]);
+    }
+    
     setHasSearched(true);
+    setIsSearching(false);
   };
-
-  const auditLogs = useMemo(() => {
-    if (!searchedDeal) return [];
-    return getAuditLogsForDeal(searchedDeal.id);
-  }, [searchedDeal, getAuditLogsForDeal]);
 
   const creatorInitials = useMemo(() => {
     if (!searchedDeal) return "??";
@@ -98,8 +132,8 @@ export default function VerifyPage() {
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={!dealId.trim()}>
-                Verify
+              <Button type="submit" disabled={!dealId.trim() || isSearching}>
+                {isSearching ? "Searching..." : "Verify"}
               </Button>
             </form>
           </CardContent>
@@ -107,7 +141,7 @@ export default function VerifyPage() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {hasSearched && !searchedDeal && (
+          {hasSearched && !searchedDeal && !isSearching && (
             <motion.div
               key="not-found"
               initial={{ opacity: 0, y: 20 }}
