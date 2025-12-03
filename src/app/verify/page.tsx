@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { AuditTimeline } from "@/components/audit-timeline";
 import {
   Shield,
   CheckCircle2,
   Search,
   AlertCircle,
   Lock,
-  FileCheck,
   User,
   Clock,
   ArrowRight,
@@ -256,57 +256,19 @@ export default function VerifyPage() {
                 </CardContent>
               </Card>
 
-              {/* Audit Trail */}
-              {auditLogs.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Audit Trail</CardTitle>
-                    <CardDescription>Timeline of events for this deal</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="relative">
-                      {/* Timeline line */}
-                      <div className="absolute left-[17px] top-0 bottom-0 w-0.5 bg-border" />
-                      
-                      <div className="space-y-4">
-                        {auditLogs.map((log, index) => (
-                          <motion.div
-                            key={log.id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="relative pl-10"
-                          >
-                            <div className={`absolute left-0 h-9 w-9 rounded-full flex items-center justify-center ${
-                              log.eventType === "deal_confirmed" 
-                                ? "bg-emerald-500/10" 
-                                : log.eventType === "deal_voided"
-                                ? "bg-destructive/10"
-                                : "bg-muted"
-                            }`}>
-                              {log.eventType === "deal_created" && <FileCheck className="h-4 w-4 text-primary" />}
-                              {log.eventType === "deal_viewed" && <Search className="h-4 w-4 text-muted-foreground" />}
-                              {log.eventType === "deal_confirmed" && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                              {log.eventType === "deal_voided" && <AlertCircle className="h-4 w-4 text-destructive" />}
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">
-                                {log.eventType === "deal_created" && "Deal Created"}
-                                {log.eventType === "deal_viewed" && "Deal Viewed"}
-                                {log.eventType === "deal_confirmed" && "Deal Confirmed & Sealed"}
-                                {log.eventType === "deal_voided" && "Deal Voided"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDateTime(log.createdAt)} • {log.actorType}
-                              </p>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Audit Trail - FedEx-style tracking */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Activity Timeline</CardTitle>
+                  <CardDescription>Track all events for this deal</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AuditTimeline
+                    logs={auditLogs}
+                    dealStatus={searchedDeal.status}
+                  />
+                </CardContent>
+              </Card>
 
               {/* View Deal Link */}
               <div className="text-center">
