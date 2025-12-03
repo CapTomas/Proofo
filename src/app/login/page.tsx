@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,17 +24,21 @@ function LoginContent() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
-  const [error, setError] = useState<string | null>(() => {
-    // Check for auth errors from callback on initial render
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("error") ? "Authentication failed. Please try again." : null;
-    }
-    return null;
-  });
+  const [error, setError] = useState<string | null>(null);
   const isSupabaseReady = isSupabaseConfigured();
+  const hasCheckedErrorRef = useRef(false);
 
   useEffect(() => {
+    // Check for auth errors from callback (only once)
+    if (!hasCheckedErrorRef.current) {
+      hasCheckedErrorRef.current = true;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error")) {
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => setError("Authentication failed. Please try again."), 0);
+      }
+    }
+    
     // Check if already logged in
     const checkAuth = async () => {
       if (isSupabaseConfigured()) {
