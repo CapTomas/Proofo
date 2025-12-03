@@ -272,9 +272,12 @@ export async function uploadSignatureAction(
     if (uploadError) {
       // Check if it's a bucket not found error - return the base64 as fallback
       // This allows the app to work even without storage bucket configured
-      if (uploadError.message.includes("Bucket not found") || 
-          uploadError.message.includes("bucket") ||
-          (uploadError as { statusCode?: string }).statusCode === "404") {
+      const errorMessage = uploadError.message.toLowerCase();
+      const isBucketNotFound = errorMessage.includes("bucket not found") ||
+        (errorMessage.includes("bucket") && errorMessage.includes("not found")) ||
+        ("statusCode" in uploadError && uploadError.statusCode === "404");
+      
+      if (isBucketNotFound) {
         console.warn("Storage bucket 'signatures' not found, using base64 fallback");
         // Return the base64 data as the signature URL (works for MVP)
         return { signatureUrl: signatureBase64, error: null };
