@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,21 +11,95 @@ import {
   Mail,
   ArrowRight,
   Shield,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signInWithEmail, signInWithGoogle, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
+import { useAppStore } from "@/store";
 
-export default function LoginPage() {
+function LoginContent() {
+  const router = useRouter();
+  const { setUser } = useAppStore();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isSupabaseReady = isSupabaseConfigured();
+  const hasCheckedErrorRef = useRef(false);
+
+  useEffect(() => {
+    // Check for auth errors from callback (only once)
+    if (!hasCheckedErrorRef.current) {
+      hasCheckedErrorRef.current = true;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error")) {
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => setError("Authentication failed. Please try again."), 0);
+      }
+    }
+    
+    // Check if already logged in
+    const checkAuth = async () => {
+      if (isSupabaseConfigured()) {
+        const user = await getCurrentUser();
+        if (user) {
+          setUser(user);
+          router.push("/dashboard");
+        }
+      }
+    };
+    checkAuth();
+  }, [router, setUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsSubmitting(true);
-    // Simulate sending magic link
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+    if (!isSupabaseReady) {
+      // Demo mode - just create a local user
+      setUser({
+        id: `demo-${Date.now()}`,
+        email,
+        name: email.split("@")[0],
+        createdAt: new Date().toISOString(),
+      });
+      router.push("/dashboard");
+      return;
+    }
+    
+    const { error: authError } = await signInWithEmail(email);
+    
     setIsSubmitting(false);
-    setIsSent(true);
+    
+    if (authError) {
+      setError(authError.message);
+    } else {
+      setIsSent(true);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    
+    if (!isSupabaseReady) {
+      // Demo mode - create a demo user
+      setUser({
+        id: `demo-${Date.now()}`,
+        email: "demo@proofo.app",
+        name: "Demo User",
+        createdAt: new Date().toISOString(),
+      });
+      router.push("/dashboard");
+      return;
+    }
+    
+    const { error: authError } = await signInWithGoogle();
+    
+    if (authError) {
+      setError(authError.message);
+    }
   };
 
   return (
@@ -52,9 +126,33 @@ export default function LoginPage() {
           <CardContent className="space-y-6 pt-4">
             {!isSent ? (
               <>
+                {/* Error message */}
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+
+                {/* Demo mode notice */}
+                {!isSupabaseReady && (
+                  <div className="p-3 rounded-lg bg-muted border border-border flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <p className="text-sm text-muted-foreground">
+                      Demo mode: No Supabase configured. Sign in to continue with local storage.
+                    </p>
+                  </div>
+                )}
+
                 {/* OAuth Buttons */}
                 <div className="space-y-3">
-                  <Button variant="outline" className="w-full h-12 text-base gap-3" size="lg">
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-12 text-base gap-3" 
+                    size="lg"
+                    onClick={handleGoogleSignIn}
+                    type="button"
+                  >
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
                       <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -183,5 +281,35 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// Loading component for suspense
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="flex items-center justify-center gap-2.5 mb-8">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/25">
+            <span className="text-primary-foreground font-bold text-2xl">P</span>
+          </div>
+          <span className="font-bold text-3xl tracking-tight">Proofo</span>
+        </div>
+        <Card className="shadow-2xl shadow-black/5 border-border/50">
+          <CardContent className="p-8 text-center">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginContent />
+    </Suspense>
   );
 }

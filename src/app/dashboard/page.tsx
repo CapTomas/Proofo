@@ -16,7 +16,6 @@ import {
   XCircle,
   MoreHorizontal,
   Copy,
-  ExternalLink,
   RefreshCw,
   Home,
   Settings,
@@ -31,11 +30,14 @@ import {
   Sparkles,
   Crown,
   LayoutTemplate,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Deal, DealStatus } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
+import { signOut, isSupabaseConfigured } from "@/lib/supabase";
 
 // Demo data for when no deals exist
 const demoDeals: Deal[] = [
@@ -82,12 +84,22 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 };
 
 export default function DashboardPage() {
-  const { deals: storeDeals, user, voidDeal } = useAppStore();
+  const router = useRouter();
+  const { deals: storeDeals, user, voidDeal, setUser } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
+
+  // Handle logout
+  const handleLogout = async () => {
+    if (isSupabaseConfigured()) {
+      await signOut();
+    }
+    setUser(null);
+    router.push("/");
+  };
 
   // Use store deals if available, otherwise show demo deals
   const allDeals = storeDeals.length > 0 ? storeDeals : demoDeals;
@@ -243,7 +255,12 @@ export default function DashboardPage() {
                     Settings
                   </Button>
                   <div className="my-1 border-t" />
-                  <Button variant="ghost" className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" 
+                    size="sm"
+                    onClick={handleLogout}
+                  >
                     <LogOut className="h-4 w-4" />
                     Log Out
                   </Button>
