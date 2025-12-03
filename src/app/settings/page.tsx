@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,17 +26,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function SettingsPage() {
   const { user, setUser } = useAppStore();
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
+  // Use lazy initialization to get values from user store
+  const [name, setName] = useState(() => user?.name || "");
+  const [email, setEmail] = useState(() => user?.email || "");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setName(user.name);
-      setEmail(user.email);
-    }
-  }, [user]);
 
   const handleSave = async () => {
     setIsSaving(true);

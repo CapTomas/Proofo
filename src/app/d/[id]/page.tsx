@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, useEffect, useMemo } from "react";
+import { useState, use, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,17 +63,21 @@ const templateIcons: Record<string, string> = {
   "custom": "✏️",
 };
 
+// Helper function to determine initial step
+function getInitialStep(deal: Deal | null): Step {
+  if (!deal) return "not_found";
+  if (deal.status === "confirmed") return "already_signed";
+  if (deal.status === "voided") return "voided";
+  if (deal.status === "sealing") return "sign";
+  return "review";
+}
+
 export default function DealConfirmPage({ params }: DealPageProps) {
   const resolvedParams = use(params);
   const { getDealByPublicId, confirmDeal, addAuditLog, user } = useAppStore();
+  const hasLoggedViewRef = useRef(false);
   
-  const [currentStep, setCurrentStep] = useState<Step>("review");
-  const [signature, setSignature] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [isSealing, setIsSealing] = useState(false);
-  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
-
-  // Find the deal by public ID using useMemo to avoid effect-based setState
+  // Find the deal by public ID using useMemo
   const deal = useMemo(() => {
     const foundDeal = getDealByPublicId(resolvedParams.id);
     if (foundDeal) {
@@ -84,26 +88,19 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     return null;
   }, [resolvedParams.id, getDealByPublicId]);
 
-  // Set initial step based on deal status
+  // Use lazy initialization to get initial step from deal
+  const [currentStep, setCurrentStep] = useState<Step>(() => getInitialStep(deal));
+  const [signature, setSignature] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [isSealing, setIsSealing] = useState(false);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(() => 
+    deal?.status === "confirmed" ? deal : null
+  );
+
+  // Log deal view for non-demo deals (using ref to track)
   useEffect(() => {
-    if (!deal) {
-      setCurrentStep("not_found");
-      return;
-    }
-    
-    if (deal.status === "confirmed") {
-      setCurrentStep("already_signed");
-      setConfirmedDeal(deal);
-    } else if (deal.status === "voided") {
-      setCurrentStep("voided");
-    } else if (deal.status === "sealing") {
-      setCurrentStep("sign");
-    } else {
-      setCurrentStep("review");
-    }
-    
-    // Log deal view for non-demo deals
-    if (deal.id !== "demo123") {
+    if (deal && deal.id !== "demo123" && !hasLoggedViewRef.current) {
+      hasLoggedViewRef.current = true;
       addAuditLog({
         dealId: deal.id,
         eventType: "deal_viewed",

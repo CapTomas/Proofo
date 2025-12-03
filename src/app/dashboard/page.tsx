@@ -530,7 +530,7 @@ export default function DashboardPage() {
                                         variant="ghost" 
                                         size="sm" 
                                         className="w-full justify-start gap-2 h-8 text-xs"
-                                        onClick={() => handleDuplicate(deal)}
+                                        onClick={() => handleDuplicate()}
                                       >
                                         <Edit3 className="h-3 w-3" />
                                         Duplicate
