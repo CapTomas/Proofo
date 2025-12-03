@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { supabase, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
 import { useAppStore } from "@/store";
-import { getUserDeals } from "@/lib/supabase";
+import { getUserDealsAction } from "@/app/actions/deal-actions";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setDeals, setIsLoading } = useAppStore();
@@ -22,17 +22,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (user) {
         setUser(user);
-        // Fetch user's deals from Supabase
-        const deals = await getUserDeals();
-        if (deals.length > 0) {
+        // Fetch user's deals from Supabase using server action
+        const { deals, error } = await getUserDealsAction();
+        if (!error && deals.length > 0) {
           setDeals(deals);
+        } else {
+          // Clear deals if none found or error
+          setDeals([]);
         }
       } else {
         setUser(null);
+        setDeals([]);
       }
     } catch (error) {
       console.error("Error syncing auth state:", error);
       setUser(null);
+      setDeals([]);
     } finally {
       setIsLoading(false);
     }

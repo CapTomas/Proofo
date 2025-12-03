@@ -292,6 +292,23 @@ CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- Function to get access token for a deal (for anonymous recipients)
+CREATE OR REPLACE FUNCTION public.get_access_token_for_deal(p_deal_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+  v_token TEXT;
+BEGIN
+  SELECT token INTO v_token
+  FROM public.access_tokens
+  WHERE deal_id = p_deal_id
+    AND expires_at > NOW()
+    AND used_at IS NULL
+  LIMIT 1;
+  
+  RETURN v_token;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 11. Permissions (Critical for API access)
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
@@ -302,3 +319,4 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, se
 GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticated, anon;

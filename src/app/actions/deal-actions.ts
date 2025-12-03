@@ -224,24 +224,21 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
   }
 }
 
-// Get access token for a deal
+// Get access token for a deal by public ID (bypasses RLS for anonymous recipients)
 export async function getAccessTokenAction(dealId: string): Promise<{ token: string | null; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
 
+    // Use RPC function that bypasses RLS to get the token
     const { data, error } = await supabase
-      .from("access_tokens")
-      .select("token")
-      .eq("deal_id", dealId)
-      .gt("expires_at", new Date().toISOString())
-      .is("used_at", null)
-      .single();
+      .rpc("get_access_token_for_deal", { p_deal_id: dealId });
 
     if (error || !data) {
+      console.error("Error fetching access token:", error);
       return { token: null, error: error?.message || "No valid token found" };
     }
 
-    return { token: data.token, error: null };
+    return { token: data as string, error: null };
   } catch (error) {
     console.error("Error fetching access token:", error);
     return { token: null, error: "Server error" };
