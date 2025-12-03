@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   Star,
   Play,
-  ChevronRight,
   Clock,
 } from "lucide-react";
 import Link from "next/link";
@@ -251,28 +250,6 @@ export default function Home() {
               </div>
             </motion.div>
           </div>
-
-          {/* Hero Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="mt-16 md:mt-20 max-w-4xl mx-auto"
-          >
-            <div className="relative rounded-xl border bg-card p-6 md:p-8">
-              <div className="aspect-[16/9] rounded-lg bg-muted flex items-center justify-center">
-                <div className="text-center">
-                  <div className="h-16 w-16 rounded-xl bg-foreground flex items-center justify-center mx-auto mb-4">
-                    <FileCheck className="h-8 w-8 text-background" />
-                  </div>
-                  <p className="text-muted-foreground text-sm">Interactive Demo</p>
-                  <Link href="/demo" className="inline-flex items-center gap-1 text-xs text-foreground mt-2 hover:underline">
-                    Try it now <ChevronRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </motion.div>
         </motion.div>
       </section>
 

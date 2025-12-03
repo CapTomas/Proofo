@@ -10,6 +10,7 @@ export interface Deal {
   recipientId?: string;
   title: string;
   description: string;
+  templateId?: string;
   terms: DealTerm[];
   status: DealStatus;
   createdAt: string;

@@ -30,6 +30,7 @@ import {
   Calendar,
   Sparkles,
   Crown,
+  LayoutTemplate,
 } from "lucide-react";
 import Link from "next/link";
 import { Deal, DealStatus } from "@/types";
@@ -86,6 +87,7 @@ export default function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
 
   // Use store deals if available, otherwise show demo deals
   const allDeals = storeDeals.length > 0 ? storeDeals : demoDeals;
@@ -175,16 +177,18 @@ export default function DashboardPage() {
               Dashboard
             </Button>
           </Link>
-          <Link href="/deal/new">
+          <Link href="/templates">
             <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm">
-              <Plus className="h-4 w-4" />
-              New Deal
+              <LayoutTemplate className="h-4 w-4" />
+              Templates
             </Button>
           </Link>
-          <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm text-muted-foreground">
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
+          <Link href="/settings">
+            <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm">
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+          </Link>
         </nav>
 
         {/* Pro Upgrade Banner */}
@@ -463,14 +467,21 @@ export default function DashboardPage() {
                                 </div>
                                 {/* Terms Preview */}
                                 <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {deal.terms.slice(0, 2).map((term) => (
+                                  {(expandedDealId === deal.id ? deal.terms : deal.terms.slice(0, 2)).map((term) => (
                                     <Badge key={term.id} variant="secondary" className="font-normal text-xs h-5">
                                       {term.label}: {term.value}
                                     </Badge>
                                   ))}
                                   {deal.terms.length > 2 && (
-                                    <Badge variant="secondary" className="font-normal text-xs h-5">
-                                      +{deal.terms.length - 2} more
+                                    <Badge 
+                                      variant="secondary" 
+                                      className="font-normal text-xs h-5 cursor-pointer hover:bg-secondary/80 transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedDealId(expandedDealId === deal.id ? null : deal.id);
+                                      }}
+                                    >
+                                      {expandedDealId === deal.id ? "Show less" : `+${deal.terms.length - 2} more`}
                                     </Badge>
                                   )}
                                 </div>

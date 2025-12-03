@@ -22,12 +22,27 @@ import {
   Edit3,
   CheckCircle2,
   AlertCircle,
+  Package,
+  Handshake,
+  DollarSign,
+  ArrowLeftRight,
+  PenLine,
+  LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
 import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
+
+// Icon mapping for templates
+const iconMap: Record<string, LucideIcon> = {
+  Package,
+  Handshake,
+  DollarSign,
+  ArrowLeftRight,
+  PenLine,
+};
 
 type Step = "template" | "details" | "review" | "share";
 
@@ -303,45 +318,48 @@ export default function NewDealPage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {dealTemplates.map((template, index) => (
-                  <motion.div
-                    key={template.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <Card
-                      className="cursor-pointer hover:border-primary hover:shadow-lg transition-all group"
-                      onClick={() => handleTemplateSelect(template)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handleTemplateSelect(template);
-                        }
-                      }}
-                      aria-label={`${template.name}: ${template.description}`}
+                {dealTemplates.map((template, index) => {
+                  const IconComponent = iconMap[template.icon] || FileCheck;
+                  return (
+                    <motion.div
+                      key={template.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
                     >
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <div className="text-4xl group-hover:scale-110 transition-transform" aria-hidden="true">
-                            {template.icon}
+                      <Card
+                        className="cursor-pointer hover:border-primary hover:shadow-lg transition-all group"
+                        onClick={() => handleTemplateSelect(template)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleTemplateSelect(template);
+                          }
+                        }}
+                        aria-label={`${template.name}: ${template.description}`}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform" aria-hidden="true">
+                              <IconComponent className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
+                                {template.name}
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {template.description}
+                              </p>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
-                              {template.name}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {template.description}
-                            </p>
-                          </div>
-                          <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -356,10 +374,15 @@ export default function NewDealPage() {
               transition={{ duration: 0.3 }}
             >
               <div className="text-center mb-10">
-                <Badge variant="secondary" className="mb-4 gap-1.5">
-                  <span className="text-lg" aria-hidden="true">{selectedTemplate.icon}</span>
-                  {selectedTemplate.name}
-                </Badge>
+                {(() => {
+                  const IconComp = iconMap[selectedTemplate.icon] || FileCheck;
+                  return (
+                    <Badge variant="secondary" className="mb-4 gap-1.5">
+                      <IconComp className="h-4 w-4" aria-hidden="true" />
+                      {selectedTemplate.name}
+                    </Badge>
+                  );
+                })()}
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Fill in the Details</h1>
                 <p className="text-muted-foreground">
                   Provide the information for your agreement
@@ -447,7 +470,14 @@ export default function NewDealPage() {
               <Card className="overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b">
                   <div className="flex items-center gap-4">
-                    <span className="text-4xl">{selectedTemplate.icon}</span>
+                    {(() => {
+                      const ReviewIcon = iconMap[selectedTemplate.icon] || FileCheck;
+                      return (
+                        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <ReviewIcon className="h-7 w-7 text-primary" />
+                        </div>
+                      );
+                    })()}
                     <div>
                       <CardTitle className="text-xl">{selectedTemplate.name}</CardTitle>
                       <CardDescription className="flex items-center gap-1.5 mt-1">

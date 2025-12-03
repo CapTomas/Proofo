@@ -23,6 +23,14 @@ import {
   Download,
   ExternalLink,
   XCircle,
+  Package,
+  Handshake,
+  DollarSign,
+  ArrowLeftRight,
+  PenLine,
+  LucideIcon,
+  User,
+  Hash,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
@@ -33,6 +41,15 @@ interface DealPageProps {
   params: Promise<{ id: string }>;
 }
 
+// Icon mapping for templates
+const iconMap: Record<string, LucideIcon> = {
+  Package,
+  Handshake,
+  DollarSign,
+  ArrowLeftRight,
+  PenLine,
+};
+
 // Demo deal data for when deal is not found
 const demoDeal: Deal = {
   id: "demo123",
@@ -42,6 +59,7 @@ const demoDeal: Deal = {
   recipientName: "You",
   title: "Lend Camera Equipment",
   description: "Agreement to lend camera equipment",
+  templateId: "lend-item",
   terms: [
     { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
     { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
@@ -54,13 +72,13 @@ const demoDeal: Deal = {
 
 type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found";
 
-// Template icons mapping
-const templateIcons: Record<string, string> = {
-  "lend-item": "📦",
-  "simple-agreement": "🤝",
-  "payment-promise": "💰",
-  "service-exchange": "🔄",
-  "custom": "✏️",
+// Template icon name mapping
+const templateIconNames: Record<string, string> = {
+  "lend-item": "Package",
+  "simple-agreement": "Handshake",
+  "payment-promise": "DollarSign",
+  "service-exchange": "ArrowLeftRight",
+  "custom": "PenLine",
 };
 
 // Helper function to determine initial step
@@ -316,7 +334,16 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               <Card className="mb-6 overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b pb-4">
                   <div className="flex items-center gap-4">
-                    <span className="text-4xl">{templateIcons["simple-agreement"] || "🤝"}</span>
+                    {(() => {
+                      const templateId = displayDeal.templateId || "simple-agreement";
+                      const iconName = templateIconNames[templateId] || "Handshake";
+                      const IconComp = iconMap[iconName] || Handshake;
+                      return (
+                        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <IconComp className="h-7 w-7 text-primary" />
+                        </div>
+                      );
+                    })()}
                     <div>
                       <CardTitle className="text-xl">{displayDeal.title}</CardTitle>
                       <CardDescription className="mt-1">
@@ -326,18 +353,38 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
-                  {displayDeal.terms.map((term, index) => (
-                    <motion.div 
-                      key={term.id} 
-                      className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <span className="text-muted-foreground text-sm">{term.label}</span>
-                      <span className="font-medium">{term.value}</span>
-                    </motion.div>
-                  ))}
+                  {/* Deal metadata */}
+                  <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Recipient:</span>
+                      <span className="font-medium">{displayDeal.recipientName || "You"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Deal ID:</span>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {displayDeal.publicId}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {/* Terms */}
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
+                    {displayDeal.terms.map((term, index) => (
+                      <motion.div 
+                        key={term.id} 
+                        className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <span className="text-muted-foreground text-sm">{term.label}</span>
+                        <span className="font-medium">{term.value}</span>
+                      </motion.div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -364,7 +411,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </div>
 
               <Button 
-                className="w-full shadow-xl shadow-primary/25" 
+                className="w-full shadow-xl shadow-primary/25"
                 size="xl" 
                 onClick={handleProceedToSign}
               >

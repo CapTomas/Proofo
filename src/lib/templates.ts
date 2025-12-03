@@ -5,7 +5,7 @@ export const dealTemplates: DealTemplate[] = [
     id: "lend-item",
     name: "Lend Item",
     description: "Record when you lend something to someone",
-    icon: "📦",
+    icon: "Package",
     fields: [
       {
         id: "item",
@@ -40,7 +40,7 @@ export const dealTemplates: DealTemplate[] = [
     id: "simple-agreement",
     name: "Simple Agreement",
     description: "A basic agreement between two parties",
-    icon: "🤝",
+    icon: "Handshake",
     fields: [
       {
         id: "terms",
@@ -61,7 +61,7 @@ export const dealTemplates: DealTemplate[] = [
     id: "payment-promise",
     name: "Payment Promise",
     description: "Record a promise to pay",
-    icon: "💰",
+    icon: "DollarSign",
     fields: [
       {
         id: "amount",
@@ -89,7 +89,7 @@ export const dealTemplates: DealTemplate[] = [
     id: "service-exchange",
     name: "Service Exchange",
     description: "Trade services with someone",
-    icon: "🔄",
+    icon: "ArrowLeftRight",
     fields: [
       {
         id: "myService",
@@ -117,7 +117,7 @@ export const dealTemplates: DealTemplate[] = [
     id: "custom",
     name: "Custom Deal",
     description: "Create a custom agreement with your own terms",
-    icon: "✏️",
+    icon: "PenLine",
     fields: [
       {
         id: "details",
