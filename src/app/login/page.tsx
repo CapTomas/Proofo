@@ -14,29 +14,27 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { signInWithEmail, signInWithGoogle, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
 import { useAppStore } from "@/store";
 
 function LoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { setUser } = useAppStore();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isSupabaseReady, setIsSupabaseReady] = useState(false);
+  const [error, setError] = useState<string | null>(() => {
+    // Check for auth errors from callback on initial render
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("error") ? "Authentication failed. Please try again." : null;
+    }
+    return null;
+  });
+  const isSupabaseReady = isSupabaseConfigured();
 
   useEffect(() => {
-    setIsSupabaseReady(isSupabaseConfigured());
-    
-    // Check for auth errors from callback
-    const authError = searchParams.get("error");
-    if (authError) {
-      setError("Authentication failed. Please try again.");
-    }
-    
     // Check if already logged in
     const checkAuth = async () => {
       if (isSupabaseConfigured()) {
@@ -48,7 +46,7 @@ function LoginContent() {
       }
     };
     checkAuth();
-  }, [searchParams, router, setUser]);
+  }, [router, setUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -205,7 +205,7 @@ export function AuditTimeline({ logs, dealStatus, className = "", compact = fals
 }
 
 // Compact inline version for headers
-export function AuditStatusBadge({ logs, dealStatus }: { logs: AuditLogEntry[]; dealStatus: DealStatus }) {
+export function AuditStatusBadge({ logs }: { logs: AuditLogEntry[] }) {
   const eventCount = logs.length;
   const latestEvent = logs[0];
 
