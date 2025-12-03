@@ -88,7 +88,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     return null;
   }, [resolvedParams.id, getDealByPublicId]);
 
-  // Use lazy initialization to get initial step from deal
+  // Use lazy initialization for initial step - safe because URL params don't change during lifecycle
+  // and the deal status is determined on initial load
   const [currentStep, setCurrentStep] = useState<Step>(() => getInitialStep(deal));
   const [signature, setSignature] = useState<string | null>(null);
   const [email, setEmail] = useState("");
