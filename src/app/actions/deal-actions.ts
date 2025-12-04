@@ -254,6 +254,13 @@ export async function getTokenStatusAction(dealId: string): Promise<{
       .rpc("get_token_status_for_deal", { p_deal_id: dealId });
 
     if (error) {
+      // If the function doesn't exist in the database, fall back to "valid" 
+      // to allow the deal flow to continue. This handles the case where 
+      // the user hasn't run the updated schema.sql yet.
+      if (error.code === "PGRST202") {
+        console.warn("get_token_status_for_deal function not found in database. Please run the updated schema.sql. Falling back to valid status.");
+        return { status: "valid", expiresAt: null, error: null };
+      }
       console.error("Error fetching token status:", error);
       return { status: "not_found", expiresAt: null, error: error.message };
     }
