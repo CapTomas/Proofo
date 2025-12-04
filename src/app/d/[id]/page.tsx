@@ -47,6 +47,7 @@ import {
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { generateDealPDF, downloadPDF, generatePDFFilename, pdfBlobToBase64 } from "@/lib/pdf";
+import { getUserInitials } from "@/lib/utils";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -353,15 +354,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       const pdfBase64 = await pdfBlobToBase64(pdfBlob);
       const pdfFilename = generatePDFFilename(deal);
 
-      await sendDealReceiptAction({
+      const { success } = await sendDealReceiptAction({
         dealId: deal.id,
         recipientEmail: recipientEmail,
         pdfBase64,
         pdfFilename,
       });
       
-      // Set emailSent to true so the complete page shows the right message
-      setEmailSent(true);
+      // Only set emailSent to true if the email was actually sent successfully
+      if (success) {
+        setEmailSent(true);
+      }
     } catch (error) {
       // Silent failure for auto-send - user can still download PDF manually
       console.error("Auto-send receipt failed (non-blocking):", error);
@@ -976,7 +979,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
-                        {user.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || user.email?.[0]?.toUpperCase() || "U"}
+                        {getUserInitials(user.name, user.email)}
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-sm">{user.name || "Authenticated User"}</p>
@@ -1294,7 +1297,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         <span className="text-muted-foreground text-sm">Signed By</span>
                         <div className="flex items-center gap-2">
                           <div className="h-6 w-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-medium">
-                            {user.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || user.email?.[0]?.toUpperCase() || "U"}
+                            {getUserInitials(user.name, user.email)}
                           </div>
                           <span className="font-medium text-sm">{user.name || user.email}</span>
                         </div>
