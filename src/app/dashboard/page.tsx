@@ -31,6 +31,7 @@ import {
   Crown,
   LayoutTemplate,
   ExternalLink,
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,7 +39,7 @@ import { Deal, DealStatus } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { signOut, isSupabaseConfigured } from "@/lib/supabase";
-import { getUserDealsAction, voidDealAction } from "@/app/actions/deal-actions";
+import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { OnboardingModal } from "@/components/onboarding-modal";
 
 // Demo data for when no deals exist
@@ -104,6 +105,8 @@ export default function DashboardPage() {
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isNudging, setIsNudging] = useState<string | null>(null);
+  const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
 
   // Check if user needs onboarding
@@ -231,11 +234,31 @@ export default function DashboardPage() {
     setIsVoiding(null);
   };
 
-  const handleDuplicate = () => {
-    // Navigate to new deal page with pre-filled data (via query params or state)
-    // For now, just navigate to new deal page
-    if (typeof window !== "undefined") {
-      window.location.assign("/deal/new");
+  const handleDuplicate = (dealId: string) => {
+    // Navigate to new deal page with source deal ID for pre-filling
+    router.push(`/deal/new?source=${dealId}`);
+  };
+
+  const handleNudge = async (deal: Deal) => {
+    // If recipient has email, send invitation email. Otherwise, just copy the link.
+    if (deal.recipientEmail && isSupabaseConfigured()) {
+      setIsNudging(deal.id);
+      const { success } = await sendDealInvitationAction({
+        dealId: deal.id,
+        recipientEmail: deal.recipientEmail,
+      });
+      setIsNudging(null);
+      
+      if (success) {
+        setNudgeSuccess(deal.id);
+        setTimeout(() => setNudgeSuccess(null), 3000);
+      } else {
+        // Fallback to copy if email fails - still provides value to user
+        copyToClipboard(deal.id, deal.publicId);
+      }
+    } else {
+      // No email - just copy the link
+      copyToClipboard(deal.id, deal.publicId);
     }
   };
 
@@ -619,13 +642,33 @@ export default function DashboardPage() {
                                       )}
                                     </Button>
                                     <Button 
-                                      variant="outline" 
+                                      variant={nudgeSuccess === deal.id ? "default" : "outline"}
                                       size="sm" 
                                       className="h-7 text-xs gap-1"
-                                      onClick={() => copyToClipboard(deal.id, deal.publicId)}
+                                      onClick={() => handleNudge(deal)}
+                                      disabled={isNudging === deal.id}
                                     >
-                                      <RefreshCw className="h-3 w-3" />
-                                      <span className="hidden sm:inline">Nudge</span>
+                                      {isNudging === deal.id ? (
+                                        <>
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                          <span className="hidden sm:inline">Sending...</span>
+                                        </>
+                                      ) : nudgeSuccess === deal.id ? (
+                                        <>
+                                          <CheckCircle2 className="h-3 w-3" />
+                                          <span className="hidden sm:inline">Sent!</span>
+                                        </>
+                                      ) : deal.recipientEmail ? (
+                                        <>
+                                          <Mail className="h-3 w-3" />
+                                          <span className="hidden sm:inline">Nudge</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <RefreshCw className="h-3 w-3" />
+                                          <span className="hidden sm:inline">Nudge</span>
+                                        </>
+                                      )}
                                     </Button>
                                   </>
                                 )}
@@ -650,7 +693,7 @@ export default function DashboardPage() {
                                         variant="ghost" 
                                         size="sm" 
                                         className="w-full justify-start gap-2 h-8 text-xs"
-                                        onClick={() => handleDuplicate()}
+                                        onClick={() => handleDuplicate(deal.id)}
                                       >
                                         <Edit3 className="h-3 w-3" />
                                         Duplicate

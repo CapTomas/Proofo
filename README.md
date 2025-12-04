@@ -111,9 +111,31 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Optional: For production deployment
 # NEXT_PUBLIC_APP_URL=https://yourapp.com
+
+# Optional: Email Service (Resend)
+# Required for sending deal receipts via email
+# Sign up at https://resend.com and get your API key
+# RESEND_API_KEY=re_xxxxxxxxxx
+# RESEND_FROM_EMAIL=Proofo <noreply@yourdomain.com>
 ```
 
-### 6. Run the Application
+### 6. Configure Email Service (Optional)
+
+To enable email functionality (sending deal receipts with PDF attachments):
+
+1. Sign up for [Resend](https://resend.com) (free tier includes 3,000 emails/month)
+2. Create an API key in the Resend dashboard
+3. Add your domain and verify it (or use the sandbox for testing)
+4. Add these environment variables:
+
+```bash
+RESEND_API_KEY=re_xxxxxxxxxx
+RESEND_FROM_EMAIL=Proofo <noreply@yourdomain.com>
+```
+
+**Note:** Without these variables, the app will show "Email service not configured" when trying to send receipts. PDF downloads will still work without email configuration.
+
+### 7. Run the Application
 
 ```bash
 # Install dependencies
@@ -231,12 +253,18 @@ npm run lint     # Run ESLint
 | `NEXT_PUBLIC_SUPABASE_URL` | For auth | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | For auth | Your Supabase anon/public key |
 | `NEXT_PUBLIC_APP_URL` | For production | Your production app URL |
+| `RESEND_API_KEY` | For email | Your Resend API key for sending emails |
+| `RESEND_FROM_EMAIL` | For email | Sender email address (e.g., `Proofo <noreply@yourdomain.com>`) |
 
 ## Troubleshooting
 
 ### "Supabase is not configured" message
 
 This means the app is running in demo mode. Add your Supabase environment variables to enable full functionality.
+
+### "Email service not configured" message
+
+This means the email service (Resend) is not set up. Add `RESEND_API_KEY` to your environment variables to enable email receipts. See the [Email Service Setup](#6-configure-email-service-optional) section.
 
 ### Magic link not arriving
 

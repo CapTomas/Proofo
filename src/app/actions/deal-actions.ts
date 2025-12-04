@@ -111,6 +111,7 @@ export async function createDealAction(data: {
   description?: string;
   templateId?: string;
   recipientName: string;
+  recipientEmail?: string;
   terms: Array<{ label: string; value: string; type: string }>;
 }): Promise<{ deal: Deal | null; shareUrl: string | null; accessToken: string | null; error: string | null }> {
   try {
@@ -134,6 +135,7 @@ export async function createDealAction(data: {
         description: data.description,
         template_id: data.templateId,
         recipient_name: data.recipientName,
+        recipient_email: data.recipientEmail || null,
         terms: data.terms.map((t, i) => ({
           id: `term-${i}`,
           label: t.label,
@@ -227,6 +229,45 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
     };
   } catch (error) {
     console.error("Error fetching deal:", error);
+    return { deal: null, error: "Server error" };
+  }
+}
+
+// Get deal by ID (for authenticated users - requires auth, used for duplication)
+export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | null; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    
+    // Verify user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { deal: null, error: "Unauthorized" };
+    }
+
+    // Fetch the deal (RLS will ensure only creator can access)
+    const { data, error } = await supabase
+      .from("deals")
+      .select(`
+        *,
+        creator:profiles!creator_id(name)
+      `)
+      .eq("id", dealId)
+      .eq("creator_id", user.id)
+      .single();
+
+    if (error || !data) {
+      return { deal: null, error: error?.message || "Deal not found" };
+    }
+
+    return {
+      deal: {
+        ...transformDeal(data),
+        creatorName: (data.creator as { name: string } | null)?.name || "Unknown",
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error fetching deal by ID:", error);
     return { deal: null, error: "Server error" };
   }
 }
@@ -378,14 +419,13 @@ export async function confirmDealAction(data: {
       return { deal: null, error: "Failed to fetch deal data for sealing" };
     }
 
-    // Verify ID matches to prevent tampering
-    // @ts-ignore - dealData is JSON type but contains id
-    if (dealData.id !== data.dealId) {
+    // Verify ID matches to prevent tampering - dealData is JSON type from RPC
+    const dealDataJson = dealData as { id: string; terms: unknown[] };
+    if (dealDataJson.id !== data.dealId) {
       return { deal: null, error: "Deal ID mismatch" };
     }
 
-    // @ts-ignore - dealData is JSON type
-    const terms = dealData.terms || [];
+    const terms = dealDataJson.terms || [];
 
     const dealSeal = await calculateDealSealServer({
       dealId: data.dealId,
@@ -754,5 +794,141 @@ export async function getAuditLogsAction(dealId: string): Promise<{
   } catch (error) {
     console.error("Error fetching audit logs:", error);
     return { logs: [], error: "Server error" };
+  }
+}
+
+// Send deal receipt email (called after confirmation)
+export async function sendDealReceiptAction(data: {
+  dealId: string;
+  recipientEmail: string;
+  pdfBase64?: string;
+  pdfFilename?: string;
+}): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Fetch the deal
+    const { data: dealData, error: fetchError } = await supabase
+      .from("deals")
+      .select(`
+        *,
+        creator:profiles!creator_id(name)
+      `)
+      .eq("id", data.dealId)
+      .single();
+
+    if (fetchError || !dealData) {
+      return { success: false, error: "Deal not found" };
+    }
+
+    const deal: Deal = {
+      ...transformDeal(dealData),
+      creatorName: (dealData.creator as { name: string } | null)?.name || "Unknown",
+    };
+
+    // Import email function dynamically to avoid bundling issues
+    const { sendDealReceiptEmail } = await import("@/lib/email");
+
+    // Send the email
+    const { success, error: emailError } = await sendDealReceiptEmail({
+      deal,
+      recipientEmail: data.recipientEmail,
+      pdfBase64: data.pdfBase64,
+      pdfFilename: data.pdfFilename,
+    });
+
+    if (!success) {
+      console.error("Email send failed:", emailError);
+      return { success: false, error: emailError || "Failed to send email" };
+    }
+
+    // Add audit log entry
+    await supabase
+      .from("audit_log")
+      .insert({
+        deal_id: data.dealId,
+        event_type: "email_sent",
+        actor_type: "system",
+        metadata: {
+          emailType: "receipt",
+          recipient: data.recipientEmail,
+          hasPdfAttachment: !!data.pdfBase64,
+        },
+      });
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error sending receipt email:", error);
+    return { success: false, error: "Server error" };
+  }
+}
+
+// Send deal invitation/nudge email
+export async function sendDealInvitationAction(data: {
+  dealId: string;
+  recipientEmail: string;
+}): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Fetch the deal with creator info
+    const { data: dealData, error: fetchError } = await supabase
+      .from("deals")
+      .select(`
+        *,
+        creator:profiles!creator_id(name)
+      `)
+      .eq("id", data.dealId)
+      .single();
+
+    if (fetchError || !dealData) {
+      return { success: false, error: "Deal not found" };
+    }
+
+    const deal: Deal = {
+      ...transformDeal(dealData),
+      creatorName: (dealData.creator as { name: string } | null)?.name || "Unknown",
+    };
+
+    // Check deal status
+    if (deal.status !== "pending") {
+      return { success: false, error: "Can only send invitations for pending deals" };
+    }
+
+    // Construct share URL
+    const shareUrl = `${APP_URL}/d/${deal.publicId}`;
+
+    // Import email function dynamically
+    const { sendDealInvitationEmail } = await import("@/lib/email");
+
+    // Send the email
+    const { success, error: emailError } = await sendDealInvitationEmail({
+      deal,
+      recipientEmail: data.recipientEmail,
+      shareUrl,
+    });
+
+    if (!success) {
+      console.error("Invitation email send failed:", emailError);
+      return { success: false, error: emailError || "Failed to send email" };
+    }
+
+    // Add audit log entry
+    await supabase
+      .from("audit_log")
+      .insert({
+        deal_id: data.dealId,
+        event_type: "email_sent",
+        actor_type: "system",
+        metadata: {
+          emailType: "invitation",
+          recipient: data.recipientEmail,
+        },
+      });
+
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error sending invitation email:", error);
+    return { success: false, error: "Server error" };
   }
 }

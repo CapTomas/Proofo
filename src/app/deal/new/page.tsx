@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +35,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
 import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
-import { createDealAction } from "@/app/actions/deal-actions";
+import { createDealAction, getDealByIdAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 // Icon mapping for templates
@@ -63,11 +64,15 @@ const defaultUser = {
   createdAt: new Date().toISOString(),
 };
 
-export default function NewDealPage() {
-  const { user, addDeal, addAuditLog } = useAppStore();
+function NewDealContent() {
+  const { user, addDeal, addAuditLog, getDealById } = useAppStore();
+  const searchParams = useSearchParams();
+  const sourceId = searchParams.get("source");
+  
   const [currentStep, setCurrentStep] = useState<Step>("template");
   const [selectedTemplate, setSelectedTemplate] = useState<DealTemplate | null>(null);
   const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [createdDeal, setCreatedDeal] = useState<Deal | null>(null);
@@ -77,6 +82,54 @@ export default function NewDealPage() {
 
   // Use logged in user or demo user
   const currentUser = user || defaultUser;
+
+  // Pre-fill form from source deal (Duplicate feature)
+  useEffect(() => {
+    if (!sourceId) return;
+
+    const prefillFromDeal = (deal: Deal) => {
+      // Find the matching template
+      const template = dealTemplates.find(t => t.id === deal.templateId);
+      if (template) {
+        setSelectedTemplate(template);
+        // Pre-fill form data from deal terms
+        const data: Record<string, string> = {};
+        deal.terms.forEach(term => {
+          // Find matching field by label
+          const field = template.fields.find(f => f.label === term.label);
+          if (field) {
+            // Remove currency symbol if present
+            const value = term.value.startsWith("$") ? term.value.slice(1) : term.value;
+            data[field.id] = value;
+          }
+        });
+        setFormData(data);
+        setRecipientName(deal.recipientName || "");
+        setRecipientEmail(deal.recipientEmail || "");
+        // Skip to details step
+        setCurrentStep("details");
+      }
+    };
+
+    const loadSourceDeal = async () => {
+      // Try to get deal from Supabase first
+      if (isSupabaseConfigured()) {
+        const { deal: sourceDeal } = await getDealByIdAction(sourceId);
+        if (sourceDeal) {
+          prefillFromDeal(sourceDeal);
+          return;
+        }
+      }
+      
+      // Fallback to local store
+      const localDeal = getDealById(sourceId);
+      if (localDeal) {
+        prefillFromDeal(localDeal);
+      }
+    };
+
+    loadSourceDeal();
+  }, [sourceId, getDealById]);
 
   // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
   const dealLink = shareUrl || (createdDeal
@@ -127,6 +180,7 @@ export default function NewDealPage() {
         description: `${selectedTemplate.name} agreement with ${recipientName}`,
         templateId: selectedTemplate.id,
         recipientName,
+        recipientEmail: recipientEmail || undefined,
         terms,
       });
 
@@ -442,6 +496,27 @@ export default function NewDealPage() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="recipientEmail" className="text-sm font-medium">
+                      Recipient&apos;s Email <span className="text-muted-foreground">(Optional)</span>
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="recipientEmail"
+                        type="email"
+                        value={recipientEmail}
+                        onChange={(e) => setRecipientEmail(e.target.value)}
+                        placeholder="recipient@email.com"
+                        className="pl-11"
+                        pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      If provided, you can send email reminders via the Nudge button
+                    </p>
+                  </div>
+
                   <Separator />
 
                   {selectedTemplate.fields.map((field, index) => (
@@ -716,5 +791,20 @@ export default function NewDealPage() {
         </AnimatePresence>
       </main>
     </div>
+  );
+}
+
+export default function NewDealPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <NewDealContent />
+    </Suspense>
   );
 }
