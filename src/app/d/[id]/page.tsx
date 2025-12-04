@@ -31,16 +31,19 @@ import {
   LucideIcon,
   User,
   Hash,
+  TimerOff,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
 import { Deal } from "@/types";
-import { formatDate } from "@/lib/crypto";
-import { 
+import { formatDate, formatDateTime } from "@/lib/crypto";
+import {  
   getDealByPublicIdAction, 
   getAccessTokenAction, 
   confirmDealAction,
-  markDealViewedAction 
+  markDealViewedAction,
+  getTokenStatusAction,
+  TokenStatus 
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -77,7 +80,7 @@ const demoDeal: Deal = {
   status: "pending",
 };
 
-type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found";
+type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found" | "expired";
 
 // Template icon name mapping
 const templateIconNames: Record<string, string> = {
@@ -89,10 +92,13 @@ const templateIconNames: Record<string, string> = {
 };
 
 // Helper function to determine initial step
-function getInitialStep(deal: Deal | null): Step {
+function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus): Step {
   if (!deal) return "not_found";
   if (deal.status === "confirmed") return "already_signed";
   if (deal.status === "voided") return "voided";
+  // Check token status for pending deals
+  if (deal.status === "pending" && tokenStatus === "expired") return "expired";
+  if (deal.status === "pending" && tokenStatus === "used") return "already_signed";
   if (deal.status === "sealing") return "sign";
   return "review";
 }
@@ -108,6 +114,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoadingDeal, setIsLoadingDeal] = useState(true);
   const [sealError, setSealError] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus>("valid");
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null);
 
   // Fetch deal from database on mount
   useEffect(() => {
@@ -129,10 +137,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         if (fetchedDeal && !error) {
           setDbDeal(fetchedDeal);
           
-          // Get access token for this deal
-          const { token } = await getAccessTokenAction(fetchedDeal.id);
-          if (token) {
-            setAccessToken(token);
+          // Get token status for this deal (includes expiration check)
+          const { status, expiresAt } = await getTokenStatusAction(fetchedDeal.id);
+          setTokenStatus(status);
+          setTokenExpiresAt(expiresAt);
+          
+          // Only get access token if status is valid
+          if (status === "valid") {
+            const { token } = await getAccessTokenAction(fetchedDeal.id);
+            if (token) {
+              setAccessToken(token);
+            }
           }
           
           // Mark as viewed
@@ -175,9 +190,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     if (isLoadingDeal) return "review";
     // If no deal, show not found
     if (!deal) return "not_found";
-    // Otherwise determine from deal status
-    return getInitialStep(deal);
-  }, [stepOverride, isLoadingDeal, deal]);
+    // Otherwise determine from deal status (including token status)
+    return getInitialStep(deal, tokenStatus);
+  }, [stepOverride, isLoadingDeal, deal, tokenStatus]);
 
   // Helper to navigate to a step
   const setCurrentStep = (step: Step) => {
@@ -364,6 +379,45 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               <Link href="/">
                 <Button variant="outline">Go to Proofo</Button>
               </Link>
+            </motion.div>
+          )}
+
+          {/* Expired State - Token has expired */}
+          {currentStep === "expired" && displayDeal && (
+            <motion.div
+              key="expired"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="h-20 w-20 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-6">
+                <TimerOff className="h-10 w-10 text-amber-600" />
+              </div>
+              <h1 className="text-2xl font-bold mb-3">Link Expired</h1>
+              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                This signing link has expired{tokenExpiresAt ? ` on ${formatDateTime(tokenExpiresAt)}` : ""}.
+              </p>
+              <Card className="mb-6 max-w-md mx-auto">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-left text-sm">
+                      <p className="font-medium mb-1">What happened?</p>
+                      <p className="text-muted-foreground">
+                        For security reasons, signing links expire after 7 days. Please contact {displayDeal.creatorName} to request a new signing link.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/">
+                  <Button variant="outline">Go to Proofo</Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button>View Your Deals</Button>
+                </Link>
+              </div>
             </motion.div>
           )}
 

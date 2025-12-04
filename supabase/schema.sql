@@ -314,6 +314,45 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Function to get token status for a deal (returns detailed status info)
+CREATE OR REPLACE FUNCTION public.get_token_status_for_deal(p_deal_id UUID)
+RETURNS JSON AS $$
+DECLARE
+  v_result JSON;
+  v_expires_at TIMESTAMPTZ;
+  v_used_at TIMESTAMPTZ;
+BEGIN
+  -- Validate input
+  IF p_deal_id IS NULL THEN
+    RETURN json_build_object('status', 'not_found', 'expires_at', NULL);
+  END IF;
+
+  -- Get the most recent token for this deal
+  SELECT expires_at, used_at INTO v_expires_at, v_used_at
+  FROM public.access_tokens
+  WHERE deal_id = p_deal_id
+  ORDER BY created_at DESC
+  LIMIT 1;
+  
+  IF NOT FOUND THEN
+    RETURN json_build_object('status', 'not_found', 'expires_at', NULL);
+  END IF;
+
+  -- Check if token was used
+  IF v_used_at IS NOT NULL THEN
+    RETURN json_build_object('status', 'used', 'expires_at', v_expires_at);
+  END IF;
+
+  -- Check if token is expired
+  IF v_expires_at < NOW() THEN
+    RETURN json_build_object('status', 'expired', 'expires_at', v_expires_at);
+  END IF;
+
+  -- Token is valid
+  RETURN json_build_object('status', 'valid', 'expires_at', v_expires_at);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 11. Permissions (Critical for API access)
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
@@ -325,6 +364,7 @@ GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, a
 GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_token_status_for_deal(UUID) TO authenticated, anon;
 
 -- ============================================
 -- STORAGE SETUP (Run in Supabase Dashboard)

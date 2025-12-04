@@ -245,6 +245,43 @@ export async function getAccessTokenAction(dealId: string): Promise<{ token: str
   }
 }
 
+// Token status types
+export type TokenStatus = "valid" | "expired" | "used" | "not_found";
+
+// Get detailed token status for a deal
+export async function getTokenStatusAction(dealId: string): Promise<{ 
+  status: TokenStatus; 
+  expiresAt: string | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Get the token details directly
+    const { data, error } = await supabase
+      .rpc("get_token_status_for_deal", { p_deal_id: dealId });
+
+    if (error) {
+      console.error("Error fetching token status:", error);
+      return { status: "not_found", expiresAt: null, error: error.message };
+    }
+
+    if (!data) {
+      return { status: "not_found", expiresAt: null, error: null };
+    }
+
+    const tokenData = data as { status: TokenStatus; expires_at: string };
+    return { 
+      status: tokenData.status, 
+      expiresAt: tokenData.expires_at,
+      error: null 
+    };
+  } catch (error) {
+    console.error("Error fetching token status:", error);
+    return { status: "not_found", expiresAt: null, error: "Server error" };
+  }
+}
+
 // Upload signature to Supabase Storage
 export async function uploadSignatureAction(
   dealId: string,
@@ -270,20 +307,10 @@ export async function uploadSignatureAction(
       });
 
     if (uploadError) {
-      // Check if it's a bucket not found error - return the base64 as fallback
-      // This allows the app to work even without storage bucket configured
-      const errorMessage = uploadError.message.toLowerCase();
-      const isBucketNotFound = errorMessage.includes("bucket not found") ||
-        (errorMessage.includes("bucket") && errorMessage.includes("not found")) ||
-        ("statusCode" in uploadError && uploadError.statusCode === "404");
-      
-      if (isBucketNotFound) {
-        console.warn("Storage bucket 'signatures' not found, using base64 fallback");
-        // Return the base64 data as the signature URL (works for MVP)
-        return { signatureUrl: signatureBase64, error: null };
-      }
+      // No base64 fallback - storage must be properly configured
+      // Base64 storage in database causes performance issues and is bad practice
       console.error("Error uploading signature:", uploadError);
-      return { signatureUrl: null, error: uploadError.message };
+      return { signatureUrl: null, error: `Failed to upload signature: ${uploadError.message}` };
     }
 
     // Get public URL
@@ -294,8 +321,7 @@ export async function uploadSignatureAction(
     return { signatureUrl: urlData.publicUrl, error: null };
   } catch (error) {
     console.error("Error in uploadSignatureAction:", error);
-    // If there's an error, use base64 fallback for MVP
-    return { signatureUrl: signatureBase64, error: null };
+    return { signatureUrl: null, error: "Failed to upload signature. Please try again." };
   }
 }
 
