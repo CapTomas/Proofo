@@ -209,7 +209,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   // Track the step state - initial value depends on whether deal is loaded
   const [stepOverride, setStepOverride] = useState<Step | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
+  // Pre-fill email from signed-in user if available
+  const [email, setEmail] = useState(user?.email || "");
   const [isSealing, setIsSealing] = useState(false);
   // Track the deal that was confirmed by user action
   const [sealedDeal, setSealedDeal] = useState<Deal | null>(null);
@@ -238,6 +239,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
   // The confirmed deal is either one we just sealed, or one that was already confirmed in DB
   const confirmedDeal = sealedDeal || (deal?.status === "confirmed" ? deal : null);
+
+  // Pre-fill email when user becomes available (e.g., logs in after page load)
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+  }, [user?.email, email]);
 
   // Log deal view for non-demo deals (using ref to track)
   useEffect(() => {
@@ -1047,13 +1055,19 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <p className="text-muted-foreground">
                   Where should we send your receipt?
                 </p>
+                {user && (
+                  <Badge variant="outline" className="mt-3 gap-1.5">
+                    <User className="h-3 w-3" />
+                    Signed in as {user.name || user.email}
+                  </Badge>
+                )}
               </div>
 
               <Card className="mb-6">
                 <CardContent className="p-6 sm:p-8 space-y-6">
                   <div className="space-y-3">
                     <Label htmlFor="email" className="text-sm font-medium">
-                      Email Address <span className="text-muted-foreground">(Optional)</span>
+                      Email Address {user?.email ? <span className="text-muted-foreground">(Auto-filled)</span> : <span className="text-muted-foreground">(Optional)</span>}
                     </Label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
