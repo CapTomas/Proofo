@@ -1,5 +1,7 @@
 import { nanoid } from "nanoid";
 
+
+
 /**
  * Generate a unique public ID for a deal
  * Uses nanoid with a short, URL-safe format
@@ -26,6 +28,31 @@ export function generateAccessToken(): string {
 }
 
 /**
+ * Deterministically stringify an object by sorting keys
+ * This ensures {a:1, b:2} and {b:2, a:1} produce the same string
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function deterministicStringify(obj: any): string {
+  // 1. Handle primitives
+  if (obj === null || typeof obj !== "object") {
+    return JSON.stringify(obj);
+  }
+
+  // 2. Handle Arrays (keep order, but sort keys of items inside)
+  if (Array.isArray(obj)) {
+    return "[" + obj.map(deterministicStringify).join(",") + "]";
+  }
+
+  // 3. Handle Objects (sort keys alphabetically)
+  const sortedKeys = Object.keys(obj).sort();
+  const parts = sortedKeys.map((key) => {
+    return `${JSON.stringify(key)}:${deterministicStringify(obj[key])}`;
+  });
+
+  return "{" + parts.join(",") + "}";
+}
+
+/**
  * Calculate SHA-256 hash of deal data for cryptographic sealing
  */
 export async function calculateDealSeal(data: {
@@ -34,11 +61,25 @@ export async function calculateDealSeal(data: {
   signatureUrl?: string;
   timestamp: string;
 }): Promise<string> {
-  const payload = JSON.stringify({
+
+  // 1. Parse terms if it's a string, so we can re-stringify it deterministically
+  let termsObj;
+  try {
+    termsObj = typeof data.terms === "string" ? JSON.parse(data.terms) : data.terms;
+  } catch {
+    termsObj = data.terms;
+  }
+
+  // 2. Normalize Timestamp (CRITICAL FIX)
+  // Ensure we compare "2023-01-01T00:00:00.000Z" not "2023-01-01T00:00:00+00:00"
+  const normalizedTimestamp = new Date(data.timestamp).toISOString();
+
+  // 3. Construct Payload
+  const payload = deterministicStringify({
     dealId: data.dealId,
-    terms: data.terms,
+    terms: termsObj,
     signatureUrl: data.signatureUrl || "",
-    timestamp: data.timestamp,
+    timestamp: normalizedTimestamp, // Use normalized version
   });
 
   // Use Web Crypto API for SHA-256
@@ -53,11 +94,9 @@ export async function calculateDealSeal(data: {
   // Server-side fallback using Node.js crypto (if available)
   if (typeof globalThis !== "undefined") {
     try {
-      // Dynamic import for Node.js environment
       const crypto = await import("crypto");
       return crypto.createHash("sha256").update(payload).digest("hex");
     } catch {
-      // If crypto module is not available, return a placeholder
       console.warn("Crypto module not available for hashing");
       return `hash-${Date.now()}-${Math.random().toString(36).substring(2)}`;
     }
@@ -65,6 +104,7 @@ export async function calculateDealSeal(data: {
 
   throw new Error("No cryptographic hashing method available");
 }
+
 
 /**
  * Format a date for display

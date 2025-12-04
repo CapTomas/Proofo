@@ -37,13 +37,13 @@ import Link from "next/link";
 import { useAppStore } from "@/store";
 import { Deal } from "@/types";
 import { formatDate, formatDateTime } from "@/lib/crypto";
-import {  
-  getDealByPublicIdAction, 
-  getAccessTokenAction, 
+import {
+  getDealByPublicIdAction,
+  getAccessTokenAction,
   confirmDealAction,
   markDealViewedAction,
   getTokenStatusAction,
-  TokenStatus 
+  TokenStatus
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -131,7 +131,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const { getDealByPublicId, confirmDeal: storeConfirmDeal, addAuditLog, user } = useAppStore();
   const hasLoggedViewRef = useRef(false);
   const hasFetchedRef = useRef(false);
-  
+
   // State for database deal
   const [dbDeal, setDbDeal] = useState<Deal | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -152,7 +152,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         setIsLoadingDeal(false);
         return;
       }
-      
+
       // Handle demo confirmed deal (for preview)
       if (resolvedParams.id === "demo-confirmed") {
         setDbDeal(demoConfirmedDeal);
@@ -163,15 +163,15 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       // Try to fetch from Supabase first (authoritative source)
       if (isSupabaseConfigured()) {
         const { deal: fetchedDeal, error } = await getDealByPublicIdAction(resolvedParams.id);
-        
+
         if (fetchedDeal && !error) {
           setDbDeal(fetchedDeal);
-          
+
           // Get token status for this deal (includes expiration check)
           const { status, expiresAt } = await getTokenStatusAction(fetchedDeal.id);
           setTokenStatus(status);
           setTokenExpiresAt(expiresAt);
-          
+
           // Only get access token if status is valid
           if (status === "valid") {
             const { token } = await getAccessTokenAction(fetchedDeal.id);
@@ -179,13 +179,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               setAccessToken(token);
             }
           }
-          
+
           // Mark as viewed
           await markDealViewedAction(resolvedParams.id);
           setIsLoadingDeal(false);
           return;
         }
-        
+
         // If Supabase failed, fall through to local store
       }
 
@@ -194,13 +194,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       if (localDeal) {
         setDbDeal(localDeal);
       }
-      
+
       setIsLoadingDeal(false);
     };
 
     fetchDeal();
   }, [resolvedParams.id, getDealByPublicId]);
-  
+
   // Get the deal to display
   const deal = dbDeal;
 
@@ -241,7 +241,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         eventType: "deal_viewed",
         actorId: user?.id || null,
         actorType: "recipient",
-        metadata: { 
+        metadata: {
           viewedAt: new Date().toISOString(),
           isLoggedIn: !!user,
         },
@@ -269,7 +269,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     setIsSealing(true);
     setSealError(null);
-    
+
     // If it's a demo deal, use local store
     if (deal.id === "demo123") {
       await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -283,6 +283,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       // Use server action for secure sealing
       const { deal: confirmedResult, error } = await confirmDealAction({
         dealId: deal.id,
+        publicId: deal.publicId,
         token: accessToken,
         signatureBase64: signature,
         recipientEmail: email || undefined,
@@ -302,7 +303,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         setSealedDeal(result);
       }
     }
-    
+
     setIsSealing(false);
     setCurrentStep("email");
   };
@@ -532,13 +533,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       </Badge>
                     </div>
                   </div>
-                  
+
                   {/* Terms */}
                   <div className="space-y-1">
                     <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
                     {displayDeal.terms.map((term, index) => (
-                      <motion.div 
-                        key={term.id} 
+                      <motion.div
+                        key={term.id}
                         className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -564,15 +565,15 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   <CardContent>
                     <div className="bg-muted/30 rounded-lg p-4 flex justify-center">
                       {displayDeal.signatureUrl.startsWith('data:') ? (
-                        <img 
-                          src={displayDeal.signatureUrl} 
-                          alt="Signature" 
+                        <img
+                          src={displayDeal.signatureUrl}
+                          alt="Signature"
                           className="max-h-24 object-contain"
                         />
                       ) : (
-                        <img 
-                          src={displayDeal.signatureUrl} 
-                          alt="Signature" 
+                        <img
+                          src={displayDeal.signatureUrl}
+                          alt="Signature"
                           className="max-h-24 object-contain"
                         />
                       )}
@@ -733,13 +734,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       </Badge>
                     </div>
                   </div>
-                  
+
                   {/* Terms */}
                   <div className="space-y-1">
                     <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
                     {displayDeal.terms.map((term, index) => (
-                      <motion.div 
-                        key={term.id} 
+                      <motion.div
+                        key={term.id}
                         className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -775,9 +776,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 className="w-full shadow-xl shadow-primary/25"
-                size="xl" 
+                size="xl"
                 onClick={handleProceedToSign}
               >
                 Review Complete — Sign to Accept
@@ -906,7 +907,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   </motion.div>
                 </div>
 
-                <motion.h2 
+                <motion.h2
                   className="text-2xl font-bold mb-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -914,7 +915,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 >
                   Sealing Your Deal
                 </motion.h2>
-                <motion.p 
+                <motion.p
                   className="text-muted-foreground"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -981,9 +982,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <Button variant="outline" className="flex-1" onClick={handleSkipEmail}>
                   Skip for Now
                 </Button>
-                <Button 
-                  className="flex-1 shadow-xl shadow-primary/25" 
-                  onClick={handleComplete} 
+                <Button
+                  className="flex-1 shadow-xl shadow-primary/25"
+                  onClick={handleComplete}
                   disabled={!email}
                 >
                   <Mail className="h-4 w-4 mr-2" />
