@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,13 +18,18 @@ import {
   User,
   Clock,
   ArrowRight,
+  XCircle,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
-import { formatDate, formatDateTime } from "@/lib/crypto";
+import { formatDate, formatDateTime, calculateDealSeal } from "@/lib/crypto";
 import { getDealByPublicIdAction, getAuditLogsAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
+
+// Hash verification status type
+type HashVerificationStatus = "pending" | "verifying" | "valid" | "invalid" | "error";
 
 export default function VerifyPage() {
   const { getDealByPublicId, getAuditLogsForDeal } = useAppStore();
@@ -33,10 +38,53 @@ export default function VerifyPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Hash verification state
+  const [hashVerificationStatus, setHashVerificationStatus] = useState<HashVerificationStatus>("pending");
+  const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
+
+  // Verify hash when a confirmed deal is loaded
+  useEffect(() => {
+    const verifyHash = async () => {
+      if (!searchedDeal || searchedDeal.status !== "confirmed" || !searchedDeal.dealSeal) {
+        setHashVerificationStatus("pending");
+        setCalculatedHash(null);
+        return;
+      }
+
+      setHashVerificationStatus("verifying");
+
+      try {
+        // Re-calculate the hash on the client side using the same data
+        const recalculatedHash = await calculateDealSeal({
+          dealId: searchedDeal.id,
+          terms: JSON.stringify(searchedDeal.terms),
+          signatureUrl: searchedDeal.signatureUrl,
+          timestamp: searchedDeal.confirmedAt || "",
+        });
+
+        setCalculatedHash(recalculatedHash);
+
+        // Compare with stored hash
+        if (recalculatedHash === searchedDeal.dealSeal) {
+          setHashVerificationStatus("valid");
+        } else {
+          setHashVerificationStatus("invalid");
+        }
+      } catch (error) {
+        console.error("Error verifying hash:", error);
+        setHashVerificationStatus("error");
+      }
+    };
+
+    verifyHash();
+  }, [searchedDeal]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
+    setHashVerificationStatus("pending");
+    setCalculatedHash(null);
     
     // First try local store
     const localDeal = getDealByPublicId(dealId.trim());
@@ -277,13 +325,104 @@ export default function VerifyPage() {
                     <>
                       <Separator />
                       <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-sm font-medium">Cryptographic Seal (SHA-256)</p>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-muted-foreground" />
+                            <p className="text-sm font-medium">Cryptographic Seal (SHA-256)</p>
+                          </div>
+                          {/* Hash Verification Badge */}
+                          {hashVerificationStatus === "verifying" && (
+                            <Badge variant="outline" className="gap-1.5">
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                              Verifying...
+                            </Badge>
+                          )}
+                          {hashVerificationStatus === "valid" && (
+                            <Badge variant="success" className="gap-1.5">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Cryptographically Valid
+                            </Badge>
+                          )}
+                          {hashVerificationStatus === "invalid" && (
+                            <Badge variant="destructive" className="gap-1.5">
+                              <XCircle className="h-3 w-3" />
+                              Tampered
+                            </Badge>
+                          )}
+                          {hashVerificationStatus === "error" && (
+                            <Badge variant="outline" className="gap-1.5 border-amber-500 text-amber-600">
+                              <AlertCircle className="h-3 w-3" />
+                              Verification Error
+                            </Badge>
+                          )}
                         </div>
-                        <code className="block p-3 bg-muted rounded-lg text-xs font-mono break-all">
-                          {searchedDeal.dealSeal}
-                        </code>
+                        
+                        {/* Stored Hash */}
+                        <div className="mb-3">
+                          <p className="text-xs text-muted-foreground mb-1">Stored Seal:</p>
+                          <code className="block p-3 bg-muted rounded-lg text-xs font-mono break-all">
+                            {searchedDeal.dealSeal}
+                          </code>
+                        </div>
+
+                        {/* Verification Details */}
+                        {hashVerificationStatus === "valid" && (
+                          <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                                  Integrity Verified
+                                </p>
+                                <p className="text-muted-foreground text-xs mt-1">
+                                  The cryptographic seal has been independently re-calculated and matches the stored seal. 
+                                  This proves the deal data has not been tampered with since it was sealed.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {hashVerificationStatus === "invalid" && calculatedHash && (
+                          <div className="space-y-3">
+                            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                <div className="text-sm">
+                                  <p className="font-medium text-destructive">
+                                    Data Tampering Detected
+                                  </p>
+                                  <p className="text-muted-foreground text-xs mt-1">
+                                    The re-calculated hash does not match the stored seal. This indicates the deal 
+                                    data may have been modified after it was originally sealed.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Re-calculated Hash:</p>
+                              <code className="block p-3 bg-muted rounded-lg text-xs font-mono break-all text-destructive">
+                                {calculatedHash}
+                              </code>
+                            </div>
+                          </div>
+                        )}
+
+                        {hashVerificationStatus === "error" && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-sm">
+                                <p className="font-medium text-amber-700 dark:text-amber-400">
+                                  Verification Error
+                                </p>
+                                <p className="text-muted-foreground text-xs mt-1">
+                                  Unable to verify the cryptographic seal. This may be due to missing data or a technical issue.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

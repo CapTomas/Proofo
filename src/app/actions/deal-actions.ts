@@ -5,11 +5,12 @@ import { cookies } from "next/headers";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
+import { deterministicStringify } from "@/lib/crypto";
 
 // Helper to create Supabase server client
 async function createServerSupabaseClient() {
   const cookieStore = await cookies();
-  
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -56,13 +57,27 @@ export async function calculateDealSealServer(data: {
   signatureUrl: string;
   timestamp: string;
 }): Promise<string> {
-  const payload = JSON.stringify({
+
+  // 1. Parse terms
+  let termsObj;
+  try {
+    termsObj = JSON.parse(data.terms);
+  } catch {
+    termsObj = data.terms;
+  }
+
+  // 2. Normalize Timestamp (CRITICAL FIX)
+  // Even though we just generated it, running it through the same normalizer guarantees consistency
+  const normalizedTimestamp = new Date(data.timestamp).toISOString();
+
+  // 3. Construct Payload
+  const payload = deterministicStringify({
     dealId: data.dealId,
-    terms: data.terms,
+    terms: termsObj,
     signatureUrl: data.signatureUrl,
-    timestamp: data.timestamp,
+    timestamp: normalizedTimestamp,
   });
-  
+
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
@@ -100,7 +115,7 @@ export async function createDealAction(data: {
 }): Promise<{ deal: Deal | null; shareUrl: string | null; accessToken: string | null; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
-    
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { deal: null, shareUrl: null, accessToken: null, error: "Not authenticated" };
@@ -197,6 +212,7 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
     const supabase = await createServerSupabaseClient();
 
     // Use the RPC function that bypasses RLS for public access
+    // This function now returns JSON with creator_name included
     const { data, error } = await supabase
       .rpc("get_deal_by_public_id", { p_public_id: publicId });
 
@@ -204,18 +220,9 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
       return { deal: null, error: error?.message || "Deal not found" };
     }
 
-    // Get creator name
-    const { data: creator } = await supabase
-      .from("profiles")
-      .select("name")
-      .eq("id", (data as Record<string, unknown>).creator_id)
-      .single();
-
+    // The function returns JSON with creator_name already included
     return {
-      deal: {
-        ...transformDeal(data as Record<string, unknown>),
-        creatorName: creator?.name || "Unknown",
-      },
+      deal: transformDeal(data as Record<string, unknown>),
       error: null,
     };
   } catch (error) {
@@ -245,6 +252,50 @@ export async function getAccessTokenAction(dealId: string): Promise<{ token: str
   }
 }
 
+// Token status types
+export type TokenStatus = "valid" | "expired" | "used" | "not_found";
+
+// Get detailed token status for a deal
+export async function getTokenStatusAction(dealId: string): Promise<{
+  status: TokenStatus;
+  expiresAt: string | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Get the token details directly
+    const { data, error } = await supabase
+      .rpc("get_token_status_for_deal", { p_deal_id: dealId });
+
+    if (error) {
+      // If the function doesn't exist in the database, fall back to "valid"
+      // to allow the deal flow to continue. This handles the case where
+      // the user hasn't run the updated schema.sql yet.
+      if (error.code === "PGRST202") {
+        console.warn("get_token_status_for_deal function not found in database. Please run the updated schema.sql. Falling back to valid status.");
+        return { status: "valid", expiresAt: null, error: null };
+      }
+      console.error("Error fetching token status:", error);
+      return { status: "not_found", expiresAt: null, error: error.message };
+    }
+
+    if (!data) {
+      return { status: "not_found", expiresAt: null, error: null };
+    }
+
+    const tokenData = data as { status: TokenStatus; expires_at: string };
+    return {
+      status: tokenData.status,
+      expiresAt: tokenData.expires_at,
+      error: null
+    };
+  } catch (error) {
+    console.error("Error fetching token status:", error);
+    return { status: "not_found", expiresAt: null, error: "Server error" };
+  }
+}
+
 // Upload signature to Supabase Storage
 export async function uploadSignatureAction(
   dealId: string,
@@ -270,20 +321,10 @@ export async function uploadSignatureAction(
       });
 
     if (uploadError) {
-      // Check if it's a bucket not found error - return the base64 as fallback
-      // This allows the app to work even without storage bucket configured
-      const errorMessage = uploadError.message.toLowerCase();
-      const isBucketNotFound = errorMessage.includes("bucket not found") ||
-        (errorMessage.includes("bucket") && errorMessage.includes("not found")) ||
-        ("statusCode" in uploadError && uploadError.statusCode === "404");
-      
-      if (isBucketNotFound) {
-        console.warn("Storage bucket 'signatures' not found, using base64 fallback");
-        // Return the base64 data as the signature URL (works for MVP)
-        return { signatureUrl: signatureBase64, error: null };
-      }
+      // No base64 fallback - storage must be properly configured
+      // Base64 storage in database causes performance issues and is bad practice
       console.error("Error uploading signature:", uploadError);
-      return { signatureUrl: null, error: uploadError.message };
+      return { signatureUrl: null, error: `Failed to upload signature: ${uploadError.message}` };
     }
 
     // Get public URL
@@ -294,14 +335,14 @@ export async function uploadSignatureAction(
     return { signatureUrl: urlData.publicUrl, error: null };
   } catch (error) {
     console.error("Error in uploadSignatureAction:", error);
-    // If there's an error, use base64 fallback for MVP
-    return { signatureUrl: signatureBase64, error: null };
+    return { signatureUrl: null, error: "Failed to upload signature. Please try again." };
   }
 }
 
-// Confirm deal with token validation and server-side sealing
+// Update the input type to include publicId
 export async function confirmDealAction(data: {
   dealId: string;
+  publicId: string
   token: string;
   signatureBase64: string;
   recipientEmail?: string;
@@ -319,8 +360,6 @@ export async function confirmDealAction(data: {
     );
 
     if (uploadError || !signatureUrl) {
-      // If storage upload fails, return an error instead of using base64 fallback
-      // Base64 storage in database would cause performance issues
       console.error("Signature upload failed:", uploadError);
       return { deal: null, error: "Failed to upload signature. Please try again." };
     }
@@ -329,17 +368,28 @@ export async function confirmDealAction(data: {
 
     // Calculate seal on the server
     const timestamp = new Date().toISOString();
-    
-    // We'll get the deal data separately for the seal calculation
-    const { data: dealForSeal } = await supabase
-      .from("deals")
-      .select("terms")
-      .eq("id", data.dealId)
-      .single();
+
+    // CRITICAL FIX: Fetch terms using RPC to bypass RLS for anonymous users
+    const { data: dealData, error: fetchError } = await supabase
+      .rpc("get_deal_by_public_id", { p_public_id: data.publicId });
+
+    if (fetchError || !dealData) {
+      console.error("Error fetching deal terms for sealing:", fetchError);
+      return { deal: null, error: "Failed to fetch deal data for sealing" };
+    }
+
+    // Verify ID matches to prevent tampering
+    // @ts-ignore - dealData is JSON type but contains id
+    if (dealData.id !== data.dealId) {
+      return { deal: null, error: "Deal ID mismatch" };
+    }
+
+    // @ts-ignore - dealData is JSON type
+    const terms = dealData.terms || [];
 
     const dealSeal = await calculateDealSealServer({
       dealId: data.dealId,
-      terms: JSON.stringify(dealForSeal?.terms || []),
+      terms: JSON.stringify(terms),
       signatureUrl: finalSignatureUrl,
       timestamp,
     });
@@ -353,6 +403,7 @@ export async function confirmDealAction(data: {
         p_deal_seal: dealSeal,
         p_recipient_email: data.recipientEmail || null,
         p_recipient_id: user?.id || null,
+        p_confirmed_at: timestamp,
       });
 
     if (confirmError) {
@@ -468,9 +519,9 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
 }
 
 // Ensure user profile exists in database (upsert)
-export async function ensureProfileExistsAction(): Promise<{ 
-  profile: { id: string; email: string; name: string | null; hasCompletedOnboarding: boolean } | null; 
-  error: string | null 
+export async function ensureProfileExistsAction(): Promise<{
+  profile: { id: string; email: string; name: string | null; hasCompletedOnboarding: boolean } | null;
+  error: string | null
 }> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -502,13 +553,13 @@ export async function ensureProfileExistsAction(): Promise<{
     }
 
     // Profile doesn't exist, create it
-    const defaultName = user.user_metadata?.full_name || 
-                        user.user_metadata?.name || 
+    const defaultName = user.user_metadata?.full_name ||
+                        user.user_metadata?.name ||
                         "";
-    
+
     // Check if we have a meaningful name (not just email prefix)
     const hasValidDefaultName = !!defaultName && defaultName.trim() !== "";
-    
+
     const { data: newProfile, error: insertError } = await supabase
       .from("profiles")
       .insert({

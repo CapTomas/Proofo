@@ -31,16 +31,19 @@ import {
   LucideIcon,
   User,
   Hash,
+  TimerOff,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
 import { Deal } from "@/types";
-import { formatDate } from "@/lib/crypto";
-import { 
-  getDealByPublicIdAction, 
-  getAccessTokenAction, 
+import { formatDate, formatDateTime } from "@/lib/crypto";
+import {
+  getDealByPublicIdAction,
+  getAccessTokenAction,
   confirmDealAction,
-  markDealViewedAction 
+  markDealViewedAction,
+  getTokenStatusAction,
+  TokenStatus
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -77,7 +80,30 @@ const demoDeal: Deal = {
   status: "pending",
 };
 
-type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found";
+// Demo deal for confirmed state preview
+const demoConfirmedDeal: Deal = {
+  id: "demo-confirmed",
+  publicId: "demo-confirmed",
+  creatorId: "demo-creator",
+  creatorName: "Alex Johnson",
+  recipientName: "Sarah Miller",
+  title: "Lend Camera Equipment",
+  description: "Agreement to lend camera equipment",
+  templateId: "lend-item",
+  terms: [
+    { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
+    { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
+    { id: "3", label: "Expected Return Date", value: "February 15, 2024", type: "date" },
+    { id: "4", label: "Condition Notes", value: "Excellent condition, includes original box and accessories", type: "text" },
+  ],
+  createdAt: "2024-01-20T14:00:00Z",
+  confirmedAt: "2024-01-21T10:30:00Z",
+  status: "confirmed",
+  signatureUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  dealSeal: "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678",
+};
+
+type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found" | "expired";
 
 // Template icon name mapping
 const templateIconNames: Record<string, string> = {
@@ -89,10 +115,13 @@ const templateIconNames: Record<string, string> = {
 };
 
 // Helper function to determine initial step
-function getInitialStep(deal: Deal | null): Step {
+function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus): Step {
   if (!deal) return "not_found";
   if (deal.status === "confirmed") return "already_signed";
   if (deal.status === "voided") return "voided";
+  // Check token status for pending deals
+  if (deal.status === "pending" && tokenStatus === "expired") return "expired";
+  if (deal.status === "pending" && tokenStatus === "used") return "already_signed";
   if (deal.status === "sealing") return "sign";
   return "review";
 }
@@ -102,12 +131,14 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const { getDealByPublicId, confirmDeal: storeConfirmDeal, addAuditLog, user } = useAppStore();
   const hasLoggedViewRef = useRef(false);
   const hasFetchedRef = useRef(false);
-  
+
   // State for database deal
   const [dbDeal, setDbDeal] = useState<Deal | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoadingDeal, setIsLoadingDeal] = useState(true);
   const [sealError, setSealError] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus>("valid");
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null);
 
   // Fetch deal from database on mount
   useEffect(() => {
@@ -115,9 +146,16 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     hasFetchedRef.current = true;
 
     const fetchDeal = async () => {
-      // Handle demo deal
+      // Handle demo deals
       if (resolvedParams.id === "demo123") {
         setDbDeal(demoDeal);
+        setIsLoadingDeal(false);
+        return;
+      }
+
+      // Handle demo confirmed deal (for preview)
+      if (resolvedParams.id === "demo-confirmed") {
+        setDbDeal(demoConfirmedDeal);
         setIsLoadingDeal(false);
         return;
       }
@@ -125,22 +163,29 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       // Try to fetch from Supabase first (authoritative source)
       if (isSupabaseConfigured()) {
         const { deal: fetchedDeal, error } = await getDealByPublicIdAction(resolvedParams.id);
-        
+
         if (fetchedDeal && !error) {
           setDbDeal(fetchedDeal);
-          
-          // Get access token for this deal
-          const { token } = await getAccessTokenAction(fetchedDeal.id);
-          if (token) {
-            setAccessToken(token);
+
+          // Get token status for this deal (includes expiration check)
+          const { status, expiresAt } = await getTokenStatusAction(fetchedDeal.id);
+          setTokenStatus(status);
+          setTokenExpiresAt(expiresAt);
+
+          // Only get access token if status is valid
+          if (status === "valid") {
+            const { token } = await getAccessTokenAction(fetchedDeal.id);
+            if (token) {
+              setAccessToken(token);
+            }
           }
-          
+
           // Mark as viewed
           await markDealViewedAction(resolvedParams.id);
           setIsLoadingDeal(false);
           return;
         }
-        
+
         // If Supabase failed, fall through to local store
       }
 
@@ -149,13 +194,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       if (localDeal) {
         setDbDeal(localDeal);
       }
-      
+
       setIsLoadingDeal(false);
     };
 
     fetchDeal();
   }, [resolvedParams.id, getDealByPublicId]);
-  
+
   // Get the deal to display
   const deal = dbDeal;
 
@@ -175,9 +220,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     if (isLoadingDeal) return "review";
     // If no deal, show not found
     if (!deal) return "not_found";
-    // Otherwise determine from deal status
-    return getInitialStep(deal);
-  }, [stepOverride, isLoadingDeal, deal]);
+    // Otherwise determine from deal status (including token status)
+    return getInitialStep(deal, tokenStatus);
+  }, [stepOverride, isLoadingDeal, deal, tokenStatus]);
 
   // Helper to navigate to a step
   const setCurrentStep = (step: Step) => {
@@ -196,7 +241,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         eventType: "deal_viewed",
         actorId: user?.id || null,
         actorType: "recipient",
-        metadata: { 
+        metadata: {
           viewedAt: new Date().toISOString(),
           isLoggedIn: !!user,
         },
@@ -224,7 +269,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     setIsSealing(true);
     setSealError(null);
-    
+
     // If it's a demo deal, use local store
     if (deal.id === "demo123") {
       await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -238,6 +283,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       // Use server action for secure sealing
       const { deal: confirmedResult, error } = await confirmDealAction({
         dealId: deal.id,
+        publicId: deal.publicId,
         token: accessToken,
         signatureBase64: signature,
         recipientEmail: email || undefined,
@@ -257,7 +303,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         setSealedDeal(result);
       }
     }
-    
+
     setIsSealing(false);
     setCurrentStep("email");
   };
@@ -367,28 +413,234 @@ export default function DealConfirmPage({ params }: DealPageProps) {
             </motion.div>
           )}
 
+          {/* Expired State - Token has expired */}
+          {currentStep === "expired" && displayDeal && (
+            <motion.div
+              key="expired"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="h-20 w-20 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-6">
+                <TimerOff className="h-10 w-10 text-amber-600" />
+              </div>
+              <h1 className="text-2xl font-bold mb-3">Link Expired</h1>
+              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                This signing link has expired{tokenExpiresAt ? ` on ${formatDateTime(tokenExpiresAt)}` : ""}.
+              </p>
+              <Card className="mb-6 max-w-md mx-auto">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-left text-sm">
+                      <p className="font-medium mb-1">What happened?</p>
+                      <p className="text-muted-foreground">
+                        For security reasons, signing links expire after 7 days. Please contact {displayDeal.creatorName} to request a new signing link.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/">
+                  <Button variant="outline">Go to Proofo</Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button>View Your Deals</Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
           {/* Already Signed State */}
           {currentStep === "already_signed" && displayDeal && (
             <motion.div
               key="already_signed"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12"
             >
-              <div className="h-20 w-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              {/* Success Header */}
+              <div className="text-center mb-8">
+                <Badge variant="secondary" className="mb-4 px-4 py-1.5 bg-emerald-500/10 text-emerald-700 border-emerald-500/30">
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  Sealed & Verified
+                </Badge>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
+                  Deal Complete
+                </h1>
+                <p className="text-muted-foreground">
+                  This agreement was sealed on {displayDeal.confirmedAt ? formatDateTime(displayDeal.confirmedAt) : "a previous date"}
+                </p>
               </div>
-              <h1 className="text-2xl font-bold mb-3">Already Signed</h1>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                This deal has already been signed and sealed on {displayDeal.confirmedAt ? formatDate(displayDeal.confirmedAt) : "a previous date"}.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+
+              {/* Creator & Status Info */}
+              <Card className="mb-6 border-emerald-500/30">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold">
+                      {creatorInitials}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{displayDeal.creatorName}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" />
+                        Created {formatDate(displayDeal.createdAt)}
+                      </p>
+                    </div>
+                    <Badge variant="success" className="gap-1.5">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Confirmed
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Deal Details */}
+              <Card className="mb-6 overflow-hidden">
+                <CardHeader className="bg-muted/30 border-b pb-4">
+                  <div className="flex items-center gap-4">
+                    {(() => {
+                      const templateId = displayDeal.templateId || "simple-agreement";
+                      const iconName = templateIconNames[templateId] || "Handshake";
+                      const IconComp = iconMap[iconName] || Handshake;
+                      return (
+                        <div className="h-14 w-14 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                          <IconComp className="h-7 w-7 text-emerald-600" />
+                        </div>
+                      );
+                    })()}
+                    <div>
+                      <CardTitle className="text-xl">{displayDeal.title}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {displayDeal.description || "Agreement"}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  {/* Deal metadata */}
+                  <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Recipient:</span>
+                      <span className="font-medium">{displayDeal.recipientName || "Recipient"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Deal ID:</span>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {displayDeal.publicId}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Terms */}
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
+                    {displayDeal.terms.map((term, index) => (
+                      <motion.div
+                        key={term.id}
+                        className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <span className="text-muted-foreground text-sm">{term.label}</span>
+                        <span className="font-medium">{term.value}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Signature Display */}
+              {displayDeal.signatureUrl && (
+                <Card className="mb-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <PenLine className="h-5 w-5 text-muted-foreground" />
+                      Recipient Signature
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-muted/30 rounded-lg p-4 flex justify-center">
+                      {displayDeal.signatureUrl.startsWith('data:') ? (
+                        <img
+                          src={displayDeal.signatureUrl}
+                          alt="Signature"
+                          className="max-h-24 object-contain"
+                        />
+                      ) : (
+                        <img
+                          src={displayDeal.signatureUrl}
+                          alt="Signature"
+                          className="max-h-24 object-contain"
+                        />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Cryptographic Seal */}
+              {displayDeal.dealSeal && (
+                <Card className="mb-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-muted-foreground" />
+                      Cryptographic Seal (SHA-256)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <code className="block p-3 bg-muted rounded-lg text-xs font-mono break-all">
+                      {displayDeal.dealSeal}
+                    </code>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      This hash proves the deal data has not been modified since signing.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Trust Indicators */}
+              <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <span>Encrypted & Secure</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Lock className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <span>Cryptographically Sealed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <FileCheck className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <span>Legally Binding</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button variant="outline" className="gap-2">
                   <Download className="h-4 w-4" />
                   Download Receipt
                 </Button>
+                <Link href={`/verify?id=${displayDeal.publicId}`}>
+                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                    <Shield className="h-4 w-4" />
+                    Verify Deal
+                  </Button>
+                </Link>
                 <Link href="/">
-                  <Button>Create Your Own Deals</Button>
+                  <Button className="gap-2 w-full sm:w-auto">
+                    <Sparkles className="h-4 w-4" />
+                    Create Your Own Deals
+                  </Button>
                 </Link>
               </div>
             </motion.div>
@@ -482,13 +734,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       </Badge>
                     </div>
                   </div>
-                  
+
                   {/* Terms */}
                   <div className="space-y-1">
                     <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
                     {displayDeal.terms.map((term, index) => (
-                      <motion.div 
-                        key={term.id} 
+                      <motion.div
+                        key={term.id}
                         className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -524,9 +776,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 className="w-full shadow-xl shadow-primary/25"
-                size="xl" 
+                size="xl"
                 onClick={handleProceedToSign}
               >
                 Review Complete — Sign to Accept
@@ -655,7 +907,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   </motion.div>
                 </div>
 
-                <motion.h2 
+                <motion.h2
                   className="text-2xl font-bold mb-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -663,7 +915,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 >
                   Sealing Your Deal
                 </motion.h2>
-                <motion.p 
+                <motion.p
                   className="text-muted-foreground"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -730,9 +982,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <Button variant="outline" className="flex-1" onClick={handleSkipEmail}>
                   Skip for Now
                 </Button>
-                <Button 
-                  className="flex-1 shadow-xl shadow-primary/25" 
-                  onClick={handleComplete} 
+                <Button
+                  className="flex-1 shadow-xl shadow-primary/25"
+                  onClick={handleComplete}
                   disabled={!email}
                 >
                   <Mail className="h-4 w-4 mr-2" />
