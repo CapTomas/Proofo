@@ -197,6 +197,7 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
     const supabase = await createServerSupabaseClient();
 
     // Use the RPC function that bypasses RLS for public access
+    // This function now returns JSON with creator_name included
     const { data, error } = await supabase
       .rpc("get_deal_by_public_id", { p_public_id: publicId });
 
@@ -204,18 +205,9 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
       return { deal: null, error: error?.message || "Deal not found" };
     }
 
-    // Get creator name
-    const { data: creator } = await supabase
-      .from("profiles")
-      .select("name")
-      .eq("id", (data as Record<string, unknown>).creator_id)
-      .single();
-
+    // The function returns JSON with creator_name already included
     return {
-      deal: {
-        ...transformDeal(data as Record<string, unknown>),
-        creatorName: creator?.name || "Unknown",
-      },
+      deal: transformDeal(data as Record<string, unknown>),
       error: null,
     };
   } catch (error) {
