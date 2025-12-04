@@ -243,7 +243,7 @@ export default function DashboardPage() {
     // If recipient has email, send invitation email. Otherwise, just copy the link.
     if (deal.recipientEmail && isSupabaseConfigured()) {
       setIsNudging(deal.id);
-      const { success, error } = await sendDealInvitationAction({
+      const { success } = await sendDealInvitationAction({
         dealId: deal.id,
         recipientEmail: deal.recipientEmail,
       });
@@ -253,8 +253,7 @@ export default function DashboardPage() {
         setNudgeSuccess(deal.id);
         setTimeout(() => setNudgeSuccess(null), 3000);
       } else {
-        // Fallback to copy if email fails
-        console.error("Failed to send nudge email:", error);
+        // Fallback to copy if email fails - still provides value to user
         copyToClipboard(deal.id, deal.publicId);
       }
     } else {

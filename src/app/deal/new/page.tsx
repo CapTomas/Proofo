@@ -509,6 +509,7 @@ function NewDealContent() {
                         onChange={(e) => setRecipientEmail(e.target.value)}
                         placeholder="recipient@email.com"
                         className="pl-11"
+                        pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">

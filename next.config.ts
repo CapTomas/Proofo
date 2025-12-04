@@ -8,7 +8,7 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
-  // Add turbopack config to satisfy Next.js 16 requirement
+  // Empty turbopack config to satisfy Next.js 16 when using webpack plugins like @serwist/next
   turbopack: {},
 };
 
