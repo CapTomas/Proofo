@@ -21,7 +21,6 @@ import {
   Lock,
   Clock,
   Download,
-  ExternalLink,
   XCircle,
   Package,
   Handshake,
@@ -293,15 +292,19 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       return;
     }
 
+    // Determine email to use - logged-in user's email takes priority
+    const recipientEmailToUse = user?.email || email || undefined;
+
     // Check if we have an access token and should use Supabase
     if (accessToken && isSupabaseConfigured()) {
       // Use server action for secure sealing
+      // Note: The server action automatically links the deal to the logged-in user's ID
       const { deal: confirmedResult, error } = await confirmDealAction({
         dealId: deal.id,
         publicId: deal.publicId,
         token: accessToken,
         signatureBase64: signature,
-        recipientEmail: email || undefined,
+        recipientEmail: recipientEmailToUse,
       });
 
       if (error || !confirmedResult) {
@@ -311,9 +314,19 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       }
 
       setSealedDeal(confirmedResult);
+
+      // For logged-in users: skip email step entirely and go to complete
+      // Their user.id is already linked, and we can auto-send receipt
+      if (user?.id && user?.email) {
+        setIsSealing(false);
+        // Auto-send receipt email in background for logged-in users
+        sendReceiptForLoggedInUser(confirmedResult, user.email);
+        setCurrentStep("complete");
+        return;
+      }
     } else {
       // Use local store (demo mode)
-      const result = await storeConfirmDeal(deal.id, signature, email || undefined);
+      const result = await storeConfirmDeal(deal.id, signature, recipientEmailToUse);
       if (result) {
         setSealedDeal(result);
       }
@@ -321,6 +334,38 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     setIsSealing(false);
     setCurrentStep("email");
+  };
+
+  // Auto-send receipt email for logged-in users (fire-and-forget)
+  const sendReceiptForLoggedInUser = async (deal: Deal, recipientEmail: string) => {
+    try {
+      const verificationUrl = typeof window !== "undefined" 
+        ? `${window.location.origin}/verify?id=${deal.publicId}`
+        : `https://proofo.app/verify?id=${deal.publicId}`;
+
+      const { pdfBlob } = await generateDealPDF({
+        deal: deal,
+        signatureDataUrl: signature || deal.signatureUrl,
+        isPro: user?.isPro || false,
+        verificationUrl,
+      });
+
+      const pdfBase64 = await pdfBlobToBase64(pdfBlob);
+      const pdfFilename = generatePDFFilename(deal);
+
+      await sendDealReceiptAction({
+        dealId: deal.id,
+        recipientEmail: recipientEmail,
+        pdfBase64,
+        pdfFilename,
+      });
+      
+      // Set emailSent to true so the complete page shows the right message
+      setEmailSent(true);
+    } catch (error) {
+      // Silent failure for auto-send - user can still download PDF manually
+      console.error("Auto-send receipt failed (non-blocking):", error);
+    }
   };
 
   const handleSkipEmail = () => {
@@ -912,7 +957,38 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <p className="text-muted-foreground">
                   Draw your signature below to seal this agreement
                 </p>
+                {/* Show prominent "Signing as" indicator for logged-in users */}
+                {user && (
+                  <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                      Signing as {user.name || user.email}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Logged-in user info card */}
+              {user && (
+                <Card className="mb-6 border-emerald-500/30 bg-emerald-500/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
+                        {user.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || user.email?.[0]?.toUpperCase() || "U"}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{user.name || "Authenticated User"}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                          ✓ This deal will be linked to your account
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {sealError && (
                 <Card className="mb-6 border-destructive/50 bg-destructive/5">
@@ -1162,10 +1238,20 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </motion.div>
 
               <h1 className="text-2xl sm:text-3xl font-bold mb-4 tracking-tight">You&apos;re All Set!</h1>
-              <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                 This agreement has been cryptographically sealed and is now enforceable.
-                {email && " A copy has been sent to your email."}
+                {emailSent && " A copy has been sent to your email."}
               </p>
+
+              {/* Logged-in user account link confirmation */}
+              {user && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-8">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    Linked to your account • View in Dashboard
+                  </span>
+                </div>
+              )}
 
               <Card className="mb-8 text-left">
                 <CardContent className="p-6">
@@ -1200,6 +1286,18 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         <Badge variant="outline" className="font-mono text-xs max-w-[200px] truncate">
                           {confirmedDeal.dealSeal.slice(0, 16)}...
                         </Badge>
+                      </div>
+                    )}
+                    {/* Show signed-in user info */}
+                    {user && (
+                      <div className="flex items-center justify-between py-2 border-b">
+                        <span className="text-muted-foreground text-sm">Signed By</span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-medium">
+                            {user.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || user.email?.[0]?.toUpperCase() || "U"}
+                          </div>
+                          <span className="font-medium text-sm">{user.name || user.email}</span>
+                        </div>
                       </div>
                     )}
                     <div className="flex items-center justify-between py-2">
@@ -1239,22 +1337,40 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     </>
                   )}
                 </Button>
-                <Button variant="outline" className="gap-2">
-                  <ExternalLink className="h-4 w-4" />
-                  View Details
-                </Button>
+                <Link href={`/verify?id=${displayDeal.publicId}`}>
+                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                    <Shield className="h-4 w-4" />
+                    Verify Deal
+                  </Button>
+                </Link>
               </div>
 
               <Separator className="my-8" />
 
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">Want to create your own deals?</p>
-                <Link href="/dashboard">
-                  <Button className="shadow-lg shadow-primary/20 gap-2">
-                    <Sparkles className="h-4 w-4" />
-                    Get Started with Proofo
-                  </Button>
-                </Link>
+                {user ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      This deal is now in your dashboard
+                    </p>
+                    <Link href="/dashboard">
+                      <Button className="shadow-lg shadow-primary/20 gap-2">
+                        <FileCheck className="h-4 w-4" />
+                        Go to Dashboard
+                      </Button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">Want to create your own deals?</p>
+                    <Link href="/dashboard">
+                      <Button className="shadow-lg shadow-primary/20 gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Get Started with Proofo
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </motion.div>
           )}
