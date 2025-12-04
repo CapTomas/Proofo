@@ -192,13 +192,15 @@ CREATE TRIGGER on_profile_created
   FOR EACH ROW EXECUTE FUNCTION public.sync_deals_for_new_user();
 
 -- Function to confirm deal with token validation
+-- NOTE: p_confirmed_at must be the exact timestamp used when calculating the deal seal
 CREATE OR REPLACE FUNCTION public.confirm_deal_with_token(
   p_deal_id UUID,
   p_token TEXT,
   p_signature_data TEXT,
   p_deal_seal TEXT,
   p_recipient_email TEXT DEFAULT NULL,
-  p_recipient_id UUID DEFAULT NULL
+  p_recipient_id UUID DEFAULT NULL,
+  p_confirmed_at TIMESTAMPTZ DEFAULT NOW()
 )
 RETURNS public.deals AS $$
 DECLARE
@@ -224,12 +226,13 @@ BEGIN
   WHERE deal_id = p_deal_id AND token = p_token;
 
   -- Update the deal
+  -- IMPORTANT: Use the provided p_confirmed_at timestamp to match the seal calculation
   UPDATE public.deals
   SET
     status = 'confirmed',
     signature_url = p_signature_data,
     deal_seal = p_deal_seal,
-    confirmed_at = NOW(),
+    confirmed_at = p_confirmed_at,
     recipient_email = COALESCE(p_recipient_email, recipient_email),
     recipient_id = COALESCE(p_recipient_id, recipient_id)
   WHERE id = p_deal_id
@@ -384,7 +387,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, se
 -- 12. Public Function Grants
 GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID, TIMESTAMPTZ) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_token_status_for_deal(UUID) TO authenticated, anon;
 

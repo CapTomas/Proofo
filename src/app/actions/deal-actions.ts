@@ -353,6 +353,7 @@ export async function confirmDealAction(data: {
     const finalSignatureUrl = signatureUrl;
 
     // Calculate seal on the server
+    // IMPORTANT: This exact timestamp must be stored as confirmed_at for verification to work
     const timestamp = new Date().toISOString();
     
     // We'll get the deal data separately for the seal calculation
@@ -370,6 +371,7 @@ export async function confirmDealAction(data: {
     });
 
     // Use the confirm_deal_with_token function
+    // Pass the exact timestamp used for seal calculation to ensure verification works
     const { data: confirmedDeal, error: confirmError } = await supabase
       .rpc("confirm_deal_with_token", {
         p_deal_id: data.dealId,
@@ -378,6 +380,7 @@ export async function confirmDealAction(data: {
         p_deal_seal: dealSeal,
         p_recipient_email: data.recipientEmail || null,
         p_recipient_id: user?.id || null,
+        p_confirmed_at: timestamp,
       });
 
     if (confirmError) {
