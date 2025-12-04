@@ -43,9 +43,11 @@ import {
   confirmDealAction,
   markDealViewedAction,
   getTokenStatusAction,
+  sendDealReceiptAction,
   TokenStatus
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { generateDealPDF, downloadPDF, generatePDFFilename, pdfBlobToBase64 } from "@/lib/pdf";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -211,6 +213,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [isSealing, setIsSealing] = useState(false);
   // Track the deal that was confirmed by user action
   const [sealedDeal, setSealedDeal] = useState<Deal | null>(null);
+  // PDF generation state
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Calculate current step based on deal state and any user navigation
   const currentStep = useMemo(() => {
@@ -308,12 +315,85 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     setCurrentStep("email");
   };
 
-  const handleComplete = () => {
+  const handleSkipEmail = () => {
     setCurrentStep("complete");
   };
 
-  const handleSkipEmail = () => {
-    setCurrentStep("complete");
+  // PDF Download Handler
+  const handleDownloadPDF = async () => {
+    if (!confirmedDeal && !displayDeal) return;
+    
+    const targetDeal = confirmedDeal || displayDeal;
+    if (!targetDeal) return;
+
+    setIsGeneratingPDF(true);
+    try {
+      const verificationUrl = typeof window !== "undefined" 
+        ? `${window.location.origin}/verify?id=${targetDeal.publicId}`
+        : `https://proofo.app/verify?id=${targetDeal.publicId}`;
+
+      const { pdfBlob } = await generateDealPDF({
+        deal: targetDeal,
+        signatureDataUrl: signature || targetDeal.signatureUrl,
+        isPro: user?.isPro || false,
+        verificationUrl,
+      });
+
+      const filename = generatePDFFilename(targetDeal);
+      downloadPDF(pdfBlob, filename);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      setSealError("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Send Receipt Email Handler
+  const handleSendReceiptEmail = async () => {
+    if (!email || !confirmedDeal) return;
+
+    setIsSendingEmail(true);
+    setEmailError(null);
+
+    try {
+      // First generate the PDF
+      const verificationUrl = typeof window !== "undefined" 
+        ? `${window.location.origin}/verify?id=${confirmedDeal.publicId}`
+        : `https://proofo.app/verify?id=${confirmedDeal.publicId}`;
+
+      const { pdfBlob } = await generateDealPDF({
+        deal: confirmedDeal,
+        signatureDataUrl: signature || confirmedDeal.signatureUrl,
+        isPro: user?.isPro || false,
+        verificationUrl,
+      });
+
+      // Convert PDF to base64 for email attachment
+      const pdfBase64 = await pdfBlobToBase64(pdfBlob);
+      const pdfFilename = generatePDFFilename(confirmedDeal);
+
+      // Send the email with PDF attachment
+      const { success, error } = await sendDealReceiptAction({
+        dealId: confirmedDeal.id,
+        recipientEmail: email,
+        pdfBase64,
+        pdfFilename,
+      });
+
+      if (!success) {
+        setEmailError(error || "Failed to send email");
+      } else {
+        setEmailSent(true);
+        // Move to complete step after successful email
+        setTimeout(() => setCurrentStep("complete"), 1500);
+      }
+    } catch (error) {
+      console.error("Error sending receipt email:", error);
+      setEmailError("Failed to send email. Please try again.");
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   // Show loading if deal is being fetched
@@ -626,9 +706,28 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Download Receipt
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingPDF}
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                      </motion.div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download Receipt
+                    </>
+                  )}
                 </Button>
                 <Link href={`/verify?id=${displayDeal.publicId}`}>
                   <Button variant="outline" className="gap-2 w-full sm:w-auto">
@@ -965,30 +1064,66 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="your@email.com"
                         className="pl-11"
+                        disabled={isSendingEmail || emailSent}
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border">
-                    <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground">
-                      We&apos;ll send you a PDF copy of this agreement with the cryptographic seal for your records. Your email is never shared.
-                    </p>
-                  </div>
+                  {emailError && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
+                      <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                      <p className="text-sm text-destructive">{emailError}</p>
+                    </div>
+                  )}
+
+                  {emailSent && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                      <p className="text-sm text-emerald-700">Receipt sent successfully! Check your inbox.</p>
+                    </div>
+                  )}
+
+                  {!emailSent && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border">
+                      <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-sm text-muted-foreground">
+                        We&apos;ll send you a PDF copy of this agreement with the cryptographic seal for your records. Your email is never shared.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               <div className="flex gap-4">
-                <Button variant="outline" className="flex-1" onClick={handleSkipEmail}>
+                <Button variant="outline" className="flex-1" onClick={handleSkipEmail} disabled={isSendingEmail}>
                   Skip for Now
                 </Button>
                 <Button
                   className="flex-1 shadow-xl shadow-primary/25"
-                  onClick={handleComplete}
-                  disabled={!email}
+                  onClick={handleSendReceiptEmail}
+                  disabled={!email || isSendingEmail || emailSent}
                 >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Receipt
+                  {isSendingEmail ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      </motion.div>
+                      Sending...
+                    </>
+                  ) : emailSent ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Sent!
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Send Receipt
+                    </>
+                  )}
                 </Button>
               </div>
             </motion.div>
@@ -1067,9 +1202,28 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </Card>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                <Button variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Download PDF
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingPDF}
+                >
+                  {isGeneratingPDF ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                      </motion.div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download PDF
+                    </>
+                  )}
                 </Button>
                 <Button variant="outline" className="gap-2">
                   <ExternalLink className="h-4 w-4" />
