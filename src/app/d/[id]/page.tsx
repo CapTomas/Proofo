@@ -1067,7 +1067,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <CardContent className="p-6 sm:p-8 space-y-6">
                   <div className="space-y-3">
                     <Label htmlFor="email" className="text-sm font-medium">
-                      Email Address {user?.email ? <span className="text-muted-foreground">(Auto-filled)</span> : <span className="text-muted-foreground">(Optional)</span>}
+                      Email Address <span className="text-muted-foreground">({user?.email ? "Auto-filled" : "Optional"})</span>
                     </Label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
