@@ -96,6 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_deals_status ON public.deals(status);
 CREATE INDEX IF NOT EXISTS idx_deals_created_at ON public.deals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_access_tokens_token ON public.access_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id ON public.access_tokens(deal_id);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id_created ON public.access_tokens(deal_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_log_deal_id ON public.audit_log(deal_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON public.audit_log(created_at DESC);
 
