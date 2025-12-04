@@ -111,6 +111,7 @@ export async function createDealAction(data: {
   description?: string;
   templateId?: string;
   recipientName: string;
+  recipientEmail?: string;
   terms: Array<{ label: string; value: string; type: string }>;
 }): Promise<{ deal: Deal | null; shareUrl: string | null; accessToken: string | null; error: string | null }> {
   try {
@@ -134,6 +135,7 @@ export async function createDealAction(data: {
         description: data.description,
         template_id: data.templateId,
         recipient_name: data.recipientName,
+        recipient_email: data.recipientEmail || null,
         terms: data.terms.map((t, i) => ({
           id: `term-${i}`,
           label: t.label,
@@ -227,6 +229,45 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
     };
   } catch (error) {
     console.error("Error fetching deal:", error);
+    return { deal: null, error: "Server error" };
+  }
+}
+
+// Get deal by ID (for authenticated users - requires auth, used for duplication)
+export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | null; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    
+    // Verify user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { deal: null, error: "Unauthorized" };
+    }
+
+    // Fetch the deal (RLS will ensure only creator can access)
+    const { data, error } = await supabase
+      .from("deals")
+      .select(`
+        *,
+        creator:profiles!creator_id(name)
+      `)
+      .eq("id", dealId)
+      .eq("creator_id", user.id)
+      .single();
+
+    if (error || !data) {
+      return { deal: null, error: error?.message || "Deal not found" };
+    }
+
+    return {
+      deal: {
+        ...transformDeal(data),
+        creatorName: (data.creator as { name: string } | null)?.name || "Unknown",
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error fetching deal by ID:", error);
     return { deal: null, error: "Server error" };
   }
 }
