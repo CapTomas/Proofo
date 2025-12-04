@@ -27,6 +27,7 @@ import { formatDate, formatDateTime, calculateDealSeal } from "@/lib/crypto";
 import { getDealByPublicIdAction, getAuditLogsAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
+import { DashboardLayout } from "@/components/dashboard-layout";
 
 // Hash verification status type
 type HashVerificationStatus = "pending" | "verifying" | "valid" | "invalid" | "error";
@@ -55,7 +56,6 @@ export default function VerifyPage() {
       setHashVerificationStatus("verifying");
 
       try {
-        // Re-calculate the hash on the client side using the same data
         const recalculatedHash = await calculateDealSeal({
           dealId: searchedDeal.id,
           terms: JSON.stringify(searchedDeal.terms),
@@ -65,7 +65,6 @@ export default function VerifyPage() {
 
         setCalculatedHash(recalculatedHash);
 
-        // Compare with stored hash
         if (recalculatedHash === searchedDeal.dealSeal) {
           setHashVerificationStatus("valid");
         } else {
@@ -86,20 +85,16 @@ export default function VerifyPage() {
     setHashVerificationStatus("pending");
     setCalculatedHash(null);
     
-    // First try local store
     const localDeal = getDealByPublicId(dealId.trim());
     if (localDeal) {
       setSearchedDeal(localDeal);
       const localLogs = getAuditLogsForDeal(localDeal.id);
       setAuditLogs(localLogs);
     } else if (isSupabaseConfigured()) {
-      // Try Supabase
       const { deal, error } = await getDealByPublicIdAction(dealId.trim());
       if (deal && !error) {
         setSearchedDeal(deal);
-        // Fetch audit logs
         const { logs } = await getAuditLogsAction(deal.id);
-        // Transform logs to match AuditLogEntry type
         const transformedLogs: AuditLogEntry[] = logs.map((log) => ({
           id: log.id,
           dealId: log.dealId,
@@ -134,35 +129,21 @@ export default function VerifyPage() {
   }, [searchedDeal]);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight">Proofo</span>
-          </Link>
-          <Link href="/dashboard">
-            <Button>Dashboard</Button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 sm:px-6 py-12 max-w-2xl">
-        <div className="text-center mb-10">
-          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+    <DashboardLayout title="Verify" showNewDealButton={false}>
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header section */}
+        <div className="text-center">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold mb-3 tracking-tight">Verify a Deal</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <h2 className="text-2xl font-bold mb-2 tracking-tight">Verify a Deal</h2>
+          <p className="text-muted-foreground">
             Enter a deal ID to verify its authenticity and view its cryptographic seal
           </p>
         </div>
 
         {/* Search Form */}
-        <Card className="mb-8">
+        <Card>
           <CardContent className="p-6">
             <form onSubmit={handleSearch} className="flex gap-3">
               <div className="flex-1">
@@ -330,7 +311,6 @@ export default function VerifyPage() {
                             <Lock className="h-4 w-4 text-muted-foreground" />
                             <p className="text-sm font-medium">Cryptographic Seal (SHA-256)</p>
                           </div>
-                          {/* Hash Verification Badge */}
                           {hashVerificationStatus === "verifying" && (
                             <Badge variant="outline" className="gap-1.5">
                               <RefreshCw className="h-3 w-3 animate-spin" />
@@ -357,7 +337,6 @@ export default function VerifyPage() {
                           )}
                         </div>
                         
-                        {/* Stored Hash */}
                         <div className="mb-3">
                           <p className="text-xs text-muted-foreground mb-1">Stored Seal:</p>
                           <code className="block p-3 bg-muted rounded-lg text-xs font-mono break-all">
@@ -365,7 +344,6 @@ export default function VerifyPage() {
                           </code>
                         </div>
 
-                        {/* Verification Details */}
                         {hashVerificationStatus === "valid" && (
                           <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                             <div className="flex items-start gap-2">
@@ -429,7 +407,7 @@ export default function VerifyPage() {
                 </CardContent>
               </Card>
 
-              {/* Audit Trail - FedEx-style tracking */}
+              {/* Audit Trail */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Activity Timeline</CardTitle>
@@ -466,17 +444,7 @@ export default function VerifyPage() {
             </ul>
           </div>
         )}
-      </main>
-
-      {/* Footer */}
-      <footer className="py-8 border-t mt-auto">
-        <div className="container mx-auto px-4 sm:px-6 text-center text-sm text-muted-foreground">
-          <p className="flex items-center justify-center gap-2">
-            <Shield className="h-4 w-4" />
-            Proofo • Evidence that holds up
-          </p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
