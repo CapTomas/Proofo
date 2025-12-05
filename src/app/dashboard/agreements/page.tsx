@@ -188,14 +188,14 @@ export default function AgreementsPage() {
                 <FileCheck className="h-4 w-4 text-muted-foreground" />
               </div>
               <p className="text-2xl font-semibold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-xs text-muted-foreground">Total Agreements</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
               </div>
               <p className="text-2xl font-semibold">{stats.pending}</p>
               <p className="text-xs text-muted-foreground">Pending</p>
@@ -208,7 +208,7 @@ export default function AgreementsPage() {
                 <div className="h-2 w-2 rounded-full bg-emerald-500" />
               </div>
               <p className="text-2xl font-semibold">{stats.confirmed}</p>
-              <p className="text-xs text-muted-foreground">Confirmed</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
             </CardContent>
           </Card>
           <Card>

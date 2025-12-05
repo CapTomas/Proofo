@@ -163,7 +163,7 @@ export default function InboxPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <FileSignature className="h-4 w-4 text-muted-foreground" />
-                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
               </div>
               <p className="text-2xl font-semibold">{stats.pending}</p>
               <p className="text-xs text-muted-foreground">To Sign</p>
