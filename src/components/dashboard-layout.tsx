@@ -89,7 +89,7 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-2">
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== "/dashboard" && pathname.startsWith(item.href));

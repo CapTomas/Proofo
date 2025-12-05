@@ -27,20 +27,11 @@ const pathKeyframes = [
 export function useInteractiveLogo(initialState: 'open' | 'closed' = 'closed') {
   const [isMounted, setIsMounted] = React.useState(false)
   // A motion value to track animation progress, from 0 ("P" shape) to 5 ("paper" shape).
-  const progress = useMotionValue(initialState === 'open' ? 5 : 0)
+  const progress = useMotionValue(0)
 
-  // On mount, play the initial animation from "paper" (5) to "P" (0).
   React.useEffect(() => {
     setIsMounted(true)
-    const animation = animate(progress, 0, {
-      from: 5,
-      duration: 0.8,
-      ease: 'easeInOut',
-      delay: 0.2,
-    })
-    // Cleanup the animation on component unmount
-    return () => animation.stop()
-  }, [progress])
+  }, [])
 
   const animationHandlers = {
     onHoverStart: () => {
@@ -67,16 +58,13 @@ export function LogoIcon({ pathD, isMounted, className }: LogoIconProps) {
   return (
     <motion.svg
       viewBox="0 0 5765 5765"
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
+      style={{ display: 'block' }}
     >
       <motion.path
         d={pathD}
         fill="currentColor"
-        style={{
-          opacity: isMounted ? 1 : 0,
-        }}
       />
     </motion.svg>
   )
@@ -88,7 +76,7 @@ interface AnimatedLogoProps {
 }
 
 export function AnimatedLogo({ size = 28, className }: AnimatedLogoProps) {
-  const { isMounted, pathD, animationHandlers } = useInteractiveLogo('closed')
+  const { pathD, animationHandlers } = useInteractiveLogo('closed')
 
   return (
     <motion.div
@@ -96,11 +84,17 @@ export function AnimatedLogo({ size = 28, className }: AnimatedLogoProps) {
       className={`flex items-center justify-center cursor-pointer ${className || ''}`}
       style={{ width: size, height: size }}
     >
-      <LogoIcon
-        pathD={pathD}
-        isMounted={isMounted}
+      <motion.svg
+        viewBox="0 0 5765 5765"
+        xmlns="http://www.w3.org/2000/svg"
         className="w-full h-full"
-      />
+        style={{ display: 'block' }}
+      >
+        <motion.path
+          d={pathD}
+          className="fill-current"
+        />
+      </motion.svg>
     </motion.div>
   )
 }

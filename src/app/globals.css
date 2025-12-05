@@ -40,31 +40,32 @@
 }
 
 :root {
-  /* Elegant minimalist greyscale palette - Light mode with improved contrast */
-  --background: #ffffff;
+  /* Light mode - similar contrast approach as dark mode */
+  /* Background is slightly grey, cards are white for contrast */
+  --background: #f8f8f8;
   --foreground: #0a0a0a;
   --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
   --popover-foreground: #0a0a0a;
   
-  /* Sophisticated dark grey primary - subtle, professional */
+  /* Sophisticated dark grey primary */
   --primary: #171717;
   --primary-foreground: #fafafa;
   
-  /* Improved contrast - slightly darker greys for light mode */
+  /* Secondary/muted backgrounds slightly darker than pure white */
   --secondary: #f0f0f0;
   --secondary-foreground: #171717;
   
-  /* Muted tones with better contrast */
+  /* Muted tones */
   --muted: #f0f0f0;
   --muted-foreground: #525252;
   
-  /* Accent - subtle grey with more definition */
+  /* Accent */
   --accent: #f0f0f0;
   --accent-foreground: #171717;
   
-  /* Status colors - muted, elegant versions */
+  /* Status colors */
   --destructive: #dc2626;
   --destructive-foreground: #fafafa;
   --success: #16a34a;
@@ -72,12 +73,12 @@
   --warning: #ca8a04;
   --warning-foreground: #fafafa;
   
-  /* Improved borders for better visual structure */
-  --border: #d4d4d4;
-  --input: #d4d4d4;
+  /* Subtle borders - not too strong */
+  --border: #e5e5e5;
+  --input: #e5e5e5;
   --ring: #171717;
   
-  /* Minimal chart colors */
+  /* Chart colors */
   --chart-1: #171717;
   --chart-2: #525252;
   --chart-3: #737373;
@@ -86,14 +87,14 @@
   
   --radius: 0.5rem;
   
-  /* Sidebar - subtle off-white for definition */
-  --sidebar: #fafafa;
+  /* Sidebar - white to contrast with grey background */
+  --sidebar: #ffffff;
   --sidebar-foreground: #0a0a0a;
   --sidebar-primary: #171717;
   --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #e5e5e5;
+  --sidebar-accent: #f0f0f0;
   --sidebar-accent-foreground: #171717;
-  --sidebar-border: #d4d4d4;
+  --sidebar-border: #e5e5e5;
   --sidebar-ring: #171717;
 }
 
