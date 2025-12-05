@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AnimatedLogo } from "@/components/animated-logo";
 import {
   Plus,
   Home,
@@ -82,15 +83,13 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
         {/* Logo */}
         <div className="h-14 flex items-center px-4 border-b">
           <Link href="/" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
-              <span className="text-background font-semibold text-xs">P</span>
-            </div>
+            <AnimatedLogo size={28} className="text-foreground" />
             <span className="font-semibold">Proofo</span>
           </Link>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1.5">
+        <nav className="flex-1 px-3 py-4 space-y-2">
           {navItems.map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -190,9 +189,7 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
         <header className="h-14 border-b bg-background sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
           <div className="lg:hidden flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
-                <span className="text-background font-semibold text-xs">P</span>
-              </div>
+              <AnimatedLogo size={28} className="text-foreground" />
               <span className="font-semibold">Proofo</span>
             </Link>
           </div>
