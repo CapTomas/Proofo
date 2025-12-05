@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { DashboardLayout } from "@/components/dashboard-layout";
 import {
-  ArrowLeft,
   User,
   Mail,
   Crown,
@@ -20,13 +20,11 @@ import {
   Camera,
   Sparkles,
 } from "lucide-react";
-import Link from "next/link";
 import { useAppStore } from "@/store";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function SettingsPage() {
   const { user, setUser } = useAppStore();
-  // Use lazy initialization to get values from user store
   const [name, setName] = useState(() => user?.name || "");
   const [email, setEmail] = useState(() => user?.email || "");
   const [isSaving, setIsSaving] = useState(false);
@@ -35,10 +33,8 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     
-    // Simulate saving
     await new Promise((resolve) => setTimeout(resolve, 1000));
     
-    // Update user in store
     if (user) {
       setUser({
         ...user,
@@ -46,7 +42,6 @@ export default function SettingsPage() {
         email,
       });
     } else {
-      // Create new user
       setUser({
         id: `user-${Date.now()}`,
         name,
@@ -63,31 +58,8 @@ export default function SettingsPage() {
   const isPro = user?.isPro || false;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group">
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            <span>Back to Dashboard</span>
-          </Link>
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-foreground flex items-center justify-center">
-              <span className="text-background font-semibold text-sm">P</span>
-            </div>
-            <span className="font-semibold">Proofo</span>
-          </Link>
-          <div className="w-24" />
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 sm:px-6 py-8 max-w-2xl">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">Manage your account and preferences</p>
-        </div>
-
-        <div className="space-y-6">
+    <DashboardLayout title="Settings" showNewDealButton={false}>
+      <div className="max-w-2xl space-y-6">
           {/* Profile Section */}
           <Card>
             <CardHeader>
@@ -327,7 +299,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 }

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AuditTimeline } from "@/components/audit-timeline";
+import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Shield,
   CheckCircle2,
@@ -134,23 +135,8 @@ export default function VerifyPage() {
   }, [searchedDeal]);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight">Proofo</span>
-          </Link>
-          <Link href="/dashboard">
-            <Button>Dashboard</Button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 sm:px-6 py-12 max-w-2xl">
+    <DashboardLayout title="Verify" showNewDealButton={false}>
+      <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
             <Shield className="h-8 w-8 text-primary" />
@@ -466,17 +452,7 @@ export default function VerifyPage() {
             </ul>
           </div>
         )}
-      </main>
-
-      {/* Footer */}
-      <footer className="py-8 border-t mt-auto">
-        <div className="container mx-auto px-4 sm:px-6 text-center text-sm text-muted-foreground">
-          <p className="flex items-center justify-center gap-2">
-            <Shield className="h-4 w-4" />
-            Proofo • Evidence that holds up
-          </p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

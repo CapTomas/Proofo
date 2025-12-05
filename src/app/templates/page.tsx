@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { DashboardLayout } from "@/components/dashboard-layout";
 import {
-  ArrowLeft,
   Plus,
   Search,
   Package,
@@ -46,42 +46,24 @@ export default function TemplatesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group cursor-pointer">
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            <span>Back to Dashboard</span>
-          </Link>
-          <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
-            <div className="h-8 w-8 rounded-lg bg-foreground flex items-center justify-center">
-              <span className="text-background font-semibold text-sm">P</span>
-            </div>
-            <span className="font-semibold">Proofo</span>
-          </Link>
-          <div className="w-24" />
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 sm:px-6 py-8 max-w-4xl">
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Deal Templates</h1>
-              <p className="text-muted-foreground">Choose a template to create a new deal or customize your own</p>
-            </div>
-            <Link href="/deal/new">
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                New Deal
-              </Button>
-            </Link>
+    <DashboardLayout title="Templates">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Deal Templates</h2>
+            <p className="text-sm text-muted-foreground">Choose a template to create a new deal or customize your own</p>
           </div>
+          <Link href="/deal/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Deal
+            </Button>
+          </Link>
         </div>
 
         {/* Search */}
-        <div className="relative mb-6">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search templates..."
@@ -182,7 +164,7 @@ export default function TemplatesPage() {
             </Link>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
