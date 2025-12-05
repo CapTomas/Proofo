@@ -150,29 +150,35 @@ export default function InboxPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-background to-muted/30">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <InboxIcon className="h-4 w-4 text-muted-foreground" />
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <InboxIcon className="h-4 w-4 text-primary" />
+                </div>
               </div>
               <p className="text-2xl font-semibold">{stats.total}</p>
               <p className="text-xs text-muted-foreground">Total Received</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-background to-amber-500/5">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <FileSignature className="h-4 w-4 text-muted-foreground" />
-                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <FileSignature className="h-4 w-4 text-amber-500" />
+                </div>
+                {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
               </div>
               <p className="text-2xl font-semibold">{stats.pending}</p>
               <p className="text-xs text-muted-foreground">To Sign</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-background to-emerald-500/5">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                </div>
                 <div className="h-2 w-2 rounded-full bg-emerald-500" />
               </div>
               <p className="text-2xl font-semibold">{stats.signed}</p>

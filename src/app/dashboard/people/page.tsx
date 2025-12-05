@@ -287,7 +287,7 @@ export default function PeoplePage() {
                             <div className="flex items-center gap-2 mb-0.5">
                               <h3 className="font-medium text-sm truncate">{contact.name}</h3>
                               <Badge variant="outline" className="text-xs h-5">
-                                {contact.role === "both" ? "Both" : contact.role === "creator" ? "Creator" : "Recipient"}
+                                {contact.role === "both" ? "Recipient & Creator" : contact.role === "creator" ? "Creator" : "Recipient"}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">

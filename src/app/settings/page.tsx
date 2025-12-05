@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout title="Settings" showNewDealButton={false}>
-      <div className="max-w-2xl space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6">
           {/* Profile Section */}
           <Card>
             <CardHeader>

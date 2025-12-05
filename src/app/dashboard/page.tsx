@@ -233,26 +233,28 @@ export default function DashboardPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <FileCheck className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Total</span>
-                </div>
-                <p className="text-2xl font-semibold">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Deals</p>
-              </CardContent>
-            </Card>
+            <Link href="/dashboard/agreements">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <FileCheck className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Your deals</span>
+                  </div>
+                  <p className="text-2xl font-semibold">{stats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total Agreements</p>
+                </CardContent>
+              </Card>
+            </Link>
 
             <Link href="/dashboard/agreements?status=pending">
               <Card className="hover:border-amber-500/50 transition-colors cursor-pointer h-full">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                    <Clock className="h-4 w-4 text-amber-500" />
+                    {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
                   </div>
                   <p className="text-2xl font-semibold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <p className="text-xs text-muted-foreground">Awaiting Signature</p>
                 </CardContent>
               </Card>
             </Link>
@@ -260,14 +262,14 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <span className="text-xs text-emerald-600 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     {stats.confirmationRate}%
                   </span>
                 </div>
                 <p className="text-2xl font-semibold">{stats.confirmed}</p>
-                <p className="text-xs text-muted-foreground">Confirmed</p>
+                <p className="text-xs text-muted-foreground">Completed</p>
               </CardContent>
             </Card>
 
@@ -276,6 +278,7 @@ export default function DashboardPage() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <Inbox className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Action needed</span>
                   </div>
                   <p className="text-2xl font-semibold">0</p>
                   <p className="text-xs text-muted-foreground">To Sign</p>

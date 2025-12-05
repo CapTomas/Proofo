@@ -46,7 +46,7 @@ export default function TemplatesPage() {
   );
 
   return (
-    <DashboardLayout title="Templates">
+    <DashboardLayout title="Templates" showNewDealButton={false}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -54,12 +54,6 @@ export default function TemplatesPage() {
             <h2 className="text-xl font-semibold tracking-tight">Deal Templates</h2>
             <p className="text-sm text-muted-foreground">Choose a template to create a new deal or customize your own</p>
           </div>
-          <Link href="/deal/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Deal
-            </Button>
-          </Link>
         </div>
 
         {/* Search */}
