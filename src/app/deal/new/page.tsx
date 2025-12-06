@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
 import { createDealAction, getDealByIdAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { LoginModal } from "@/components/login-modal";
 
 // Icon mapping for templates
 const iconMap: Record<string, LucideIcon> = {
@@ -56,14 +57,6 @@ const stepInfo = {
   share: { number: 4, title: "Share", description: "Send to the other party" },
 };
 
-// Default demo user for when no user is logged in
-const defaultUser = {
-  id: "demo-user",
-  email: "demo@proofo.app",
-  name: "You",
-  createdAt: new Date().toISOString(),
-};
-
 function NewDealContent() {
   const { user, addDeal, addAuditLog, getDealById } = useAppStore();
   const searchParams = useSearchParams();
@@ -79,9 +72,60 @@ function NewDealContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string>("");
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingDealCreation, setPendingDealCreation] = useState(false);
+  const dealCreationInProgressRef = useRef(false);
 
-  // Use logged in user or demo user
-  const currentUser = user || defaultUser;
+  // Save form progress to localStorage for guests
+  useEffect(() => {
+    if (!user && (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)) {
+      const progressData = {
+        selectedTemplate: selectedTemplate?.id,
+        recipientName,
+        recipientEmail,
+        formData,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem('proofo-guest-form-progress', JSON.stringify(progressData));
+    }
+  }, [selectedTemplate, recipientName, recipientEmail, formData, user]);
+
+  // Restore form progress for guests
+  useEffect(() => {
+    if (!user && !sourceId) {
+      const savedProgress = localStorage.getItem('proofo-guest-form-progress');
+      if (savedProgress) {
+        try {
+          const progress = JSON.parse(savedProgress);
+          // Only restore if saved within last 24 hours
+          if (Date.now() - progress.timestamp < 24 * 60 * 60 * 1000) {
+            if (progress.selectedTemplate) {
+              const template = dealTemplates.find(t => t.id === progress.selectedTemplate);
+              if (template) {
+                setSelectedTemplate(template);
+                setCurrentStep("details");
+              }
+            }
+            if (progress.recipientName) setRecipientName(progress.recipientName);
+            if (progress.recipientEmail) setRecipientEmail(progress.recipientEmail);
+            if (progress.formData) setFormData(progress.formData);
+          } else {
+            // Clear old data
+            localStorage.removeItem('proofo-guest-form-progress');
+          }
+        } catch (e) {
+          console.error('Failed to restore form progress', e);
+        }
+      }
+    }
+  }, [user, sourceId]);
+
+  // Clear saved progress when deal is successfully created
+  useEffect(() => {
+    if (createdDeal && currentStep === "share") {
+      localStorage.removeItem('proofo-guest-form-progress');
+    }
+  }, [createdDeal, currentStep]);
 
   // Pre-fill form from source deal (Duplicate feature)
   useEffect(() => {
@@ -131,6 +175,42 @@ function NewDealContent() {
     loadSourceDeal();
   }, [sourceId, getDealById]);
 
+  // Handle post-authentication deal creation
+  useEffect(() => {
+    if (pendingDealCreation && user && !dealCreationInProgressRef.current) {
+      // User just authenticated (either real or demo) - trigger deal creation
+      setPendingDealCreation(false);
+      dealCreationInProgressRef.current = true;
+      handleCreateDeal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, pendingDealCreation]);
+
+  // Keyboard shortcuts for better UX
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Escape to go back
+      if (e.key === 'Escape' && currentStep !== "template" && currentStep !== "share") {
+        handleBack();
+      }
+
+      // Enter to continue (only on template and review steps)
+      if (e.key === 'Enter' && (currentStep === "review")) {
+        if (!isCreating) {
+          handleNext();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentStep, isCreating]);
+
   // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
   const dealLink = shareUrl || (createdDeal
     ? typeof window !== "undefined"
@@ -170,6 +250,13 @@ function NewDealContent() {
         type: field.type === "textarea" ? "text" : field.type,
       }));
 
+    // User must be authenticated to create deals
+    if (!user) {
+      setCreateError("You must be logged in to create a deal");
+      setIsCreating(false);
+      return;
+    }
+
     // Try to use server action if user is authenticated with Supabase
     const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
     
@@ -195,8 +282,8 @@ function NewDealContent() {
       setCreatedDeal(deal);
       setShareUrl(serverShareUrl || "");
     } else {
-      // Demo mode - use local storage
-      const newDeal = createNewDeal(currentUser, {
+      // Demo mode - use local storage (for authenticated demo users only)
+      const newDeal = createNewDeal(user, {
         templateId: selectedTemplate.id,
         title: selectedTemplate.name,
         recipientName,
@@ -211,7 +298,7 @@ function NewDealContent() {
       addAuditLog({
         dealId: newDeal.id,
         eventType: "deal_created",
-        actorId: currentUser.id,
+        actorId: user.id,
         actorType: "creator",
         metadata: {
           templateId: selectedTemplate.id,
@@ -233,7 +320,15 @@ function NewDealContent() {
     if (currentStep === "details") {
       setCurrentStep("review");
     } else if (currentStep === "review") {
-      handleCreateDeal();
+      // User must authenticate before creating a deal
+      if (!user) {
+        // User is not authenticated - show login modal
+        setPendingDealCreation(true);
+        setShowLoginModal(true);
+      } else {
+        // User is authenticated - create deal
+        handleCreateDeal();
+      }
     }
   };
 
@@ -265,11 +360,11 @@ function NewDealContent() {
   };
 
   const handleShare = async () => {
-    if (navigator.share && createdDeal) {
+    if (navigator.share && createdDeal && user) {
       try {
         await navigator.share({
           title: `${selectedTemplate?.name} - Proofo Agreement`,
-          text: `${currentUser.name} has sent you an agreement to sign on Proofo.`,
+          text: `${user.name} has sent you an agreement to sign on Proofo.`,
           url: dealLink,
         });
       } catch {
@@ -321,9 +416,9 @@ function NewDealContent() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group">
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group">
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="hidden sm:inline">{user ? "Back to Dashboard" : "Back to Home"}</span>
           </Link>
           <Link href="/" className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
@@ -403,6 +498,12 @@ function NewDealContent() {
                 <p className="text-muted-foreground">
                   Select a template that best fits your agreement type
                 </p>
+                {!user && (
+                  <p className="text-xs text-muted-foreground/70 mt-2 flex items-center gap-1.5 justify-center">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Your progress is automatically saved
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -449,6 +550,17 @@ function NewDealContent() {
                   );
                 })}
               </div>
+
+              {!user && (
+                <div className="text-center mt-8 pt-6 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Already have an account?{" "}
+                    <Link href="/login" className="text-primary font-medium hover:underline">
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -492,6 +604,7 @@ function NewDealContent() {
                         placeholder="Who is this deal with?"
                         aria-required="true"
                         className="pl-11"
+                        autoFocus
                       />
                     </div>
                   </div>
@@ -745,10 +858,12 @@ function NewDealContent() {
                       variant="outline" 
                       className="gap-2"
                       onClick={() => {
-                        window.open(
-                          `mailto:?subject=${encodeURIComponent(`${selectedTemplate?.name || "Agreement"} - Please Sign`)}&body=${encodeURIComponent(`Hi ${recipientName},\n\n${currentUser.name} has sent you an agreement to sign on Proofo.\n\nPlease review and sign here:\n${dealLink}\n\nNo account needed - just click the link, review the terms, and sign.\n\nThanks!`)}`,
-                          "_blank"
-                        );
+                        if (user) {
+                          window.open(
+                            `mailto:?subject=${encodeURIComponent(`${selectedTemplate?.name || "Agreement"} - Please Sign`)}&body=${encodeURIComponent(`Hi ${recipientName},\n\n${user.name} has sent you an agreement to sign on Proofo.\n\nPlease review and sign here:\n${dealLink}\n\nNo account needed - just click the link, review the terms, and sign.\n\nThanks!`)}`,
+                            "_blank"
+                          );
+                        }
                       }}
                     >
                       <Mail className="h-4 w-4" />
@@ -790,6 +905,18 @@ function NewDealContent() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Login Modal for Deferred Authentication */}
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+        title="Sign in to create your deal"
+        description="To generate a secure, enforceable link, we need to verify your identity."
+        onSuccess={() => {
+          // Modal will close automatically, and useEffect will handle deal creation
+          setShowLoginModal(false);
+        }}
+      />
     </div>
   );
 }

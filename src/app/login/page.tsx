@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmail, signInWithGoogle, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
 import { useAppStore } from "@/store";
+import { AnimatedLogo } from "@/components/animated-logo";
 
 function LoginContent() {
   const router = useRouter();
@@ -107,12 +108,17 @@ function LoginContent() {
       {/* Background decoration */}
       <div className="absolute inset-0 gradient-bg-hero" />
       
+      {/* Clickable overlay to go back - positioned between background and content */}
+      <div 
+        className="absolute inset-0 z-0 cursor-pointer"
+        onClick={() => router.push("/")}
+        aria-label="Click outside to go back home"
+      />
+      
       <div className="w-full max-w-md relative z-10">
-        {/* Logo */}
+        {/* Logo with animation */}
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/25">
-            <span className="text-primary-foreground font-bold text-2xl">P</span>
-          </div>
+          <AnimatedLogo size={48} className="text-foreground" />
           <span className="font-bold text-3xl tracking-tight">Proofo</span>
         </Link>
 
@@ -200,6 +206,8 @@ function LoginContent() {
                         placeholder="you@example.com"
                         className="pl-11 h-12"
                         required
+                        autoFocus
+                        autoComplete="email"
                       />
                     </div>
                   </div>
@@ -254,9 +262,9 @@ function LoginContent() {
 
             <div className="pt-2">
               <p className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link href="/dashboard" className="text-primary font-medium hover:underline">
-                  Get started for free
+                New to Proofo?{" "}
+                <Link href="/deal/new" className="text-primary font-medium hover:underline">
+                  Create your first deal
                 </Link>
               </p>
             </div>

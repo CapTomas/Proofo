@@ -808,7 +808,7 @@ const Pricing = () => (
           </li>
         </ul>
         <div className="pt-4">
-          <Link href="/dashboard" className="block">
+          <Link href="/deal/new" className="block">
             <Button variant="outline" className="w-full h-11 border-border hover:bg-secondary">Get Started</Button>
           </Link>
         </div>
@@ -871,8 +871,9 @@ export default function Home() {
   const router = useRouter();
   const { user } = useAppStore();
 
+  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (user && !user.id.startsWith("demo-")) {
+    if (user) {
       router.push("/dashboard");
     }
   }, [user, router]);
@@ -891,18 +892,16 @@ export default function Home() {
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Link href={user ? "/dashboard" : "/login"}>
+            <Link href="/login">
               <Button size="sm" variant="ghost" className="text-sm font-medium">
-                {user ? "Dashboard" : "Log In"}
+                Log In
               </Button>
             </Link>
-            {!user && (
-              <Link href="/dashboard">
-                <MagneticWrapper>
-                  <Button size="sm" className="font-medium">Get Started</Button>
-                </MagneticWrapper>
-              </Link>
-            )}
+            <Link href="/deal/new">
+              <MagneticWrapper>
+                <Button size="sm" className="font-medium">Get Started</Button>
+              </MagneticWrapper>
+            </Link>
           </div>
         </div>
       </header>
@@ -932,7 +931,7 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link href="/dashboard">
+              <Link href="/deal/new">
                 <MagneticWrapper>
                   <Button size="xl" className="h-14 px-8 text-base rounded-full shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all">
                     Create Your First Deal
@@ -1008,7 +1007,7 @@ export default function Home() {
                  <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
                    Join thousands of freelancers, contractors, and friends who trust Proofo.
                  </p>
-                 <Link href="/dashboard">
+                 <Link href="/deal/new">
                    <MagneticWrapper>
                      <Button size="xl" className="h-14 px-10 text-base rounded-full shadow-lg shadow-primary/10">
                        Get Started Now
