@@ -136,10 +136,9 @@ function NewDealContent() {
 
   // Handle post-authentication deal creation
   useEffect(() => {
-    if (pendingDealCreation && user && !user.id.startsWith("demo-")) {
-      // User just authenticated - trigger deal creation
+    if (pendingDealCreation && user) {
+      // User just authenticated (either real or demo) - trigger deal creation
       setPendingDealCreation(false);
-      // Trigger the creation by calling handleNext which will call handleCreateDeal
       handleCreateDeal();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
