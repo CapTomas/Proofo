@@ -1,45 +1,37 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Plus,
-  Search,
   FileCheck,
   Clock,
   CheckCircle2,
   XCircle,
-  MoreHorizontal,
-  Copy,
   RefreshCw,
-  Home,
-  Settings,
   User,
-  LogOut,
-  ChevronDown,
   Eye,
-  Trash2,
-  Edit3,
   TrendingUp,
   Calendar,
   Sparkles,
-  Crown,
+  ArrowRight,
+  Inbox,
+  FileText,
+  Users,
   LayoutTemplate,
-  ExternalLink,
-  Mail,
+  Shield,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Deal, DealStatus } from "@/types";
+import { Deal, DealStatus, AuditLogEntry } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
-import { signOut, isSupabaseConfigured } from "@/lib/supabase";
-import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { getUserDealsAction } from "@/app/actions/deal-actions";
 import { OnboardingModal } from "@/components/onboarding-modal";
 
 // Demo data for when no deals exist
@@ -79,45 +71,65 @@ const demoDeals: Deal[] = [
   },
 ];
 
-const statusConfig: Record<DealStatus, { label: string; color: "default" | "secondary" | "destructive" | "success" | "warning"; icon: typeof Clock; dotClass: string }> = {
-  pending: { label: "Pending", color: "warning", icon: Clock, dotClass: "bg-amber-500" },
-  sealing: { label: "Sealing", color: "secondary", icon: RefreshCw, dotClass: "bg-blue-500" },
-  confirmed: { label: "Confirmed", color: "success", icon: CheckCircle2, dotClass: "bg-emerald-500" },
-  voided: { label: "Voided", color: "destructive", icon: XCircle, dotClass: "bg-red-500" },
+const statusConfig: Record<DealStatus, { label: string; icon: typeof Clock; dotClass: string }> = {
+  pending: { label: "Pending", icon: Clock, dotClass: "bg-amber-500" },
+  sealing: { label: "Sealing", icon: RefreshCw, dotClass: "bg-blue-500" },
+  confirmed: { label: "Confirmed", icon: CheckCircle2, dotClass: "bg-emerald-500" },
+  voided: { label: "Voided", icon: XCircle, dotClass: "bg-red-500" },
+};
+
+// Quick action links
+const quickActions = [
+  { href: "/deal/new", label: "New Deal", icon: Plus, description: "Create a new agreement" },
+  { href: "/templates", label: "Templates", icon: LayoutTemplate, description: "Browse deal templates" },
+  { href: "/dashboard/agreements", label: "Agreements", icon: FileText, description: "View your deals" },
+  { href: "/verify", label: "Verify", icon: Shield, description: "Verify a deal" },
+];
+
+// Demo activity for recent activity feed
+const generateDemoActivity = (deals: Deal[]): { type: string; title: string; time: string; icon: typeof Clock }[] => {
+  const activities: { type: string; title: string; time: string; icon: typeof Clock }[] = [];
+
+  deals.forEach(deal => {
+    activities.push({
+      type: "created",
+      title: `Created "${deal.title}"`,
+      time: deal.createdAt,
+      icon: Plus,
+    });
+
+    if (deal.status === "confirmed" && deal.confirmedAt) {
+      activities.push({
+        type: "confirmed",
+        title: `"${deal.title}" was signed`,
+        time: deal.confirmedAt,
+        icon: CheckCircle2,
+      });
+    }
+  });
+
+  return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { 
-    deals: storeDeals, 
-    user, 
-    voidDeal: storeVoidDeal, 
-    setUser, 
+  const {
+    deals: storeDeals,
+    user,
     setDeals,
+    auditLogs,
     needsOnboarding,
-    setNeedsOnboarding 
+    setNeedsOnboarding
   } = useAppStore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
-  const [isVoiding, setIsVoiding] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isNudging, setIsNudging] = useState<string | null>(null);
-  const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
 
   // Check if user needs onboarding
   useEffect(() => {
-    // Show onboarding if user is logged in (not a demo user) and needs onboarding
     if (user && !user.id.startsWith("demo-") && needsOnboarding) {
       setShowOnboarding(true);
     }
   }, [user, needsOnboarding]);
 
-  // Handle onboarding completion
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     setNeedsOnboarding(false);
@@ -126,295 +138,65 @@ export default function DashboardPage() {
   // Fetch deals from database
   const refreshDeals = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
-    
+
     const { deals, error } = await getUserDealsAction();
     if (!error) {
-      // Always update deals from database, even if empty
       setDeals(deals || []);
     }
   }, [setDeals]);
 
-  // Refresh deals on mount (only once)
+  // Refresh deals on mount
   useEffect(() => {
     if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
-      // Fire-and-forget pattern for initial data fetch
-      // Errors are logged inside refreshDeals, no need to handle here
       refreshDeals().catch((err) => {
         console.error("Failed to refresh deals on mount:", err);
       });
     }
   }, [user, refreshDeals]);
 
-  // Handle logout
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      if (isSupabaseConfigured()) {
-        await signOut();
-      }
-      // Clear local state
-      setUser(null);
-      setDeals([]);
-      // Clear persisted storage
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("proofo-storage");
-      }
-      router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
   // Use store deals if available, otherwise show demo deals
   const allDeals = storeDeals.length > 0 ? storeDeals : demoDeals;
   const isUsingDemoData = storeDeals.length === 0;
-
-  const filteredDeals = useMemo(() => {
-    return allDeals.filter((deal) => {
-      const matchesSearch =
-        deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.recipientName?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || deal.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [allDeals, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
     const total = allDeals.length;
     const pending = allDeals.filter((d) => d.status === "pending").length;
     const confirmed = allDeals.filter((d) => d.status === "confirmed").length;
     const voided = allDeals.filter((d) => d.status === "voided").length;
-    const confirmationRate = total > 0 
-      ? Math.round((confirmed / total) * 100) 
+    const confirmationRate = total > 0
+      ? Math.round((confirmed / total) * 100)
       : 0;
     return { total, pending, confirmed, voided, confirmationRate };
   }, [allDeals]);
 
-  const copyToClipboard = async (dealId: string, publicId: string) => {
-    const link = `${typeof window !== "undefined" ? window.location.origin : ""}/d/${publicId}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopiedId(dealId);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      // Fallback
-      const textArea = document.createElement("textarea");
-      textArea.value = link;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      setCopiedId(dealId);
-      setTimeout(() => setCopiedId(null), 2000);
-    }
-  };
+  // Get recent deals (last 3)
+  const recentDeals = useMemo(() => {
+    return [...allDeals]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 3);
+  }, [allDeals]);
 
-  const handleVoidDeal = async (dealId: string) => {
-    if (!confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
-      return;
-    }
+  // Get pending deals for "needs attention"
+  const pendingDeals = useMemo(() => {
+    return allDeals.filter(d => d.status === "pending").slice(0, 3);
+  }, [allDeals]);
 
-    setIsVoiding(dealId);
-
-    // Check if using Supabase
-    if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
-      const { error } = await voidDealAction(dealId);
-      if (!error) {
-        // Refresh deals to get updated state
-        await refreshDeals();
-      }
-    } else {
-      // Use local store
-      storeVoidDeal(dealId);
-    }
-
-    setIsVoiding(null);
-  };
-
-  const handleDuplicate = (dealId: string) => {
-    // Navigate to new deal page with source deal ID for pre-filling
-    router.push(`/deal/new?source=${dealId}`);
-  };
-
-  const handleNudge = async (deal: Deal) => {
-    // If recipient has email, send invitation email. Otherwise, just copy the link.
-    if (deal.recipientEmail && isSupabaseConfigured()) {
-      setIsNudging(deal.id);
-      const { success } = await sendDealInvitationAction({
-        dealId: deal.id,
-        recipientEmail: deal.recipientEmail,
-      });
-      setIsNudging(null);
-      
-      if (success) {
-        setNudgeSuccess(deal.id);
-        setTimeout(() => setNudgeSuccess(null), 3000);
-      } else {
-        // Fallback to copy if email fails - still provides value to user
-        copyToClipboard(deal.id, deal.publicId);
-      }
-    } else {
-      // No email - just copy the link
-      copyToClipboard(deal.id, deal.publicId);
-    }
-  };
+  // Generate activity feed
+  const recentActivity = useMemo(() => {
+    return generateDemoActivity(allDeals);
+  }, [allDeals]);
 
   const userName = user?.name || "Guest";
-  const userInitials = userName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-  const isPro = user?.isPro || false;
 
   return (
     <>
-      {/* Onboarding Modal */}
       {showOnboarding && (
         <OnboardingModal onComplete={handleOnboardingComplete} />
       )}
-      
-      <div className="min-h-screen bg-background flex">
-        {/* Sidebar */}
-        <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
-          {/* Logo */}
-          <div className="h-14 flex items-center px-4 border-b">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
-                <span className="text-background font-semibold text-xs">P</span>
-              </div>
-              <span className="font-semibold">Proofo</span>
-            </Link>
-          </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1">
-          <Link href="/dashboard">
-            <Button variant="secondary" className="w-full justify-start gap-2 h-9 text-sm">
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Button>
-          </Link>
-          <Link href="/templates">
-            <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm">
-              <LayoutTemplate className="h-4 w-4" />
-              Templates
-            </Button>
-          </Link>
-          <Link href="/settings">
-            <Button variant="ghost" className="w-full justify-start gap-2 h-9 text-sm">
-              <Settings className="h-4 w-4" />
-              Settings
-            </Button>
-          </Link>
-        </nav>
-
-        {/* Pro Upgrade Banner */}
-        {!isPro && (
-          <div className="px-3 pb-3">
-            <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Crown className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Go Pro</span>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Remove watermarks & keep deals forever
-              </p>
-              <Button size="sm" className="w-full h-7 text-xs">
-                Upgrade
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* User Menu */}
-        <div className="p-3 border-t">
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted transition-colors"
-            >
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
-                {userInitials || "G"}
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-medium">{userName}</p>
-                <p className="text-xs text-muted-foreground">{isPro ? "Pro" : "Free"}</p>
-              </div>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </button>
-
-            <AnimatePresence>
-              {showUserMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  className="absolute bottom-full left-0 right-0 mb-1 p-1 bg-popover border rounded-lg shadow-lg"
-                >
-                  <Button variant="ghost" className="w-full justify-start gap-2 h-8 text-sm" size="sm">
-                    <User className="h-4 w-4" />
-                    Profile
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start gap-2 h-8 text-sm" size="sm">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </Button>
-                  <div className="my-1 border-t" />
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" 
-                    size="sm"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                  >
-                    {isLoggingOut ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <LogOut className="h-4 w-4" />
-                    )}
-                    {isLoggingOut ? "Logging out..." : "Log Out"}
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 lg:pl-56">
-        {/* Top Bar */}
-        <header className="h-14 border-b bg-background sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
-          <div className="lg:hidden flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-md bg-foreground flex items-center justify-center">
-                <span className="text-background font-semibold text-xs">P</span>
-              </div>
-              <span className="font-semibold">Proofo</span>
-            </Link>
-          </div>
-
-          <div className="hidden lg:block">
-            <h1 className="text-lg font-medium">Dashboard</h1>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link href="/deal/new">
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-1.5" />
-                <span className="hidden sm:inline">New Deal</span>
-              </Button>
-            </Link>
-          </div>
-        </header>
-
-        <div className="p-4 lg:p-6 space-y-6">
+      <DashboardLayout title="Home">
+        <div className="space-y-6">
           {/* Demo Mode Banner */}
           {isUsingDemoData && (
             <Card className="border-dashed bg-muted/30">
@@ -440,7 +222,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-xl font-semibold tracking-tight">Welcome back, {userName.split(" ")[0]}</h2>
               <p className="text-sm text-muted-foreground">
-                Here&apos;s an overview of your deals
+                Here&apos;s an overview of your activity
               </p>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -451,280 +233,239 @@ export default function DashboardPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <FileCheck className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Total</span>
-                </div>
-                <p className="text-2xl font-semibold">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Deals</p>
-              </CardContent>
-            </Card>
+            <Link href="/dashboard/agreements">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <FileCheck className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Your deals</span>
+                  </div>
+                  <p className="text-2xl font-semibold">{stats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total Agreements</p>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/dashboard/agreements?status=pending">
+              <Card className="hover:border-amber-500/50 transition-colors cursor-pointer h-full">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Clock className="h-4 w-4 text-amber-500" />
+                    {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
+                  </div>
+                  <p className="text-2xl font-semibold">{stats.pending}</p>
+                  <p className="text-xs text-muted-foreground">Awaiting Signature</p>
+                </CardContent>
+              </Card>
+            </Link>
 
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div className="h-2 w-2 rounded-full bg-amber-500" />
-                </div>
-                <p className="text-2xl font-semibold">{stats.pending}</p>
-                <p className="text-xs text-muted-foreground">Pending</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <span className="text-xs text-emerald-600 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     {stats.confirmationRate}%
                   </span>
                 </div>
                 <p className="text-2xl font-semibold">{stats.confirmed}</p>
-                <p className="text-xs text-muted-foreground">Confirmed</p>
+                <p className="text-xs text-muted-foreground">Completed</p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <XCircle className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <p className="text-2xl font-semibold">{stats.voided}</p>
-                <p className="text-xs text-muted-foreground">Voided</p>
-              </CardContent>
-            </Card>
+            <Link href="/dashboard/inbox">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Inbox className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Action needed</span>
+                  </div>
+                  <p className="text-2xl font-semibold">0</p>
+                  <p className="text-xs text-muted-foreground">To Sign</p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
 
-          {/* Deals Section */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <CardTitle className="text-base font-medium">Your Deals</CardTitle>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8 h-8 w-full sm:w-48 text-sm"
-                    />
+          {/* Quick Actions */}
+          <div>
+            <h3 className="text-sm font-medium mb-3">Quick Actions</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Link key={action.href} href={action.href}>
+                    <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Icon className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">{action.label}</p>
+                          <p className="text-xs text-muted-foreground truncate">{action.description}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Two Column Layout */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Needs Attention */}
+            {pendingDeals.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-amber-500" />
+                      <CardTitle className="text-base font-medium">Needs Attention</CardTitle>
+                    </div>
+                    <Badge variant="warning" className="text-xs">
+                      {pendingDeals.length} waiting
+                    </Badge>
                   </div>
-                  {/* Filter */}
-                  <div className="flex gap-1 p-0.5 bg-muted rounded-md">
-                    {(["all", "pending", "confirmed", "voided"] as const).map((status) => (
-                      <Button
-                        key={status}
-                        variant={statusFilter === status ? "secondary" : "ghost"}
-                        size="sm"
-                        onClick={() => setStatusFilter(status)}
-                        className={`h-7 text-xs px-2 ${statusFilter === status ? "bg-background shadow-sm" : ""}`}
-                      >
-                        {status === "all" ? "All" : statusConfig[status].label}
-                      </Button>
+                  <CardDescription>Deals waiting for signatures</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    {pendingDeals.map((deal) => (
+                      <Link key={deal.id} href={`/d/${deal.publicId}`}>
+                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                          <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                            <Clock className="h-4 w-4 text-amber-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{deal.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {deal.recipientName} • {timeAgo(deal.createdAt)}
+                            </p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </div>
+                      </Link>
                     ))}
                   </div>
+                  <Link href="/dashboard/agreements?status=pending">
+                    <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
+                      View all pending
+                      <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base font-medium">Recent Activity</CardTitle>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {/* Deals List */}
-              <div className="space-y-2">
-                <AnimatePresence mode="popLayout">
-                  {filteredDeals.length === 0 ? (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-center py-12"
-                    >
-                      <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mx-auto mb-3">
-                        <FileCheck className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <h3 className="font-medium mb-1">No deals found</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {searchQuery || statusFilter !== "all"
-                          ? "Try adjusting your search"
-                          : "Create your first deal"}
-                      </p>
-                      <Link href="/deal/new">
-                        <Button size="sm">
-                          <Plus className="h-4 w-4 mr-1.5" />
-                          New Deal
-                        </Button>
-                      </Link>
-                    </motion.div>
-                  ) : (
-                    filteredDeals.map((deal, index) => {
-                      const StatusIcon = statusConfig[deal.status].icon;
+                <CardDescription>Your latest deal activity</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity, index) => {
+                      const Icon = activity.icon;
                       return (
                         <motion.div
-                          key={deal.id}
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.2, delay: index * 0.03 }}
+                          key={index}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="flex items-start gap-3"
                         >
-                          <div
-                            className={`group relative p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors ${
-                              deal.status === "voided" ? "opacity-60" : ""
-                            }`}
-                          >
-                            <div className="flex flex-col md:flex-row md:items-center gap-3">
-                              {/* Deal Info */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-medium text-sm truncate">{deal.title}</h3>
-                                  <Badge 
-                                    variant="outline"
-                                    className="shrink-0 gap-1 text-xs h-5"
-                                  >
-                                    <StatusIcon className="h-3 w-3" />
-                                    {statusConfig[deal.status].label}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <User className="h-3 w-3" />
-                                    {deal.recipientName}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {timeAgo(deal.createdAt)}
-                                  </span>
-                                </div>
-                                {/* Terms Preview */}
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {(expandedDealId === deal.id ? deal.terms : deal.terms.slice(0, 2)).map((term) => (
-                                    <Badge key={term.id} variant="secondary" className="font-normal text-xs h-5">
-                                      {term.label}: {term.value}
-                                    </Badge>
-                                  ))}
-                                  {deal.terms.length > 2 && (
-                                    <Badge 
-                                      variant="secondary" 
-                                      className="font-normal text-xs h-5 cursor-pointer hover:bg-secondary/80 transition-colors"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setExpandedDealId(expandedDealId === deal.id ? null : deal.id);
-                                      }}
-                                    >
-                                      {expandedDealId === deal.id ? "Show less" : `+${deal.terms.length - 2} more`}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Actions */}
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {deal.status === "pending" && (
-                                  <>
-                                    <Button 
-                                      variant={copiedId === deal.id ? "default" : "outline"}
-                                      size="sm"
-                                      onClick={() => copyToClipboard(deal.id, deal.publicId)}
-                                      className="h-7 text-xs gap-1"
-                                    >
-                                      {copiedId === deal.id ? (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Copied!</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Copy className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Copy</span>
-                                        </>
-                                      )}
-                                    </Button>
-                                    <Button 
-                                      variant={nudgeSuccess === deal.id ? "default" : "outline"}
-                                      size="sm" 
-                                      className="h-7 text-xs gap-1"
-                                      onClick={() => handleNudge(deal)}
-                                      disabled={isNudging === deal.id}
-                                    >
-                                      {isNudging === deal.id ? (
-                                        <>
-                                          <RefreshCw className="h-3 w-3 animate-spin" />
-                                          <span className="hidden sm:inline">Sending...</span>
-                                        </>
-                                      ) : nudgeSuccess === deal.id ? (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Sent!</span>
-                                        </>
-                                      ) : deal.recipientEmail ? (
-                                        <>
-                                          <Mail className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Nudge</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <RefreshCw className="h-3 w-3" />
-                                          <span className="hidden sm:inline">Nudge</span>
-                                        </>
-                                      )}
-                                    </Button>
-                                  </>
-                                )}
-                                <Link href={`/d/${deal.publicId}`}>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <Eye className="h-3.5 w-3.5" />
-                                  </Button>
-                                </Link>
-                                <div className="relative group/menu">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <MoreHorizontal className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <div className="hidden group-hover/menu:block absolute right-0 top-full mt-1 w-36 p-1 bg-popover border rounded-lg shadow-lg z-10">
-                                    <Link href={`/d/${deal.publicId}`}>
-                                      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs">
-                                        <ExternalLink className="h-3 w-3" />
-                                        View
-                                      </Button>
-                                    </Link>
-                                    {deal.status === "pending" && (
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="w-full justify-start gap-2 h-8 text-xs"
-                                        onClick={() => handleDuplicate(deal.id)}
-                                      >
-                                        <Edit3 className="h-3 w-3" />
-                                        Duplicate
-                                      </Button>
-                                    )}
-                                    {deal.status !== "voided" && !isUsingDemoData && (
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
-                                        onClick={() => handleVoidDeal(deal.id)}
-                                        disabled={isVoiding === deal.id}
-                                      >
-                                        {isVoiding === deal.id ? (
-                                          <RefreshCw className="h-3 w-3 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-3 w-3" />
-                                        )}
-                                        {isVoiding === deal.id ? "Voiding..." : "Void"}
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                          <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                            activity.type === "confirmed" ? "bg-emerald-500/10" : "bg-muted"
+                          }`}>
+                            <Icon className={`h-3 w-3 ${
+                              activity.type === "confirmed" ? "text-emerald-500" : "text-muted-foreground"
+                            }`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate">{activity.title}</p>
+                            <p className="text-xs text-muted-foreground">{timeAgo(activity.time)}</p>
                           </div>
                         </motion.div>
                       );
                     })
+                  ) : (
+                    <div className="text-center py-4">
+                      <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">No recent activity</p>
+                    </div>
                   )}
-                </AnimatePresence>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Deals */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-medium">Recent Deals</CardTitle>
+                  <CardDescription>Your most recent agreements</CardDescription>
+                </div>
+                <Link href="/dashboard/agreements">
+                  <Button variant="outline" size="sm" className="text-xs gap-1">
+                    View all
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {recentDeals.map((deal, index) => {
+                  const StatusIcon = statusConfig[deal.status].icon;
+                  return (
+                    <motion.div
+                      key={deal.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Link href={`/d/${deal.publicId}`}>
+                        <div className={`group p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${
+                          deal.status === "voided" ? "opacity-60" : ""
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium text-sm truncate">{deal.title}</h3>
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 gap-1 text-xs h-5"
+                                >
+                                  <StatusIcon className="h-3 w-3" />
+                                  {statusConfig[deal.status].label}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  {deal.recipientName}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {timeAgo(deal.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                            <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                          </div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -737,18 +478,19 @@ export default function DashboardPage() {
                   <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 text-sm">
                     <span className="font-medium">{stats.pending} pending</span>
-                    <span className="text-muted-foreground"> — send a reminder</span>
+                    <span className="text-muted-foreground"> — send reminders to get signatures faster</span>
                   </div>
-                  <Button variant="outline" size="sm" className="h-7 text-xs shrink-0">
-                    Remind
-                  </Button>
+                  <Link href="/dashboard/agreements?status=pending">
+                    <Button variant="outline" size="sm" className="h-7 text-xs shrink-0">
+                      View Pending
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
           )}
         </div>
-      </main>
-    </div>
+      </DashboardLayout>
     </>
   );
 }
