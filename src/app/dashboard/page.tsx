@@ -66,6 +66,32 @@ function getRelativeTime(dateStr: string) {
   return formatDate(dateStr);
 }
 
+// Calculate time difference between created and confirmed dates in minutes
+function getSignTimeMinutes(deal: Deal): number {
+  if (!deal.confirmedAt || !deal.createdAt) return 0;
+  const created = new Date(deal.createdAt).getTime();
+  const confirmed = new Date(deal.confirmedAt).getTime();
+  return (confirmed - created) / (1000 * 60);
+}
+
+// Format minutes into a readable time string
+function formatTimeValue(hours: number, minutes: number): string {
+  if (hours > 0) return `~${hours}h`;
+  if (minutes > 0) return `~${minutes}m`;
+  return "N/A";
+}
+
+// Format trend value for time display
+function formatTimeTrend(minutes: number): string | undefined {
+  if (minutes === 0) return undefined;
+  const absMinutes = Math.abs(minutes);
+  if (absMinutes >= 60) {
+    const hours = Math.round(absMinutes / 60);
+    return `${minutes > 0 ? '+' : ''}${Math.round(minutes / 60)}h`;
+  }
+  return `${minutes > 0 ? '+' : ''}${Math.round(minutes)}m`;
+}
+
 // --- MICRO-COMPONENTS ---
 
 const ScrambleText = ({ text, className }: { text: string; className?: string }) => {
@@ -380,12 +406,7 @@ export default function DashboardPage() {
     let avgTimeMinutes = 0;
     
     if (signedDeals.length > 0) {
-      const totalMinutes = signedDeals.reduce((sum, deal) => {
-        const created = new Date(deal.createdAt).getTime();
-        const confirmed = new Date(deal.confirmedAt!).getTime();
-        return sum + (confirmed - created) / (1000 * 60); // Convert to minutes
-      }, 0);
-      
+      const totalMinutes = signedDeals.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0);
       const avgMinutes = totalMinutes / signedDeals.length;
       avgTimeHours = Math.floor(avgMinutes / 60);
       avgTimeMinutes = Math.round(avgMinutes % 60);
@@ -416,23 +437,14 @@ export default function DashboardPage() {
     
     let avgTimeMinutesTrend = 0;
     if (sortedConfirmedDeals.length >= 2) {
-      const recentFive = sortedConfirmedDeals.slice(0, Math.min(5, sortedConfirmedDeals.length));
-      const previousFive = sortedConfirmedDeals.slice(Math.min(5, sortedConfirmedDeals.length), Math.min(10, sortedConfirmedDeals.length));
+      const recentFive = sortedConfirmedDeals.slice(0, 5);
+      const previousFive = sortedConfirmedDeals.slice(5, 10);
       
       if (recentFive.length > 0) {
-        const recentAvg = recentFive.reduce((sum, deal) => {
-          const created = new Date(deal.createdAt).getTime();
-          const confirmed = new Date(deal.confirmedAt!).getTime();
-          return sum + (confirmed - created) / (1000 * 60);
-        }, 0) / recentFive.length;
+        const recentAvg = recentFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / recentFive.length;
         
         if (previousFive.length > 0) {
-          const previousAvg = previousFive.reduce((sum, deal) => {
-            const created = new Date(deal.createdAt).getTime();
-            const confirmed = new Date(deal.confirmedAt!).getTime();
-            return sum + (confirmed - created) / (1000 * 60);
-          }, 0) / previousFive.length;
-          
+          const previousAvg = previousFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / previousFive.length;
           avgTimeMinutesTrend = recentAvg - previousAvg; // Negative means improvement (faster)
         }
       }
@@ -606,15 +618,9 @@ export default function DashboardPage() {
             />
             <StatCard
               label="Avg. Sign Time"
-              value={stats.avgTimeHours > 0 || stats.avgTimeMinutes > 0 ? 
-                (stats.avgTimeHours > 0 ? `~${stats.avgTimeHours}h` : `~${stats.avgTimeMinutes}m`) : 
-                "N/A"}
+              value={formatTimeValue(stats.avgTimeHours, stats.avgTimeMinutes)}
               icon={Timer}
-              trend={stats.avgTimeMinutesTrend !== 0 ? 
-                (Math.abs(stats.avgTimeMinutesTrend) >= 60 ? 
-                  `${stats.avgTimeMinutesTrend > 0 ? '+' : ''}${Math.round(stats.avgTimeMinutesTrend / 60)}h` : 
-                  `${stats.avgTimeMinutesTrend > 0 ? '+' : ''}${Math.round(stats.avgTimeMinutesTrend)}m`) : 
-                undefined}
+              trend={formatTimeTrend(stats.avgTimeMinutesTrend)}
               trendDirection={stats.avgTimeMinutesTrend < 0 ? "up" : stats.avgTimeMinutesTrend > 0 ? "down" : "neutral"}
               href="/dashboard/agreements"
               delay={0.3}
