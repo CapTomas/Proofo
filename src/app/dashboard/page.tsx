@@ -123,14 +123,23 @@ export default function DashboardPage() {
     setNeedsOnboarding
   } = useAppStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated - security critical
   useEffect(() => {
     if (!user) {
-      router.push("/login");
+      // Immediate redirect without rendering content
+      router.replace("/login");
+    } else {
+      setIsAuthChecked(true);
     }
   }, [user, router]);
+
+  // Don't render anything until auth is checked
+  if (!user || !isAuthChecked) {
+    return null;
+  }
 
   // Check if user needs onboarding
   useEffect(() => {

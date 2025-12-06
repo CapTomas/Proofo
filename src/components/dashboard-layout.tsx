@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -47,6 +48,18 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
   const { user, setUser, setDeals } = useAppStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Security: Redirect unauthenticated users
+  React.useEffect(() => {
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [user, router]);
+
+  // Don't render dashboard content for unauthenticated users
+  if (!user) {
+    return null;
+  }
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
