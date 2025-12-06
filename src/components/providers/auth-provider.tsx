@@ -9,16 +9,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setDeals, setIsLoading, setNeedsOnboarding } = useAppStore();
   const isInitializedRef = useRef(false);
 
-  // Memoize the sync function to prevent recreating on each render
+  // Optimistic sync: sync data in background without blocking UI
   const syncUserAndDeals = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setIsLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true);
-      
       // First ensure profile exists and check onboarding status
       const { profile, error: profileError } = await ensureProfileExistsAction();
       
@@ -27,7 +24,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setDeals([]);
         setNeedsOnboarding(false);
-        setIsLoading(false);
         return;
       }
 
@@ -56,17 +52,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setDeals([]);
       setNeedsOnboarding(false);
-    } finally {
-      setIsLoading(false);
     }
-  }, [setUser, setDeals, setIsLoading, setNeedsOnboarding]);
+  }, [setUser, setDeals, setNeedsOnboarding]);
 
   useEffect(() => {
     // Prevent double initialization in development mode
     if (isInitializedRef.current) return;
     isInitializedRef.current = true;
 
-    // Initial sync on mount
+    // Optimistic approach: Set loading to false immediately
+    // Middleware already protected routes, so we can render optimistically
+    setIsLoading(false);
+
+    // Sync data in background
     syncUserAndDeals();
 
     // Set up auth state listener
@@ -87,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [syncUserAndDeals, setUser, setDeals, setNeedsOnboarding]);
+  }, [syncUserAndDeals, setUser, setDeals, setNeedsOnboarding, setIsLoading]);
 
   return <>{children}</>;
 }

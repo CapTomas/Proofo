@@ -24,3 +24,6 @@ export {
   getAuditLogs,
   validateAccessToken,
 } from "./deals";
+
+// Middleware exports
+export { createSupabaseMiddlewareClient } from "./middleware";

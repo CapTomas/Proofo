@@ -40,13 +40,16 @@ function LoginContent() {
       }
     }
     
-    // Check if already logged in
+    // Check if already logged in and redirect to original destination
     const checkAuth = async () => {
       if (isSupabaseConfigured()) {
         const user = await getCurrentUser();
         if (user) {
           setUser(user);
-          router.push("/dashboard");
+          // Check for redirect parameter
+          const params = new URLSearchParams(window.location.search);
+          const redirect = params.get("redirect") || "/dashboard";
+          router.push(redirect);
         }
       }
     };
@@ -66,7 +69,10 @@ function LoginContent() {
         name: email.split("@")[0],
         createdAt: new Date().toISOString(),
       });
-      router.push("/dashboard");
+      // Redirect to original destination
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect") || "/dashboard";
+      router.push(redirect);
       return;
     }
     
@@ -92,7 +98,10 @@ function LoginContent() {
         name: "Demo User",
         createdAt: new Date().toISOString(),
       });
-      router.push("/dashboard");
+      // Redirect to original destination
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect") || "/dashboard";
+      router.push(redirect);
       return;
     }
     

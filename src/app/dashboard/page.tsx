@@ -343,7 +343,7 @@ const ActivitySparkline = ({ data }: { data: number[] }) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding, isLoading } = useAppStore();
+  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding } = useAppStore();
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
@@ -352,12 +352,8 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Auth Check - wait for auth provider to finish loading before redirecting
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace("/login");
-    }
-  }, [user, isLoading, router]);
+  // Note: Auth is now handled by middleware (server-side)
+  // No client-side redirect needed - middleware already protected this route
 
   // Clock
   useEffect(() => {
