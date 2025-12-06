@@ -42,9 +42,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       // User state
       user: null,
-      setUser: (user) => {
-        set({ user });
-      },
+      setUser: (user) => set({ user }),
 
       // Onboarding state
       needsOnboarding: false,

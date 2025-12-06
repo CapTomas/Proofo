@@ -143,7 +143,7 @@ export default function DashboardPage() {
   // Refresh deals on mount (only once) - but wait for auth to complete
   useEffect(() => {
     // Wait for auth to complete before fetching deals
-    if (!hasInitializedRef.current && !authIsLoading && user && !user.id.startsWith("demo-")) {
+    if (!authIsLoading && !hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
       // Fire-and-forget pattern for initial data fetch
       // Errors are logged inside refreshDeals, no need to handle here
@@ -151,7 +151,7 @@ export default function DashboardPage() {
         console.error("Failed to refresh deals on mount:", err);
       });
     }
-  }, [user, refreshDeals, authIsLoading]);
+  }, [authIsLoading, user, refreshDeals]);
 
   // Handle logout
   const handleLogout = async () => {
