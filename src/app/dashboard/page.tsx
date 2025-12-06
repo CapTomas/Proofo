@@ -86,10 +86,16 @@ function formatTimeTrend(minutes: number): string | undefined {
   if (minutes === 0) return undefined;
   const absMinutes = Math.abs(minutes);
   if (absMinutes >= 60) {
-    const hours = Math.round(absMinutes / 60);
-    return `${minutes > 0 ? '+' : ''}${Math.round(minutes / 60)}h`;
+    const hours = Math.round(minutes / 60);
+    return `${minutes > 0 ? '+' : ''}${hours}h`;
   }
   return `${minutes > 0 ? '+' : ''}${Math.round(minutes)}m`;
+}
+
+// Format completion rate trend value
+function formatCompletionRateTrend(trend: number): string | undefined {
+  if (trend === 0) return undefined;
+  return `${trend > 0 ? '+' : ''}${Math.round(trend)}%`;
 }
 
 // --- MICRO-COMPONENTS ---
@@ -431,7 +437,7 @@ export default function DashboardPage() {
     const completionRateTrend = recentRate - previousRate;
 
     // Calculate average sign time trend (comparing last 5 deals vs previous 5 deals)
-    const sortedConfirmedDeals = [...signedDeals].sort((a, b) => 
+    const sortedConfirmedDeals = signedDeals.toSorted((a, b) => 
       new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
     );
     
@@ -506,19 +512,23 @@ export default function DashboardPage() {
     const now = new Date();
     const data: number[] = [];
     
+    // Pre-convert all deal creation dates to timestamps for efficient comparison
+    const dealTimestamps = storeDeals.map(deal => new Date(deal.createdAt).getTime());
+    
     // Generate data for last 7 days
     for (let i = 6; i >= 0; i--) {
       const dayStart = new Date(now);
       dayStart.setDate(now.getDate() - i);
       dayStart.setHours(0, 0, 0, 0);
+      const dayStartTime = dayStart.getTime();
       
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
+      const dayEndTime = dayEnd.getTime();
       
-      const dealsInDay = storeDeals.filter(deal => {
-        const createdAt = new Date(deal.createdAt);
-        return createdAt >= dayStart && createdAt <= dayEnd;
-      }).length;
+      const dealsInDay = dealTimestamps.filter(timestamp => 
+        timestamp >= dayStartTime && timestamp <= dayEndTime
+      ).length;
       
       data.push(dealsInDay);
     }
@@ -611,7 +621,7 @@ export default function DashboardPage() {
               label="Completion Rate"
               value={stats.total > 0 ? `${Math.round((stats.confirmed / stats.total) * 100)}%` : "0%"}
               icon={TrendingUp}
-              trend={stats.completionRateTrend !== 0 ? `${stats.completionRateTrend > 0 ? '+' : ''}${Math.round(stats.completionRateTrend)}%` : undefined}
+              trend={formatCompletionRateTrend(stats.completionRateTrend)}
               trendDirection={stats.completionRateTrend > 0 ? "up" : stats.completionRateTrend < 0 ? "down" : "neutral"}
               href="/dashboard/agreements"
               delay={0.2}
