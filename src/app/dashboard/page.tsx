@@ -1,512 +1,785 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import {
-  Plus,
-  FileCheck,
+  ArrowRight,
   Clock,
   CheckCircle2,
   XCircle,
   RefreshCw,
-  User,
-  Eye,
   TrendingUp,
-  Calendar,
-  Sparkles,
-  ArrowRight,
-  Inbox,
-  FileText,
-  Users,
-  LayoutTemplate,
   Shield,
   Activity,
+  Search,
+  ExternalLink,
+  Inbox,
+  CalendarDays,
+  Lightbulb,
+  ChevronRight,
+  Timer,
+  FileClock,
+  Send,
+  Download,
+  Copy,
+  Check,
+  Zap,
+  BarChart3,
+  Edit3
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Deal, DealStatus, AuditLogEntry } from "@/types";
+import { Deal } from "@/types";
 import { useAppStore } from "@/store";
-import { timeAgo } from "@/lib/crypto";
+import { timeAgo, formatDate } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { getUserDealsAction } from "@/app/actions/deal-actions";
+import { getUserDealsAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { OnboardingModal } from "@/components/onboarding-modal";
 
-// Demo data for when no deals exist
-const demoDeals: Deal[] = [
-  {
-    id: "demo-1",
-    publicId: "abc123",
-    creatorId: "demo-user",
-    creatorName: "You",
-    recipientName: "John Doe",
-    title: "Lend Camera Equipment",
-    description: "Lending Canon EOS R5 with 24-70mm lens",
-    terms: [
-      { id: "1", label: "Item", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
-      { id: "2", label: "Value", value: "$5,000", type: "currency" },
-      { id: "3", label: "Return Date", value: "2024-02-15", type: "date" },
-    ],
-    status: "confirmed",
-    createdAt: "2024-01-15T10:30:00Z",
-    confirmedAt: "2024-01-15T11:00:00Z",
-  },
-  {
-    id: "demo-2",
-    publicId: "def456",
-    creatorId: "demo-user",
-    creatorName: "You",
-    recipientName: "Jane Smith",
-    title: "Payment Agreement",
-    description: "Repayment for concert tickets",
-    terms: [
-      { id: "1", label: "Amount", value: "$150", type: "currency" },
-      { id: "2", label: "Reason", value: "Concert tickets", type: "text" },
-      { id: "3", label: "Due Date", value: "2024-02-01", type: "date" },
-    ],
-    status: "pending",
-    createdAt: "2024-01-20T14:00:00Z",
-  },
+// --- CONFIG ---
+
+const PRO_TIPS = [
+  "Speed up your workflow: Duplicate any existing deal to create a new one instantly via the deal menu.",
+  "Ensure enforceability: Always use a specific email address for recipients to enable direct tracking.",
+  "Security first: Every deal is cryptographically sealed with a SHA-256 hash upon signing.",
+  "Verification made easy: Verify any receipt by scanning the QR code or entering the Deal ID.",
+  "Stay organized: Add a 'Due Date' field to templates to populate your Upcoming Deadlines widget."
 ];
 
-const statusConfig: Record<DealStatus, { label: string; icon: typeof Clock; dotClass: string }> = {
-  pending: { label: "Pending", icon: Clock, dotClass: "bg-amber-500" },
-  sealing: { label: "Sealing", icon: RefreshCw, dotClass: "bg-blue-500" },
-  confirmed: { label: "Confirmed", icon: CheckCircle2, dotClass: "bg-emerald-500" },
-  voided: { label: "Voided", icon: XCircle, dotClass: "bg-red-500" },
+// --- UTILS ---
+
+function getRelativeTime(dateStr: string) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffTime = date.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "Overdue";
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays < 7) return `In ${diffDays} days`;
+  return formatDate(dateStr);
+}
+
+// --- MICRO-COMPONENTS ---
+
+const ScrambleText = ({ text, className }: { text: string; className?: string }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const chars = "0123456789abcdef";
+
+  useEffect(() => {
+    let iteration = 0;
+    const interval = setInterval(() => {
+      setDisplayText((prev) =>
+        text
+          .split("")
+          .map((letter, index) => {
+            if (index < iteration) return text[index];
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+      if (iteration >= text.length) clearInterval(interval);
+      iteration += 1 / 2;
+    }, 30);
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return <span className={className}>{displayText}</span>;
 };
 
-// Quick action links
-const quickActions = [
-  { href: "/deal/new", label: "New Deal", icon: Plus, description: "Create a new agreement" },
-  { href: "/templates", label: "Templates", icon: LayoutTemplate, description: "Browse deal templates" },
-  { href: "/dashboard/agreements", label: "Agreements", icon: FileText, description: "View your deals" },
-  { href: "/verify", label: "Verify", icon: Shield, description: "Verify a deal" },
-];
+const CopyableId = ({ id, className }: { id: string, className?: string }) => {
+  const [copied, setCopied] = useState(false);
 
-// Demo activity for recent activity feed
-const generateDemoActivity = (deals: Deal[]): { type: string; title: string; time: string; icon: typeof Clock }[] => {
-  const activities: { type: string; title: string; time: string; icon: typeof Clock }[] = [];
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-  deals.forEach(deal => {
-    activities.push({
-      type: "created",
-      title: `Created "${deal.title}"`,
-      time: deal.createdAt,
-      icon: Plus,
-    });
+  return (
+    <Badge
+      variant="outline"
+      className={`font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 ${className}`}
+      onClick={handleCopy}
+      title="Click to copy Deal ID"
+    >
+      {id}
+      {copied ? (
+        <Check className="h-3 w-3 text-emerald-500" />
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
+      )}
+    </Badge>
+  );
+};
 
-    if (deal.status === "confirmed" && deal.confirmedAt) {
-      activities.push({
-        type: "confirmed",
-        title: `"${deal.title}" was signed`,
-        time: deal.confirmedAt,
-        icon: CheckCircle2,
-      });
-    }
-  });
+const StatCard = ({
+  label,
+  value,
+  icon: Icon,
+  trend,
+  trendDirection = "up",
+  href,
+  delay = 0
+}: {
+  label: string,
+  value: string | number,
+  icon: any,
+  trend?: string,
+  trendDirection?: "up" | "down" | "neutral",
+  href: string,
+  delay?: number
+}) => (
+  <Link href={href} className="block h-full">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="group relative h-full bg-card hover:bg-muted/40 border hover:border-primary/20 transition-all duration-200 rounded-xl p-4 sm:p-5 flex flex-col justify-between"
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div className="p-2 rounded-lg bg-secondary/50 group-hover:bg-background transition-colors">
+          <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+        {trend && (
+          <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-medium border-0 ${
+            trendDirection === "up" ? "bg-emerald-500/10 text-emerald-600" :
+            trendDirection === "down" ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"
+          }`}>
+            {trend}
+          </Badge>
+        )}
+      </div>
+      <div>
+        <div className="text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform">
+          {value}
+        </div>
+        <p className="text-xs text-muted-foreground font-medium mt-1 group-hover:text-foreground/80 transition-colors truncate">
+          {label}
+        </p>
+      </div>
+    </motion.div>
+  </Link>
+);
 
-  return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+const MobileCreateAction = () => (
+  <Link href="/deal/new" className="block sm:hidden px-4 sm:px-0">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="group relative bg-card hover:bg-muted/40 border hover:border-primary/20 transition-all duration-200 rounded-xl p-4 flex items-center justify-between shadow-sm"
+    >
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+          <Zap className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <div className="font-bold text-foreground text-sm">Create New Deal</div>
+          <p className="text-xs text-muted-foreground">Start a new agreement</p>
+        </div>
+      </div>
+      <div className="text-primary/50 group-hover:text-primary transition-colors">
+        <ArrowRight className="h-5 w-5" />
+      </div>
+    </motion.div>
+  </Link>
+);
+
+const DealRow = ({ deal, userId, type, onAction }: { deal: Deal, userId?: string, type: "inbox" | "pending" | "recent", onAction?: (deal: Deal) => void }) => {
+  const isCreator = deal.creatorId === userId;
+  const isInbox = !isCreator;
+
+  const statusConfig = {
+    pending: { label: "Pending", bg: "bg-amber-500/10", text: "text-amber-600", icon: Clock },
+    sealing: { label: "Sealing", bg: "bg-blue-500/10", text: "text-blue-600", icon: RefreshCw },
+    confirmed: { label: "Confirmed", bg: "bg-emerald-500/10", text: "text-emerald-600", icon: CheckCircle2 },
+    voided: { label: "Voided", bg: "bg-destructive/10", text: "text-destructive", icon: XCircle },
+  }[deal.status];
+
+  const StatusIcon = statusConfig.icon;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="group flex items-center justify-between p-3 rounded-lg hover:bg-secondary/40 border border-transparent hover:border-border/50 transition-all cursor-pointer"
+    >
+      <Link href={`/d/${deal.publicId}`} className="flex-1 flex items-center gap-3 min-w-0">
+        <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${statusConfig.bg} ${statusConfig.text}`}>
+          <StatusIcon className="h-4.5 w-4.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <p className="font-medium text-sm truncate max-w-[120px] sm:max-w-[200px]">{deal.title}</p>
+
+            {/* Status Label Restored */}
+            <Badge variant="outline" className={`h-4 px-1.5 text-[10px] font-medium border-0 ${statusConfig.bg} ${statusConfig.text}`}>
+              {statusConfig.label}
+            </Badge>
+
+            {isInbox && deal.status === 'pending' && <Badge variant="warning" className="h-4 px-1 text-[10px]">Sign</Badge>}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground truncate">
+            {isCreator ? (
+              <span className="flex items-center gap-1 truncate">
+                <Send className="h-3 w-3 shrink-0" /> <span className="truncate">To {deal.recipientName}</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 truncate">
+                <Inbox className="h-3 w-3 shrink-0" /> <span className="truncate">From {deal.creatorName}</span>
+              </span>
+            )}
+            <span className="hidden xs:inline">•</span>
+            <span className="hidden xs:inline">{timeAgo(deal.createdAt)}</span>
+          </div>
+        </div>
+      </Link>
+
+      <div className="flex items-center gap-2 px-2">
+        {/* ID Badge - Hidden on mobile to save width */}
+        <CopyableId id={deal.publicId} className="h-5 text-[10px] px-1.5 hidden sm:flex" />
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          {onAction && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction(deal);
+              }}
+            >
+              {type === 'pending' ? 'Nudge' : type === 'recent' ? 'Duplicate' : 'Action'}
+            </Button>
+          )}
+          <Link href={`/d/${deal.publicId}`} className="hidden sm:block">
+            <Button size="icon" variant="ghost" className="h-7 w-7">
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const ActivitySparkline = ({ data }: { data: number[] }) => {
+  const max = Math.max(...data, 1);
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 100 - (val / max) * 100;
+    return `${x},${y}`;
+  }).join(" ");
+
+  return (
+    <div className="h-16 w-full mt-auto">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible">
+        <defs>
+          <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" className="text-primary" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" className="text-primary" />
+          </linearGradient>
+        </defs>
+        <path
+          d={`M0,100 L0,${100 - (data[0]/max)*100} ${points.split(' ').map((p, i) => `L${p}`).join(' ')} L100,100 Z`}
+          fill="url(#gradient)"
+          className="text-primary"
+        />
+        <path
+          d={`M0,${100 - (data[0]/max)*100} ${points.split(' ').map((p, i) => `L${p}`).join(' ')}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-primary"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  );
 };
 
 export default function DashboardPage() {
   const router = useRouter();
-  const {
-    deals: storeDeals,
-    user,
-    setDeals,
-    auditLogs,
-    needsOnboarding,
-    setNeedsOnboarding
-  } = useAppStore();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding } = useAppStore();
+  const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
+  const [verifyId, setVerifyId] = useState("");
+  const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState("");
+  const [tipIndex, setTipIndex] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Redirect to login if not authenticated - security critical
+  // Auth Check
   useEffect(() => {
-    if (!user) {
-      // Immediate redirect without rendering content
-      router.replace("/login");
-    } else {
-      setIsAuthChecked(true);
-    }
+    if (!user) router.replace("/login");
   }, [user, router]);
 
-  // Don't render anything until auth is checked
-  if (!user || !isAuthChecked) {
-    return null;
-  }
-
-  // Check if user needs onboarding
+  // Clock
   useEffect(() => {
-    if (user && !user.id.startsWith("demo-") && needsOnboarding) {
-      setShowOnboarding(true);
-    }
-  }, [user, needsOnboarding]);
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    setNeedsOnboarding(false);
-  };
+  // Tip Rotation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % PRO_TIPS.length);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Fetch deals from database
-  const refreshDeals = useCallback(async () => {
+  // Data Fetching & Auto-Refresh
+  const refreshDeals = useCallback(async (showLoading = false) => {
     if (!isSupabaseConfigured()) return;
+    if (showLoading) setIsRefreshing(true);
 
-    const { deals, error } = await getUserDealsAction();
-    if (!error) {
-      setDeals(deals || []);
-    }
+    const { deals } = await getUserDealsAction();
+    if (deals) setDeals(deals);
+
+    if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
   }, [setDeals]);
 
-  // Refresh deals on mount
   useEffect(() => {
     if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
-      refreshDeals().catch((err) => {
-        console.error("Failed to refresh deals on mount:", err);
-      });
+      refreshDeals();
     }
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => refreshDeals(false), 30000);
+    return () => clearInterval(interval);
   }, [user, refreshDeals]);
 
-  // Use store deals if available, otherwise show demo deals
-  const allDeals = storeDeals.length > 0 ? storeDeals : demoDeals;
-  const isUsingDemoData = storeDeals.length === 0;
+  // --- DERIVED DATA ---
 
   const stats = useMemo(() => {
-    const total = allDeals.length;
-    const pending = allDeals.filter((d) => d.status === "pending").length;
-    const confirmed = allDeals.filter((d) => d.status === "confirmed").length;
-    const voided = allDeals.filter((d) => d.status === "voided").length;
-    const confirmationRate = total > 0
-      ? Math.round((confirmed / total) * 100)
-      : 0;
-    return { total, pending, confirmed, voided, confirmationRate };
-  }, [allDeals]);
+    const total = storeDeals.length;
+    const confirmed = storeDeals.filter(d => d.status === "confirmed").length;
+    const pending = storeDeals.filter(d => d.status === "pending").length;
+    const inbox = storeDeals.filter(d => d.recipientEmail === user?.email && d.status === "pending").length;
+    const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt);
+    const avgTimeHours = signedDeals.length > 0 ? 4 : 0;
 
-  // Get recent deals (last 3)
-  const recentDeals = useMemo(() => {
-    return [...allDeals]
+    return { total, confirmed, pending, inbox, avgTimeHours };
+  }, [storeDeals, user?.email]);
+
+  const priorityQueue = useMemo(() => {
+    const inbox = storeDeals
+      .filter(d => d.recipientEmail === user?.email && d.status === "pending")
+      .map(d => ({ ...d, queueType: "inbox" as const }));
+
+    const pending = storeDeals
+      .filter(d => d.creatorId === user?.id && d.status === "pending")
+      .map(d => ({ ...d, queueType: "pending" as const }));
+
+    return [...inbox, ...pending]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }, [storeDeals, user?.id, user?.email]);
+
+  const recentDeals = useMemo(() => {
+    return [...storeDeals]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }, [storeDeals]);
+
+  const latestDeal = useMemo(() => {
+    return [...storeDeals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  }, [storeDeals]);
+
+  const upcomingDeadlines = useMemo(() => {
+    const dealsWithDates = storeDeals
+      .filter(d => d.status !== "voided" && d.status !== "confirmed")
+      .map(d => {
+        const dateTerm = d.terms.find(t => t.type === "date" || t.label.toLowerCase().includes("date") || t.label.toLowerCase().includes("deadline"));
+        return dateTerm ? { deal: d, date: dateTerm.value, label: dateTerm.label } : null;
+      })
+      .filter(Boolean)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 3);
-  }, [allDeals]);
 
-  // Get pending deals for "needs attention"
-  const pendingDeals = useMemo(() => {
-    return allDeals.filter(d => d.status === "pending").slice(0, 3);
-  }, [allDeals]);
+    return dealsWithDates;
+  }, [storeDeals]);
 
-  // Generate activity feed
-  const recentActivity = useMemo(() => {
-    return generateDemoActivity(allDeals);
-  }, [allDeals]);
+  const sparklineData = [2, 5, 3, 8, 4, 9, 7];
 
-  const userName = user?.name || "Guest";
+  // --- ACTIONS ---
+
+  const handleNudge = async (deal: Deal) => {
+    if (!deal.recipientEmail) {
+      navigator.clipboard.writeText(`${window.location.origin}/d/${deal.publicId}`);
+      alert("Link copied to clipboard!");
+      return;
+    }
+    setNudgeLoading(deal.id);
+    await sendDealInvitationAction({ dealId: deal.id, recipientEmail: deal.recipientEmail });
+    setNudgeLoading(null);
+    alert("Nudge email sent!");
+  };
+
+  const handleDuplicate = (deal: Deal) => {
+    router.push(`/deal/new?source=${deal.id}`);
+  };
+
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verifyId.trim()) router.push(`/verify?id=${verifyId.trim()}`);
+  };
+
+  if (!user) return null;
 
   return (
     <>
-      {showOnboarding && (
-        <OnboardingModal onComplete={handleOnboardingComplete} />
-      )}
+      {needsOnboarding && <OnboardingModal onComplete={() => setNeedsOnboarding(false)} />}
 
       <DashboardLayout title="Home">
-        <div className="space-y-6">
-          {/* Demo Mode Banner */}
-          {isUsingDemoData && (
-            <Card className="border-dashed bg-muted/30">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-3">
-                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                  <div className="flex-1 text-sm">
-                    <span className="font-medium">Demo Mode</span>
-                    <span className="text-muted-foreground"> — these are sample deals. Create your first real deal to get started!</span>
-                  </div>
-                  <Link href="/deal/new">
-                    <Button size="sm" className="h-7 text-xs shrink-0">
-                      Create Deal
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
 
-          {/* Welcome Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">Welcome back, {userName.split(" ")[0]}</h2>
-              <p className="text-sm text-muted-foreground">
-                Here&apos;s an overview of your activity
+          {/* Header */}
+          <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
+                Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
+              </h1>
+              <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                <span className="w-1 h-1 rounded-full bg-border" />
+                <span className="font-mono text-xs">{currentTime}</span>
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3"
+                onClick={() => refreshDeals(true)}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 sm:mr-1.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
+              </Button>
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/dashboard/agreements">
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <FileCheck className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Your deals</span>
-                  </div>
-                  <p className="text-2xl font-semibold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Agreements</p>
-                </CardContent>
-              </Card>
-            </Link>
+          {/* Mobile Create Action */}
+          <MobileCreateAction />
 
-            <Link href="/dashboard/agreements?status=pending">
-              <Card className="hover:border-amber-500/50 transition-colors cursor-pointer h-full">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Clock className="h-4 w-4 text-amber-500" />
-                    {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
-                  </div>
-                  <p className="text-2xl font-semibold">{stats.pending}</p>
-                  <p className="text-xs text-muted-foreground">Awaiting Signature</p>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  <span className="text-xs text-emerald-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    {stats.confirmationRate}%
-                  </span>
-                </div>
-                <p className="text-2xl font-semibold">{stats.confirmed}</p>
-                <p className="text-xs text-muted-foreground">Completed</p>
-              </CardContent>
-            </Card>
-
-            <Link href="/dashboard/inbox">
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Inbox className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Action needed</span>
-                  </div>
-                  <p className="text-2xl font-semibold">0</p>
-                  <p className="text-xs text-muted-foreground">To Sign</p>
-                </CardContent>
-              </Card>
-            </Link>
+          {/* KPI Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 px-4 sm:px-0">
+            <StatCard
+              label="Action Required"
+              value={stats.inbox}
+              icon={Inbox}
+              trend={stats.inbox > 0 ? "Attention" : "All Clear"}
+              trendDirection={stats.inbox > 0 ? "down" : "neutral"}
+              href="/dashboard/inbox"
+              delay={0}
+            />
+            <StatCard
+              label="Active Deals"
+              value={stats.pending}
+              icon={Activity}
+              trend="Awaiting"
+              trendDirection="neutral"
+              href="/dashboard/agreements?status=pending"
+              delay={0.1}
+            />
+            <StatCard
+              label="Completion Rate"
+              value={stats.total > 0 ? `${Math.round((stats.confirmed / stats.total) * 100)}%` : "0%"}
+              icon={TrendingUp}
+              trend="+12%"
+              trendDirection="up"
+              href="/dashboard/agreements"
+              delay={0.2}
+            />
+            <StatCard
+              label="Avg. Sign Time"
+              value="~4h"
+              icon={Timer}
+              trend="-30m"
+              trendDirection="up"
+              href="/dashboard/agreements"
+              delay={0.3}
+            />
           </div>
 
-          {/* Quick Actions */}
-          <div>
-            <h3 className="text-sm font-medium mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <Link key={action.href} href={action.href}>
-                    <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-                      <CardContent className="p-4 flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                          <Icon className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm">{action.label}</p>
-                          <p className="text-xs text-muted-foreground truncate">{action.description}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+          {/* Main Dashboard Area */}
+          <div className="grid lg:grid-cols-3 gap-6 px-4 sm:px-0">
 
-          {/* Two Column Layout */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Needs Attention */}
-            {pendingDeals.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
+            {/* Left Column (2/3): Priority & Activity */}
+            <div className="lg:col-span-2 space-y-6">
+
+              {/* Main List Card - Fixed Height Alignment (Desktop) */}
+              <Card className="h-auto lg:h-[424px] flex flex-col">
+                <CardHeader className="pb-2 border-b border-border/40">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-amber-500" />
-                      <CardTitle className="text-base font-medium">Needs Attention</CardTitle>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => setActiveTab("priority")}
+                        className={`text-sm font-medium pb-2 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
+                          activeTab === "priority" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Priority Queue
+                        {stats.inbox > 0 && <Badge variant="warning" className="text-[10px] h-4 px-1">{stats.inbox}</Badge>}
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("recent")}
+                        className={`text-sm font-medium pb-2 border-b-2 transition-colors cursor-pointer ${
+                          activeTab === "recent" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Recent Deals
+                      </button>
                     </div>
-                    <Badge variant="warning" className="text-xs">
-                      {pendingDeals.length} waiting
-                    </Badge>
+                    <Link href="/dashboard/agreements">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs hidden sm:flex">View All</Button>
+                    </Link>
                   </div>
-                  <CardDescription>Deals waiting for signatures</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-2">
-                    {pendingDeals.map((deal) => (
-                      <Link key={deal.id} href={`/d/${deal.publicId}`}>
-                        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                          <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                            <Clock className="h-4 w-4 text-amber-500" />
+                <CardContent className="p-2 flex-1 overflow-y-auto custom-scrollbar min-h-[300px] lg:min-h-0">
+                  <AnimatePresence mode="wait">
+                    {activeTab === "priority" ? (
+                      <motion.div
+                        key="priority"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-1"
+                      >
+                        {priorityQueue.length > 0 ? (
+                          priorityQueue.map((deal) => (
+                            <DealRow
+                              key={deal.id}
+                              deal={deal}
+                              userId={user.id}
+                              type={deal.queueType as "inbox" | "pending"}
+                              onAction={deal.queueType === "pending" ? () => handleNudge(deal) : undefined}
+                            />
+                          ))
+                        ) : (
+                          <div className="h-64 flex flex-col items-center justify-center text-center text-muted-foreground">
+                            <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                              <CheckCircle2 className="h-6 w-6 opacity-20" />
+                            </div>
+                            <p className="font-medium">All caught up</p>
+                            <p className="text-xs max-w-[200px] mt-1">No pending actions or signatures required at the moment.</p>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{deal.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {deal.recipientName} • {timeAgo(deal.createdAt)}
-                            </p>
-                          </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                  <Link href="/dashboard/agreements?status=pending">
-                    <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
-                      View all pending
-                      <ArrowRight className="h-3 w-3 ml-1" />
+                        )}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="recent"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-1"
+                      >
+                        {recentDeals.map((deal) => (
+                          <DealRow
+                            key={deal.id}
+                            deal={deal}
+                            userId={user.id}
+                            type="recent"
+                            onAction={() => handleDuplicate(deal)}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </CardContent>
+                <div className="p-2 border-t border-border/40 text-center sm:hidden">
+                  <Link href="/dashboard/agreements">
+                    <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground h-8">
+                      View all agreements <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   </Link>
-                </CardContent>
+                </div>
               </Card>
-            )}
 
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-base font-medium">Recent Activity</CardTitle>
-                </div>
-                <CardDescription>Your latest deal activity</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-3">
-                  {recentActivity.length > 0 ? (
-                    recentActivity.map((activity, index) => {
-                      const Icon = activity.icon;
-                      return (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="flex items-start gap-3"
-                        >
-                          <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                            activity.type === "confirmed" ? "bg-emerald-500/10" : "bg-muted"
-                          }`}>
-                            <Icon className={`h-3 w-3 ${
-                              activity.type === "confirmed" ? "text-emerald-500" : "text-muted-foreground"
-                            }`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm truncate">{activity.title}</p>
-                            <p className="text-xs text-muted-foreground">{timeAgo(activity.time)}</p>
-                          </div>
-                        </motion.div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-4">
-                      <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No recent activity</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Deals */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-medium">Recent Deals</CardTitle>
-                  <CardDescription>Your most recent agreements</CardDescription>
-                </div>
-                <Link href="/dashboard/agreements">
-                  <Button variant="outline" size="sm" className="text-xs gap-1">
-                    View all
-                    <ArrowRight className="h-3 w-3" />
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                {recentDeals.map((deal, index) => {
-                  const StatusIcon = statusConfig[deal.status].icon;
-                  return (
-                    <motion.div
-                      key={deal.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Link href={`/d/${deal.publicId}`}>
-                        <div className={`group p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${
-                          deal.status === "voided" ? "opacity-60" : ""
-                        }`}>
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-medium text-sm truncate">{deal.title}</h3>
-                                <Badge
-                                  variant="outline"
-                                  className="shrink-0 gap-1 text-xs h-5"
-                                >
-                                  <StatusIcon className="h-3 w-3" />
-                                  {statusConfig[deal.status].label}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  {deal.recipientName}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {timeAgo(deal.createdAt)}
-                                </span>
+              {/* Deadlines Widget - Height Matched to Verify */}
+              {upcomingDeadlines.length > 0 && (
+                <Card className="h-auto lg:h-[180px] flex flex-col">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      Upcoming Deadlines
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-y-auto custom-scrollbar">
+                    <div className="space-y-2">
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {upcomingDeadlines.map((item: any) => (
+                        <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
+                          <div className="group flex items-center justify-between text-sm p-2 hover:bg-muted/30 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-border/50">
+                            <div className="flex items-center gap-3">
+                              <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
+                              <div>
+                                <p className="font-medium">{item.deal.title}</p>
+                                <p className="text-xs text-muted-foreground">{item.label}: {formatDate(item.date)}</p>
                               </div>
                             </div>
-                            <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">
+                                {getRelativeTime(item.date)}
+                              </Badge>
+                              <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
                           </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-          {/* Quick Tips */}
-          {stats.pending > 0 && (
-            <Card className="border-dashed">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1 text-sm">
-                    <span className="font-medium">{stats.pending} pending</span>
-                    <span className="text-muted-foreground"> — send reminders to get signatures faster</span>
+            {/* Right Column (1/3): Context & Tools */}
+            <div className="space-y-6">
+
+              {/* Latest Snapshot - Fixed Height 200px */}
+              <Card className="h-[200px] overflow-hidden border-primary/20 bg-gradient-to-b from-card to-muted/20 flex flex-col">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <FileClock className="h-4 w-4 text-primary" />
+                    Most Recent Deal
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 flex-1 flex flex-col justify-between">
+                  {latestDeal ? (
+                    <>
+                      <div className="p-3 bg-background rounded-lg border shadow-sm">
+                        <div className="flex justify-between items-start mb-1">
+                          {latestDeal.status === 'confirmed' ? (
+                            <Badge variant="success" className="text-[10px] h-4 px-1">Confirmed</Badge>
+                          ) : latestDeal.status === 'voided' ? (
+                            <Badge variant="destructive" className="text-[10px] h-4 px-1">Voided</Badge>
+                          ) : (
+                            <Badge variant="warning" className="text-[10px] h-4 px-1">Pending</Badge>
+                          )}
+                          <CopyableId id={latestDeal.publicId} className="h-4 text-[10px] px-1" />
+                        </div>
+                        <p className="font-semibold truncate text-sm">{latestDeal.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {latestDeal.status === 'confirmed' ? 'Signed by' : 'Sent to'} {latestDeal.recipientName}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Link href={`/d/${latestDeal.publicId}`} className="flex-1">
+                          <Button variant="outline" size="sm" className="w-full h-8 text-xs">View Details</Button>
+                        </Link>
+                        {latestDeal.status === 'confirmed' && (
+                          <Button variant="secondary" size="sm" className="flex-1 h-8 text-xs gap-1">
+                            <Download className="h-3 w-3" /> Receipt
+                          </Button>
+                        )}
+                        {latestDeal.status === 'pending' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            onClick={() => handleNudge(latestDeal)}
+                            disabled={nudgeLoading === latestDeal.id}
+                          >
+                            {nudgeLoading === latestDeal.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Nudge"}
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-center text-muted-foreground text-xs">
+                      No deals created yet.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Analytics Graph - Fixed Height 200px */}
+              <Card className="h-[200px] flex flex-col">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      Deal Volume
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-[10px] h-5 border-0 bg-secondary">7 Days</Badge>
                   </div>
-                  <Link href="/dashboard/agreements?status=pending">
-                    <Button variant="outline" size="sm" className="h-7 text-xs shrink-0">
-                      View Pending
+                </CardHeader>
+                <CardContent className="px-4 pb-0 flex-1 flex flex-col">
+                  <div className="text-2xl font-bold">{stats.total}</div>
+                  <p className="text-xs text-muted-foreground mb-2">Total agreements created</p>
+                  <ActivitySparkline data={sparklineData} />
+                </CardContent>
+              </Card>
+
+              {/* Quick Verify - Height Matched to Deadlines (180px) */}
+              <Card className="h-auto lg:h-[180px] flex flex-col justify-center">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    Quick Verify
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <form onSubmit={handleVerify} className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Deal ID or Hash..."
+                        className="pl-8 h-9 text-xs font-mono"
+                        value={verifyId}
+                        onChange={(e) => setVerifyId(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" size="sm" variant="secondary" className="w-full h-8 text-xs">
+                      Verify Authenticity
                     </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </form>
+                </CardContent>
+              </Card>
+
+            </div>
+          </div>
+
+          {/* Footer Tip - Optimized for mobile wrapping & desktop single-line */}
+          <motion.div
+            key={tipIndex}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:px-6 rounded-lg border border-dashed bg-muted/20 text-xs text-muted-foreground px-4 mx-auto"
+          >
+            <div className="flex items-center gap-2 shrink-0">
+              <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+              <span className="font-medium text-foreground">Pro Tip:</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="block sm:hidden leading-relaxed">
+                {PRO_TIPS[tipIndex]}
+              </span>
+              <span className="hidden sm:block">
+                <ScrambleText text={PRO_TIPS[tipIndex]} />
+              </span>
+            </div>
+          </motion.div>
+
         </div>
       </DashboardLayout>
     </>
