@@ -343,7 +343,7 @@ const ActivitySparkline = ({ data }: { data: number[] }) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding } = useAppStore();
+  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding, isLoading } = useAppStore();
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
@@ -352,10 +352,12 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Auth Check
+  // Auth Check - wait for auth provider to finish loading before redirecting
   useEffect(() => {
-    if (!user) router.replace("/login");
-  }, [user, router]);
+    if (!isLoading && !user) {
+      router.replace("/login");
+    }
+  }, [user, isLoading, router]);
 
   // Clock
   useEffect(() => {
