@@ -6,78 +6,87 @@ import { useAppStore } from "@/store";
 import { getUserDealsAction, ensureProfileExistsAction } from "@/app/actions/deal-actions";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setDeals, setIsLoading, setNeedsOnboarding } = useAppStore();
+  const { user, setUser, setDeals, setIsLoading, setNeedsOnboarding } = useAppStore();
   const isInitializedRef = useRef(false);
 
-  // Optimistic sync: sync data in background without blocking UI
   const syncUserAndDeals = useCallback(async () => {
     if (!isSupabaseConfigured()) {
+      setIsLoading(false);
       return;
     }
 
     try {
-      // First ensure profile exists and check onboarding status
-      const { profile, error: profileError } = await ensureProfileExistsAction();
-      
-      if (profileError || !profile) {
-        // Not authenticated or error
-        setUser(null);
-        setDeals([]);
-        setNeedsOnboarding(false);
+      // 1. Check Session First
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        // If we have a user in store but no session, it's stale. Clear it.
+        // This prevents the "Redirect Loop" where client thinks it's logged in but server doesn't.
+        if (user) {
+          setUser(null);
+          setDeals([]);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("proofo-storage");
+          }
+        }
+        setIsLoading(false);
         return;
       }
 
-      // Get full user info
-      const user = await getCurrentUser();
-      
-      if (user) {
-        setUser(user);
-        // Set onboarding flag based on profile status
-        setNeedsOnboarding(!profile.hasCompletedOnboarding);
-        
-        // Fetch user's deals from Supabase using server action
-        const { deals, error } = await getUserDealsAction();
-        if (error) {
-          console.error("Error fetching user deals:", error);
+      // 2. We have a session. If user is null, we are fetching.
+      // We don't set isLoading(true) to avoid flicker, as DashboardLayout handles the skeleton state.
+
+      // 3. Fetch Profile & Deals in Parallel
+      const [profileResult, dealsResult] = await Promise.all([
+        ensureProfileExistsAction(),
+        getUserDealsAction()
+      ]);
+
+      // 4. Update User State
+      if (profileResult.profile) {
+        const fullUser = await getCurrentUser();
+        // Only update if changed to avoid re-renders
+        if (fullUser && JSON.stringify(fullUser) !== JSON.stringify(user)) {
+          setUser(fullUser);
         }
-        // Set deals regardless of error (empty array if error or no deals)
-        setDeals(deals || []);
-      } else {
-        setUser(null);
-        setDeals([]);
-        setNeedsOnboarding(false);
+        setNeedsOnboarding(!profileResult.profile.hasCompletedOnboarding);
       }
+
+      // 5. Update Deals State
+      if (dealsResult.deals) {
+        setDeals(dealsResult.deals);
+      }
+
     } catch (error) {
       console.error("Error syncing auth state:", error);
-      setUser(null);
-      setDeals([]);
-      setNeedsOnboarding(false);
+    } finally {
+      setIsLoading(false);
     }
-  }, [setUser, setDeals, setNeedsOnboarding]);
+  }, [user, setUser, setDeals, setIsLoading, setNeedsOnboarding]);
 
   useEffect(() => {
-    // Prevent double initialization in development mode
     if (isInitializedRef.current) return;
     isInitializedRef.current = true;
 
-    // Optimistic approach: Set loading to false immediately
-    // Middleware already protected routes, so we can render optimistically
+    // Initially set loading to false to render layout immediately
     setIsLoading(false);
 
-    // Sync data in background
+    // Start sync
     syncUserAndDeals();
 
-    // Set up auth state listener
     if (!isSupabaseConfigured()) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
+      async (event, session) => {
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           await syncUserAndDeals();
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setDeals([]);
           setNeedsOnboarding(false);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("proofo-storage");
+          }
         }
       }
     );

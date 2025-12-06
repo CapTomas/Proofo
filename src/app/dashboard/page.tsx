@@ -365,7 +365,7 @@ export default function DashboardPage() {
   // Date and clock - only runs on client after mount to avoid hydration mismatch
   useEffect(() => {
     if (!isMounted) return;
-    
+
     const updateDateTime = () => {
       const now = new Date();
       setCurrentDate(now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
@@ -413,12 +413,12 @@ export default function DashboardPage() {
     const confirmed = storeDeals.filter(d => d.status === "confirmed").length;
     const pending = storeDeals.filter(d => d.status === "pending").length;
     const inbox = storeDeals.filter(d => d.recipientEmail === user?.email && d.status === "pending").length;
-    
+
     // Calculate actual average signing time from confirmed deals
     const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt && d.createdAt);
     let avgTimeHours = 0;
     let avgTimeMinutes = 0;
-    
+
     if (signedDeals.length > 0) {
       const totalMinutes = signedDeals.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0);
       const avgMinutes = totalMinutes / signedDeals.length;
@@ -430,33 +430,33 @@ export default function DashboardPage() {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-    
+
     const recentDeals = storeDeals.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
     const previousDeals = storeDeals.filter(d => {
       const createdAt = new Date(d.createdAt);
       return createdAt >= fourteenDaysAgo && createdAt < sevenDaysAgo;
     });
-    
+
     const recentCompleted = recentDeals.filter(d => d.status === "confirmed").length;
     const previousCompleted = previousDeals.filter(d => d.status === "confirmed").length;
-    
+
     const recentRate = recentDeals.length > 0 ? (recentCompleted / recentDeals.length) * 100 : 0;
     const previousRate = previousDeals.length > 0 ? (previousCompleted / previousDeals.length) * 100 : 0;
     const completionRateTrend = recentRate - previousRate;
 
     // Calculate average sign time trend (comparing last 5 deals vs previous 5 deals)
-    const sortedConfirmedDeals = signedDeals.toSorted((a, b) => 
+    const sortedConfirmedDeals = signedDeals.toSorted((a, b) =>
       new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
     );
-    
+
     let avgTimeMinutesTrend = 0;
     if (sortedConfirmedDeals.length >= 2) {
       const recentFive = sortedConfirmedDeals.slice(0, 5);
       const previousFive = sortedConfirmedDeals.slice(5, 10);
-      
+
       if (recentFive.length > 0) {
         const recentAvg = recentFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / recentFive.length;
-        
+
         if (previousFive.length > 0) {
           const previousAvg = previousFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / previousFive.length;
           avgTimeMinutesTrend = recentAvg - previousAvg; // Negative means improvement (faster)
@@ -464,12 +464,12 @@ export default function DashboardPage() {
       }
     }
 
-    return { 
-      total, 
-      confirmed, 
-      pending, 
-      inbox, 
-      avgTimeHours, 
+    return {
+      total,
+      confirmed,
+      pending,
+      inbox,
+      avgTimeHours,
       avgTimeMinutes,
       completionRateTrend,
       avgTimeMinutesTrend
@@ -519,28 +519,28 @@ export default function DashboardPage() {
   const sparklineData = useMemo(() => {
     const now = new Date();
     const data: number[] = [];
-    
+
     // Pre-convert all deal creation dates to timestamps for efficient comparison
     const dealTimestamps = storeDeals.map(deal => new Date(deal.createdAt).getTime());
-    
+
     // Generate data for last 7 days
     for (let i = 6; i >= 0; i--) {
       const dayStart = new Date(now);
       dayStart.setDate(now.getDate() - i);
       dayStart.setHours(0, 0, 0, 0);
       const dayStartTime = dayStart.getTime();
-      
+
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
       const dayEndTime = dayEnd.getTime();
-      
-      const dealsInDay = dealTimestamps.filter(timestamp => 
+
+      const dealsInDay = dealTimestamps.filter(timestamp =>
         timestamp >= dayStartTime && timestamp <= dayEndTime
       ).length;
-      
+
       data.push(dealsInDay);
     }
-    
+
     return data;
   }, [storeDeals]);
 
