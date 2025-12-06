@@ -89,7 +89,7 @@ const quickActions = [
 // Demo activity for recent activity feed
 const generateDemoActivity = (deals: Deal[]): { type: string; title: string; time: string; icon: typeof Clock }[] => {
   const activities: { type: string; title: string; time: string; icon: typeof Clock }[] = [];
-  
+
   deals.forEach(deal => {
     activities.push({
       type: "created",
@@ -97,7 +97,7 @@ const generateDemoActivity = (deals: Deal[]): { type: string; title: string; tim
       time: deal.createdAt,
       icon: Plus,
     });
-    
+
     if (deal.status === "confirmed" && deal.confirmedAt) {
       activities.push({
         type: "confirmed",
@@ -107,18 +107,18 @@ const generateDemoActivity = (deals: Deal[]): { type: string; title: string; tim
       });
     }
   });
-  
+
   return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 };
 
 export default function DashboardPage() {
-  const { 
-    deals: storeDeals, 
-    user, 
+  const {
+    deals: storeDeals,
+    user,
     setDeals,
     auditLogs,
     needsOnboarding,
-    setNeedsOnboarding 
+    setNeedsOnboarding
   } = useAppStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const hasInitializedRef = useRef(false);
@@ -138,7 +138,7 @@ export default function DashboardPage() {
   // Fetch deals from database
   const refreshDeals = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
-    
+
     const { deals, error } = await getUserDealsAction();
     if (!error) {
       setDeals(deals || []);
@@ -164,8 +164,8 @@ export default function DashboardPage() {
     const pending = allDeals.filter((d) => d.status === "pending").length;
     const confirmed = allDeals.filter((d) => d.status === "confirmed").length;
     const voided = allDeals.filter((d) => d.status === "voided").length;
-    const confirmationRate = total > 0 
-      ? Math.round((confirmed / total) * 100) 
+    const confirmationRate = total > 0
+      ? Math.round((confirmed / total) * 100)
       : 0;
     return { total, pending, confirmed, voided, confirmationRate };
   }, [allDeals]);
@@ -194,7 +194,7 @@ export default function DashboardPage() {
       {showOnboarding && (
         <OnboardingModal onComplete={handleOnboardingComplete} />
       )}
-      
+
       <DashboardLayout title="Home">
         <div className="space-y-6">
           {/* Demo Mode Banner */}
@@ -440,7 +440,7 @@ export default function DashboardPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-medium text-sm truncate">{deal.title}</h3>
-                                <Badge 
+                                <Badge
                                   variant="outline"
                                   className="shrink-0 gap-1 text-xs h-5"
                                 >

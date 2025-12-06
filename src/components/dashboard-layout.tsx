@@ -81,23 +81,23 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
       {/* Sidebar */}
       <aside className="hidden lg:flex w-56 flex-col fixed inset-y-0 z-40 border-r bg-background">
         {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b">
-          <Link href="/" className="flex items-center gap-2">
-            <AnimatedLogo size={28} className="text-foreground" />
-            <span className="font-semibold">Proofo</span>
+        <div className="h-16 flex items-center px-6 border-b border-border/40">
+          <Link href="/" className="flex items-center gap-3 group">
+            <AnimatedLogo size={32} className="text-foreground" />
+            <span className="font-bold text-lg tracking-tight">Proofo</span>
           </Link>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || 
+            const isActive = pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}>
-                <Button 
-                  variant={isActive ? "secondary" : "ghost"} 
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
                   className="w-full justify-start gap-2 h-9 text-sm"
                 >
                   <Icon className="h-4 w-4" />
@@ -162,9 +162,9 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
                     </Button>
                   </Link>
                   <div className="my-1 border-t" />
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive" 
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 h-8 text-sm text-destructive hover:text-destructive"
                     size="sm"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
@@ -186,7 +186,7 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
       {/* Main Content */}
       <main className="flex-1 lg:pl-56">
         {/* Top Bar */}
-        <header className="h-14 border-b bg-background sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6">
+        <header className="h-16 border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between px-4 lg:px-8">
           <div className="lg:hidden flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2">
               <AnimatedLogo size={28} className="text-foreground" />
@@ -211,7 +211,7 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
           </div>
         </header>
 
-        <div className="p-4 lg:p-6">
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
           {children}
         </div>
       </main>
