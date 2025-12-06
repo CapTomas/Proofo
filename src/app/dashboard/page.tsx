@@ -347,7 +347,8 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState("");
+  const [currentDate, setCurrentDate] = useState("");
   const [tipIndex, setTipIndex] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -361,16 +362,17 @@ export default function DashboardPage() {
     setIsMounted(true);
   }, []);
 
-  // Clock - only runs on client after mount
+  // Date and clock - only runs on client after mount to avoid hydration mismatch
   useEffect(() => {
     if (!isMounted) return;
     
-    const updateTime = () => {
+    const updateDateTime = () => {
       const now = new Date();
+      setCurrentDate(now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
       setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 60000);
     return () => clearInterval(interval);
   }, [isMounted]);
 
@@ -581,9 +583,9 @@ export default function DashboardPage() {
                 Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
               </h1>
               <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2">
-                {isMounted ? (
+                {isMounted && currentDate ? (
                   <>
-                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {currentDate}
                     <span className="w-1 h-1 rounded-full bg-border" />
                     <span className="font-mono text-xs">{currentTime}</span>
                   </>
