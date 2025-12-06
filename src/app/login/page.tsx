@@ -37,19 +37,19 @@ function LoginContent() {
         // Use setTimeout to avoid synchronous setState in effect
         setTimeout(() => setError("Authentication failed. Please try again."), 0);
       }
-    }
-    
-    // Check if already logged in
-    const checkAuth = async () => {
-      if (isSupabaseConfigured()) {
-        const user = await getCurrentUser();
-        if (user) {
-          setUser(user);
-          router.push("/dashboard");
+      
+      // Check if already logged in (only on first mount)
+      const checkAuth = async () => {
+        if (isSupabaseConfigured()) {
+          const user = await getCurrentUser();
+          if (user) {
+            setUser(user);
+            router.push("/dashboard");
+          }
         }
-      }
-    };
-    checkAuth();
+      };
+      checkAuth();
+    }
   }, [router, setUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {

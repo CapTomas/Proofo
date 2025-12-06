@@ -8,15 +8,22 @@ import { getUserDealsAction, ensureProfileExistsAction } from "@/app/actions/dea
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, setDeals, setIsLoading, setNeedsOnboarding } = useAppStore();
   const isInitializedRef = useRef(false);
+  const isSyncingRef = useRef(false);
 
   // Memoize the sync function to prevent recreating on each render
   const syncUserAndDeals = useCallback(async () => {
+    // Prevent concurrent sync operations
+    if (isSyncingRef.current) {
+      return;
+    }
+
     if (!isSupabaseConfigured()) {
       setIsLoading(false);
       return;
     }
 
     try {
+      isSyncingRef.current = true;
       setIsLoading(true);
       
       // First ensure profile exists and check onboarding status
@@ -27,7 +34,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setDeals([]);
         setNeedsOnboarding(false);
-        setIsLoading(false);
         return;
       }
 
@@ -58,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setNeedsOnboarding(false);
     } finally {
       setIsLoading(false);
+      isSyncingRef.current = false;
     }
   }, [setUser, setDeals, setIsLoading, setNeedsOnboarding]);
 
@@ -80,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setDeals([]);
           setNeedsOnboarding(false);
+          setIsLoading(false);
         }
       }
     );
@@ -87,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [syncUserAndDeals, setUser, setDeals, setNeedsOnboarding]);
+  }, [syncUserAndDeals, setUser, setDeals, setNeedsOnboarding, setIsLoading]);
 
   return <>{children}</>;
 }

@@ -94,7 +94,8 @@ export default function DashboardPage() {
     setUser, 
     setDeals,
     needsOnboarding,
-    setNeedsOnboarding 
+    setNeedsOnboarding,
+    isLoading: authIsLoading
   } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
@@ -105,6 +106,14 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const hasInitializedRef = useRef(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Wait for initial auth load to complete
+  useEffect(() => {
+    if (!authIsLoading) {
+      setIsInitialLoad(false);
+    }
+  }, [authIsLoading]);
 
   // Check if user needs onboarding
   useEffect(() => {
@@ -131,9 +140,10 @@ export default function DashboardPage() {
     }
   }, [setDeals]);
 
-  // Refresh deals on mount (only once)
+  // Refresh deals on mount (only once) - but wait for auth to complete
   useEffect(() => {
-    if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
+    // Wait for auth to complete before fetching deals
+    if (!hasInitializedRef.current && !authIsLoading && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
       // Fire-and-forget pattern for initial data fetch
       // Errors are logged inside refreshDeals, no need to handle here
@@ -141,7 +151,7 @@ export default function DashboardPage() {
         console.error("Failed to refresh deals on mount:", err);
       });
     }
-  }, [user, refreshDeals]);
+  }, [user, refreshDeals, authIsLoading]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -247,6 +257,18 @@ export default function DashboardPage() {
     .toUpperCase()
     .slice(0, 2);
   const isPro = user?.isPro || false;
+
+  // Show loading state while initial auth is happening
+  if (isInitialLoad || (authIsLoading && !user)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

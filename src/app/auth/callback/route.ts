@@ -19,19 +19,36 @@ export async function GET(request: NextRequest) {
             return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options });
+            try {
+              cookieStore.set({ name, value, ...options });
+            } catch (error) {
+              // In Next.js 15, cookies().set() might fail during certain phases
+              // Log but don't block the auth flow
+              console.warn('Failed to set cookie:', name, error);
+            }
           },
           remove(name: string, options: CookieOptions) {
-            cookieStore.delete({ name, ...options });
+            try {
+              cookieStore.delete({ name, ...options });
+            } catch (error) {
+              // In Next.js 15, cookies().delete() might fail during certain phases
+              // Log but don't block the auth flow
+              console.warn('Failed to delete cookie:', name, error);
+            }
           },
         },
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+    if (!error && data.session) {
+      // Session was successfully created
+      // Force a redirect with revalidation to ensure fresh data
+      const response = NextResponse.redirect(`${origin}${next}`);
+      // Add cache control headers to prevent stale data
+      response.headers.set('Cache-Control', 'no-store, must-revalidate');
+      return response;
     } else {
       console.error("Auth error:", error);
     }
