@@ -45,16 +45,28 @@ const navItems = [
 export function DashboardLayout({ children, title, showNewDealButton = true }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, setUser, setDeals } = useAppStore();
+  const { user, setUser, setDeals, isLoading } = useAppStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Security: Redirect unauthenticated users
+  // Security: Redirect unauthenticated users (wait for auth to finish loading)
   React.useEffect(() => {
-    if (!user) {
+    if (!isLoading && !user) {
       router.replace("/login");
     }
-  }, [user, router]);
+  }, [user, isLoading, router]);
+
+  // Show loading state while auth is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Don't render dashboard content for unauthenticated users
   if (!user) {
