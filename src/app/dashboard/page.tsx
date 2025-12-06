@@ -259,7 +259,8 @@ export default function DashboardPage() {
   const isPro = user?.isPro || false;
 
   // Show loading state while initial auth is happening
-  if (isInitialLoad || (authIsLoading && !user)) {
+  // Wait for auth to complete if Supabase is configured
+  if (isInitialLoad || (isSupabaseConfigured() && authIsLoading && !user)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">

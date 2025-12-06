@@ -42,7 +42,9 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       // User state
       user: null,
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        set({ user });
+      },
 
       // Onboarding state
       needsOnboarding: false,
@@ -167,6 +169,7 @@ export const useAppStore = create<AppState>()(
         deals: state.deals,
         auditLogs: state.auditLogs,
         theme: state.theme,
+        needsOnboarding: state.needsOnboarding,
       }),
     }
   )
