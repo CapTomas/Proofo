@@ -27,6 +27,7 @@ import {
   Activity,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Deal, DealStatus, AuditLogEntry } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
@@ -112,6 +113,7 @@ const generateDemoActivity = (deals: Deal[]): { type: string; title: string; tim
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const {
     deals: storeDeals,
     user,
@@ -122,6 +124,13 @@ export default function DashboardPage() {
   } = useAppStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const hasInitializedRef = useRef(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
 
   // Check if user needs onboarding
   useEffect(() => {

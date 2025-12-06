@@ -57,14 +57,6 @@ const stepInfo = {
   share: { number: 4, title: "Share", description: "Send to the other party" },
 };
 
-// Default demo user for when no user is logged in
-const defaultUser = {
-  id: "demo-user",
-  email: "demo@proofo.app",
-  name: "You",
-  createdAt: new Date().toISOString(),
-};
-
 function NewDealContent() {
   const { user, addDeal, addAuditLog, getDealById } = useAppStore();
   const searchParams = useSearchParams();
@@ -83,9 +75,6 @@ function NewDealContent() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingDealCreation, setPendingDealCreation] = useState(false);
   const dealCreationInProgressRef = useRef(false);
-
-  // Use logged in user or demo user
-  const currentUser = user || defaultUser;
 
   // Pre-fill form from source deal (Duplicate feature)
   useEffect(() => {
@@ -185,6 +174,13 @@ function NewDealContent() {
         type: field.type === "textarea" ? "text" : field.type,
       }));
 
+    // User must be authenticated to create deals
+    if (!user) {
+      setCreateError("You must be logged in to create a deal");
+      setIsCreating(false);
+      return;
+    }
+
     // Try to use server action if user is authenticated with Supabase
     const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
     
@@ -210,8 +206,8 @@ function NewDealContent() {
       setCreatedDeal(deal);
       setShareUrl(serverShareUrl || "");
     } else {
-      // Demo mode - use local storage
-      const newDeal = createNewDeal(currentUser, {
+      // Demo mode - use local storage (for authenticated demo users only)
+      const newDeal = createNewDeal(user, {
         templateId: selectedTemplate.id,
         title: selectedTemplate.name,
         recipientName,
@@ -226,7 +222,7 @@ function NewDealContent() {
       addAuditLog({
         dealId: newDeal.id,
         eventType: "deal_created",
-        actorId: currentUser.id,
+        actorId: user.id,
         actorType: "creator",
         metadata: {
           templateId: selectedTemplate.id,
@@ -248,15 +244,13 @@ function NewDealContent() {
     if (currentStep === "details") {
       setCurrentStep("review");
     } else if (currentStep === "review") {
-      // Check if user needs to authenticate
-      const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
-      
-      if (!isRealUser && !user) {
+      // User must authenticate before creating a deal
+      if (!user) {
         // User is not authenticated - show login modal
         setPendingDealCreation(true);
         setShowLoginModal(true);
       } else {
-        // User is authenticated or in demo mode - create deal
+        // User is authenticated - create deal
         handleCreateDeal();
       }
     }
@@ -290,11 +284,11 @@ function NewDealContent() {
   };
 
   const handleShare = async () => {
-    if (navigator.share && createdDeal) {
+    if (navigator.share && createdDeal && user) {
       try {
         await navigator.share({
           title: `${selectedTemplate?.name} - Proofo Agreement`,
-          text: `${currentUser.name} has sent you an agreement to sign on Proofo.`,
+          text: `${user.name} has sent you an agreement to sign on Proofo.`,
           url: dealLink,
         });
       } catch {
@@ -346,9 +340,9 @@ function NewDealContent() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group">
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group">
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="hidden sm:inline">{user ? "Back to Dashboard" : "Back to Home"}</span>
           </Link>
           <Link href="/" className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
@@ -770,10 +764,12 @@ function NewDealContent() {
                       variant="outline" 
                       className="gap-2"
                       onClick={() => {
-                        window.open(
-                          `mailto:?subject=${encodeURIComponent(`${selectedTemplate?.name || "Agreement"} - Please Sign`)}&body=${encodeURIComponent(`Hi ${recipientName},\n\n${currentUser.name} has sent you an agreement to sign on Proofo.\n\nPlease review and sign here:\n${dealLink}\n\nNo account needed - just click the link, review the terms, and sign.\n\nThanks!`)}`,
-                          "_blank"
-                        );
+                        if (user) {
+                          window.open(
+                            `mailto:?subject=${encodeURIComponent(`${selectedTemplate?.name || "Agreement"} - Please Sign`)}&body=${encodeURIComponent(`Hi ${recipientName},\n\n${user.name} has sent you an agreement to sign on Proofo.\n\nPlease review and sign here:\n${dealLink}\n\nNo account needed - just click the link, review the terms, and sign.\n\nThanks!`)}`,
+                            "_blank"
+                          );
+                        }
                       }}
                     >
                       <Mail className="h-4 w-4" />

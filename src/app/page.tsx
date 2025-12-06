@@ -871,8 +871,9 @@ export default function Home() {
   const router = useRouter();
   const { user } = useAppStore();
 
+  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (user && !user.id.startsWith("demo-")) {
+    if (user) {
       router.push("/dashboard");
     }
   }, [user, router]);
@@ -891,18 +892,16 @@ export default function Home() {
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Link href={user ? "/dashboard" : "/login"}>
+            <Link href="/login">
               <Button size="sm" variant="ghost" className="text-sm font-medium">
-                {user ? "Dashboard" : "Log In"}
+                Log In
               </Button>
             </Link>
-            {!user && (
-              <Link href="/deal/new">
-                <MagneticWrapper>
-                  <Button size="sm" className="font-medium">Get Started</Button>
-                </MagneticWrapper>
-              </Link>
-            )}
+            <Link href="/deal/new">
+              <MagneticWrapper>
+                <Button size="sm" className="font-medium">Get Started</Button>
+              </MagneticWrapper>
+            </Link>
           </div>
         </div>
       </header>
