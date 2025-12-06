@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,7 @@ function NewDealContent() {
   const [shareUrl, setShareUrl] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingDealCreation, setPendingDealCreation] = useState(false);
+  const dealCreationInProgressRef = useRef(false);
 
   // Use logged in user or demo user
   const currentUser = user || defaultUser;
@@ -136,9 +137,10 @@ function NewDealContent() {
 
   // Handle post-authentication deal creation
   useEffect(() => {
-    if (pendingDealCreation && user) {
+    if (pendingDealCreation && user && !dealCreationInProgressRef.current) {
       // User just authenticated (either real or demo) - trigger deal creation
       setPendingDealCreation(false);
+      dealCreationInProgressRef.current = true;
       handleCreateDeal();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

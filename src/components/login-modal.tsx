@@ -44,22 +44,31 @@ export function LoginModal({
   const [error, setError] = useState<string | null>(null);
   const isSupabaseReady = isSupabaseConfigured();
 
+  // Helper function to create demo user and handle success callback
+  const createDemoUser = (emailAddress: string) => {
+    const userName = emailAddress.includes("@") 
+      ? emailAddress.split("@")[0] 
+      : "Demo User";
+    
+    setUser({
+      id: `demo-${Date.now()}`,
+      email: emailAddress,
+      name: userName,
+      createdAt: new Date().toISOString(),
+    });
+    onOpenChange(false);
+    onSuccess?.();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
     if (!isSupabaseReady) {
-      // Demo mode - just create a local user
-      setUser({
-        id: `demo-${Date.now()}`,
-        email,
-        name: email.split("@")[0],
-        createdAt: new Date().toISOString(),
-      });
+      // Demo mode - create a local user
+      createDemoUser(email);
       setIsSubmitting(false);
-      onOpenChange(false);
-      onSuccess?.();
       return;
     }
 
@@ -79,14 +88,7 @@ export function LoginModal({
 
     if (!isSupabaseReady) {
       // Demo mode - create a demo user
-      setUser({
-        id: `demo-${Date.now()}`,
-        email: "demo@proofo.app",
-        name: "Demo User",
-        createdAt: new Date().toISOString(),
-      });
-      onOpenChange(false);
-      onSuccess?.();
+      createDemoUser("demo@proofo.app");
       return;
     }
 
