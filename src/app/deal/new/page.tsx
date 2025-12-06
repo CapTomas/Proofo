@@ -76,6 +76,57 @@ function NewDealContent() {
   const [pendingDealCreation, setPendingDealCreation] = useState(false);
   const dealCreationInProgressRef = useRef(false);
 
+  // Save form progress to localStorage for guests
+  useEffect(() => {
+    if (!user && (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)) {
+      const progressData = {
+        selectedTemplate: selectedTemplate?.id,
+        recipientName,
+        recipientEmail,
+        formData,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem('proofo-guest-form-progress', JSON.stringify(progressData));
+    }
+  }, [selectedTemplate, recipientName, recipientEmail, formData, user]);
+
+  // Restore form progress for guests
+  useEffect(() => {
+    if (!user && !sourceId) {
+      const savedProgress = localStorage.getItem('proofo-guest-form-progress');
+      if (savedProgress) {
+        try {
+          const progress = JSON.parse(savedProgress);
+          // Only restore if saved within last 24 hours
+          if (Date.now() - progress.timestamp < 24 * 60 * 60 * 1000) {
+            if (progress.selectedTemplate) {
+              const template = dealTemplates.find(t => t.id === progress.selectedTemplate);
+              if (template) {
+                setSelectedTemplate(template);
+                setCurrentStep("details");
+              }
+            }
+            if (progress.recipientName) setRecipientName(progress.recipientName);
+            if (progress.recipientEmail) setRecipientEmail(progress.recipientEmail);
+            if (progress.formData) setFormData(progress.formData);
+          } else {
+            // Clear old data
+            localStorage.removeItem('proofo-guest-form-progress');
+          }
+        } catch (e) {
+          console.error('Failed to restore form progress', e);
+        }
+      }
+    }
+  }, [user, sourceId]);
+
+  // Clear saved progress when deal is successfully created
+  useEffect(() => {
+    if (createdDeal && currentStep === "share") {
+      localStorage.removeItem('proofo-guest-form-progress');
+    }
+  }, [createdDeal, currentStep]);
+
   // Pre-fill form from source deal (Duplicate feature)
   useEffect(() => {
     if (!sourceId) return;
@@ -134,6 +185,31 @@ function NewDealContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, pendingDealCreation]);
+
+  // Keyboard shortcuts for better UX
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Escape to go back
+      if (e.key === 'Escape' && currentStep !== "template" && currentStep !== "share") {
+        handleBack();
+      }
+
+      // Enter to continue (only on template and review steps)
+      if (e.key === 'Enter' && (currentStep === "review")) {
+        if (!isCreating) {
+          handleNext();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentStep, isCreating]);
 
   // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
   const dealLink = shareUrl || (createdDeal
@@ -422,6 +498,12 @@ function NewDealContent() {
                 <p className="text-muted-foreground">
                   Select a template that best fits your agreement type
                 </p>
+                {!user && (
+                  <p className="text-xs text-muted-foreground/70 mt-2 flex items-center gap-1.5 justify-center">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Your progress is automatically saved
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -468,6 +550,17 @@ function NewDealContent() {
                   );
                 })}
               </div>
+
+              {!user && (
+                <div className="text-center mt-8 pt-6 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Already have an account?{" "}
+                    <Link href="/login" className="text-primary font-medium hover:underline">
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -511,6 +604,7 @@ function NewDealContent() {
                         placeholder="Who is this deal with?"
                         aria-required="true"
                         className="pl-11"
+                        autoFocus
                       />
                     </div>
                   </div>
