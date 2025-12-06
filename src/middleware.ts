@@ -6,22 +6,20 @@ export async function middleware(request: NextRequest) {
   // Skip middleware for public routes, API routes, and static files
   const { pathname } = request.nextUrl;
   
-  const publicRoutes = [
-    "/",
-    "/login",
-    "/deal/new",
-    "/demo",
-    "/d/",
-    "/auth/callback",
-    "/privacy",
-    "/terms",
-  ];
+  // Exact match public routes
+  const publicExactRoutes = ["/", "/login", "/deal/new", "/demo", "/privacy", "/terms"];
+  // Prefix match public routes (must match directory with trailing slash)
+  const publicPrefixRoutes = ["/d/", "/auth/"];
   
-  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route));
+  const isExactPublicRoute = publicExactRoutes.includes(pathname);
+  const isPrefixPublicRoute = publicPrefixRoutes.some(route => pathname.startsWith(route));
   const isApiRoute = pathname.startsWith("/api");
-  const isStaticFile = pathname.startsWith("/_next") || pathname.includes(".");
+  // More precise static file detection - only files with extensions in specific directories
+  const isStaticFile = pathname.startsWith("/_next") || 
+                       pathname.startsWith("/favicon") ||
+                       (pathname.includes(".") && pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2|ttf|eot)$/));
   
-  if (isPublicRoute || isApiRoute || isStaticFile) {
+  if (isExactPublicRoute || isPrefixPublicRoute || isApiRoute || isStaticFile) {
     return;
   }
 
