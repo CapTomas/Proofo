@@ -37,6 +37,7 @@ import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
 import { createDealAction, getDealByIdAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { LoginModal } from "@/components/login-modal";
 
 // Icon mapping for templates
 const iconMap: Record<string, LucideIcon> = {
@@ -79,6 +80,8 @@ function NewDealContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string>("");
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingDealCreation, setPendingDealCreation] = useState(false);
 
   // Use logged in user or demo user
   const currentUser = user || defaultUser;
@@ -130,6 +133,17 @@ function NewDealContent() {
 
     loadSourceDeal();
   }, [sourceId, getDealById]);
+
+  // Handle post-authentication deal creation
+  useEffect(() => {
+    if (pendingDealCreation && user && !user.id.startsWith("demo-")) {
+      // User just authenticated - trigger deal creation
+      setPendingDealCreation(false);
+      // Trigger the creation by calling handleNext which will call handleCreateDeal
+      handleCreateDeal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, pendingDealCreation]);
 
   // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
   const dealLink = shareUrl || (createdDeal
@@ -233,7 +247,17 @@ function NewDealContent() {
     if (currentStep === "details") {
       setCurrentStep("review");
     } else if (currentStep === "review") {
-      handleCreateDeal();
+      // Check if user needs to authenticate
+      const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
+      
+      if (!isRealUser && !user) {
+        // User is not authenticated - show login modal
+        setPendingDealCreation(true);
+        setShowLoginModal(true);
+      } else {
+        // User is authenticated or in demo mode - create deal
+        handleCreateDeal();
+      }
     }
   };
 
@@ -790,6 +814,18 @@ function NewDealContent() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Login Modal for Deferred Authentication */}
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+        title="Sign in to create your deal"
+        description="To generate a secure, enforceable link, we need to verify your identity."
+        onSuccess={() => {
+          // Modal will close automatically, and useEffect will handle deal creation
+          setShowLoginModal(false);
+        }}
+      />
     </div>
   );
 }
