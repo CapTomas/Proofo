@@ -347,16 +347,24 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState("");
+  const [currentTime, setCurrentTime] = useState<string | null>(null);
   const [tipIndex, setTipIndex] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const hasInitializedRef = useRef(false);
 
   // Note: Auth is now handled by middleware (server-side)
   // No client-side redirect needed - middleware already protected this route
 
-  // Clock
+  // Mount detection for hydration safety
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Clock - only runs on client after mount
+  useEffect(() => {
+    if (!isMounted) return;
+    
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -364,7 +372,7 @@ export default function DashboardPage() {
     updateTime();
     const interval = setInterval(updateTime, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMounted]);
 
   // Tip Rotation
   useEffect(() => {
@@ -573,9 +581,15 @@ export default function DashboardPage() {
                 Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
               </h1>
               <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                <span className="w-1 h-1 rounded-full bg-border" />
-                <span className="font-mono text-xs">{currentTime}</span>
+                {isMounted ? (
+                  <>
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    <span className="w-1 h-1 rounded-full bg-border" />
+                    <span className="font-mono text-xs">{currentTime}</span>
+                  </>
+                ) : (
+                  <span className="opacity-0">Loading...</span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
