@@ -373,10 +373,81 @@ export default function DashboardPage() {
     const confirmed = storeDeals.filter(d => d.status === "confirmed").length;
     const pending = storeDeals.filter(d => d.status === "pending").length;
     const inbox = storeDeals.filter(d => d.recipientEmail === user?.email && d.status === "pending").length;
-    const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt);
-    const avgTimeHours = signedDeals.length > 0 ? 4 : 0;
+    
+    // Calculate actual average signing time from confirmed deals
+    const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt && d.createdAt);
+    let avgTimeHours = 0;
+    let avgTimeMinutes = 0;
+    
+    if (signedDeals.length > 0) {
+      const totalMinutes = signedDeals.reduce((sum, deal) => {
+        const created = new Date(deal.createdAt).getTime();
+        const confirmed = new Date(deal.confirmedAt!).getTime();
+        return sum + (confirmed - created) / (1000 * 60); // Convert to minutes
+      }, 0);
+      
+      const avgMinutes = totalMinutes / signedDeals.length;
+      avgTimeHours = Math.floor(avgMinutes / 60);
+      avgTimeMinutes = Math.round(avgMinutes % 60);
+    }
 
-    return { total, confirmed, pending, inbox, avgTimeHours };
+    // Calculate completion rate trend (comparing last 7 days vs previous 7 days)
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    
+    const recentDeals = storeDeals.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
+    const previousDeals = storeDeals.filter(d => {
+      const createdAt = new Date(d.createdAt);
+      return createdAt >= fourteenDaysAgo && createdAt < sevenDaysAgo;
+    });
+    
+    const recentCompleted = recentDeals.filter(d => d.status === "confirmed").length;
+    const previousCompleted = previousDeals.filter(d => d.status === "confirmed").length;
+    
+    const recentRate = recentDeals.length > 0 ? (recentCompleted / recentDeals.length) * 100 : 0;
+    const previousRate = previousDeals.length > 0 ? (previousCompleted / previousDeals.length) * 100 : 0;
+    const completionRateTrend = recentRate - previousRate;
+
+    // Calculate average sign time trend (comparing last 5 deals vs previous 5 deals)
+    const sortedConfirmedDeals = [...signedDeals].sort((a, b) => 
+      new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
+    );
+    
+    let avgTimeMinutesTrend = 0;
+    if (sortedConfirmedDeals.length >= 2) {
+      const recentFive = sortedConfirmedDeals.slice(0, Math.min(5, sortedConfirmedDeals.length));
+      const previousFive = sortedConfirmedDeals.slice(Math.min(5, sortedConfirmedDeals.length), Math.min(10, sortedConfirmedDeals.length));
+      
+      if (recentFive.length > 0) {
+        const recentAvg = recentFive.reduce((sum, deal) => {
+          const created = new Date(deal.createdAt).getTime();
+          const confirmed = new Date(deal.confirmedAt!).getTime();
+          return sum + (confirmed - created) / (1000 * 60);
+        }, 0) / recentFive.length;
+        
+        if (previousFive.length > 0) {
+          const previousAvg = previousFive.reduce((sum, deal) => {
+            const created = new Date(deal.createdAt).getTime();
+            const confirmed = new Date(deal.confirmedAt!).getTime();
+            return sum + (confirmed - created) / (1000 * 60);
+          }, 0) / previousFive.length;
+          
+          avgTimeMinutesTrend = recentAvg - previousAvg; // Negative means improvement (faster)
+        }
+      }
+    }
+
+    return { 
+      total, 
+      confirmed, 
+      pending, 
+      inbox, 
+      avgTimeHours, 
+      avgTimeMinutes,
+      completionRateTrend,
+      avgTimeMinutesTrend
+    };
   }, [storeDeals, user?.email]);
 
   const priorityQueue = useMemo(() => {
@@ -418,7 +489,30 @@ export default function DashboardPage() {
     return dealsWithDates;
   }, [storeDeals]);
 
-  const sparklineData = [2, 5, 3, 8, 4, 9, 7];
+  // Calculate sparkline data from last 7 days of deal creation activity
+  const sparklineData = useMemo(() => {
+    const now = new Date();
+    const data: number[] = [];
+    
+    // Generate data for last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(now);
+      dayStart.setDate(now.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+      
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+      
+      const dealsInDay = storeDeals.filter(deal => {
+        const createdAt = new Date(deal.createdAt);
+        return createdAt >= dayStart && createdAt <= dayEnd;
+      }).length;
+      
+      data.push(dealsInDay);
+    }
+    
+    return data;
+  }, [storeDeals]);
 
   // --- ACTIONS ---
 
@@ -505,17 +599,23 @@ export default function DashboardPage() {
               label="Completion Rate"
               value={stats.total > 0 ? `${Math.round((stats.confirmed / stats.total) * 100)}%` : "0%"}
               icon={TrendingUp}
-              trend="+12%"
-              trendDirection="up"
+              trend={stats.completionRateTrend !== 0 ? `${stats.completionRateTrend > 0 ? '+' : ''}${Math.round(stats.completionRateTrend)}%` : undefined}
+              trendDirection={stats.completionRateTrend > 0 ? "up" : stats.completionRateTrend < 0 ? "down" : "neutral"}
               href="/dashboard/agreements"
               delay={0.2}
             />
             <StatCard
               label="Avg. Sign Time"
-              value="~4h"
+              value={stats.avgTimeHours > 0 || stats.avgTimeMinutes > 0 ? 
+                (stats.avgTimeHours > 0 ? `~${stats.avgTimeHours}h` : `~${stats.avgTimeMinutes}m`) : 
+                "N/A"}
               icon={Timer}
-              trend="-30m"
-              trendDirection="up"
+              trend={stats.avgTimeMinutesTrend !== 0 ? 
+                (Math.abs(stats.avgTimeMinutesTrend) >= 60 ? 
+                  `${stats.avgTimeMinutesTrend > 0 ? '+' : ''}${Math.round(stats.avgTimeMinutesTrend / 60)}h` : 
+                  `${stats.avgTimeMinutesTrend > 0 ? '+' : ''}${Math.round(stats.avgTimeMinutesTrend)}m`) : 
+                undefined}
+              trendDirection={stats.avgTimeMinutesTrend < 0 ? "up" : stats.avgTimeMinutesTrend > 0 ? "down" : "neutral"}
               href="/dashboard/agreements"
               delay={0.3}
             />
