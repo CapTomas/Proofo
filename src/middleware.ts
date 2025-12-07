@@ -1,58 +1,115 @@
-import { type NextRequest } from "next/server";
-import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
+/**
+ * Middleware for authentication and route protection.
+ *
+ * This middleware:
+ * 1. Refreshes the auth session (keeps cookies fresh)
+ * 2. Protects dashboard routes from unauthenticated access
+ * 3. Redirects authenticated users away from login page
+ */
 export async function middleware(request: NextRequest) {
-  // Skip middleware for public routes, API routes, and static files
   const { pathname } = request.nextUrl;
-  
-  // Exact match public routes
-  const publicExactRoutes = ["/", "/login", "/deal/new", "/demo", "/privacy", "/terms"];
-  // Prefix match public routes (must match directory with trailing slash)
-  const publicPrefixRoutes = ["/d/", "/auth/"];
-  
-  const isExactPublicRoute = publicExactRoutes.includes(pathname);
-  const isPrefixPublicRoute = publicPrefixRoutes.some(route => pathname.startsWith(route));
-  const isApiRoute = pathname.startsWith("/api");
-  // More precise static file detection - only files with extensions in specific directories
-  const isStaticFile = pathname.startsWith("/_next") || 
-                       pathname.startsWith("/favicon") ||
-                       (pathname.includes(".") && pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2|ttf|eot)$/));
-  
-  if (isExactPublicRoute || isPrefixPublicRoute || isApiRoute || isStaticFile) {
-    return;
+
+  // Static files and assets - skip entirely
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff|woff2|ttf|eot|map)$/)
+  ) {
+    return NextResponse.next();
   }
 
-  // If Supabase is not configured, allow access (demo mode)
-  if (!isSupabaseConfigured()) {
-    return;
+  // Public routes that don't require authentication
+  const publicRoutes = ["/", "/login", "/deal/new", "/demo", "/privacy", "/terms"];
+  const publicPrefixes = ["/d/", "/auth/", "/api/"];
+
+  const isPublicRoute = publicRoutes.includes(pathname);
+  const isPublicPrefix = publicPrefixes.some(prefix => pathname.startsWith(prefix));
+
+  // Check if Supabase is configured
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Demo mode - allow all access
+    return NextResponse.next();
   }
 
-  // Check authentication for protected routes
-  const { supabase, response } = createSupabaseMiddlewareClient(request);
-  
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Create response that we'll modify with refreshed cookies
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
-  // If user is not authenticated, redirect to login
-  if (!user) {
+  // Create Supabase client with cookie handling
+  const supabase = createServerClient(
+    supabaseUrl,
+    supabaseKey,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // Set on request for downstream use
+          request.cookies.set({ name, value, ...options });
+          // Create new response with updated cookies
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          // Set on response to send to browser
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: "", ...options });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({ name, value: "", ...options });
+        },
+      },
+    }
+  );
+
+  // CRITICAL: Use getUser() not getSession() for security
+  // getUser() validates the JWT with Supabase Auth server
+  // This also refreshes the session if needed
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  // For public routes, allow access but still refresh session
+  if (isPublicRoute || isPublicPrefix) {
+    // Special case: redirect authenticated users from login to dashboard
+    if (pathname === "/login" && user && !error) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard";
+      return NextResponse.redirect(redirectUrl);
+    }
+    return response;
+  }
+
+  // Protected routes - require authentication
+  if (!user || error) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("redirect", pathname);
-    return Response.redirect(redirectUrl);
+    return NextResponse.redirect(redirectUrl);
   }
 
+  // User is authenticated, allow access
   return response;
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * Match all paths except static files
      */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],

@@ -140,7 +140,7 @@ export default function PeoplePage() {
 
   const handleAddContact = () => {
     if (!newContact.name.trim()) return;
-    
+
     const contact: Contact = {
       id: `custom-${Date.now()}`,
       name: newContact.name.trim(),
@@ -148,7 +148,7 @@ export default function PeoplePage() {
       dealsCount: 0,
       role: "recipient",
     };
-    
+
     setCustomContacts([...customContacts, contact]);
     setNewContact({ name: "", email: "" });
     setShowAddModal(false);
@@ -159,8 +159,7 @@ export default function PeoplePage() {
   };
 
   return (
-    <DashboardLayout title="People">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -312,9 +311,9 @@ export default function PeoplePage() {
 
                           {/* Actions */}
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="h-7 text-xs gap-1"
                               onClick={() => {
                                 const params = new URLSearchParams();
@@ -336,9 +335,9 @@ export default function PeoplePage() {
                                   Edit
                                 </Button>
                                 {contact.id.startsWith("custom-") && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
                                     onClick={() => handleRemoveContact(contact.id)}
                                   >
@@ -436,6 +435,5 @@ export default function PeoplePage() {
           )}
         </AnimatePresence>
       </div>
-    </DashboardLayout>
   );
 }

@@ -41,8 +41,6 @@ import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  title?: string;
-  showNewDealButton?: boolean;
 }
 
 const navItems = [
@@ -55,18 +53,31 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function DashboardLayout({ children, title, showNewDealButton = true }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, setUser, setDeals } = useAppStore();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
+  // Determine if "New Deal" button should be shown based on current path
+  const showNewDealButton = !["/settings", "/templates", "/verify"].some(path => pathname.startsWith(path));
+
+  // Handle client-side mounting and hydration
   useEffect(() => {
     setMounted(true);
     const savedState = localStorage.getItem("sidebar-collapsed");
     if (savedState) setIsCollapsed(savedState === "true");
+
+    // Give Zustand time to rehydrate from localStorage
+    // This is a small delay to let the persisted state load
+    const timer = setTimeout(() => {
+      setIsHydrated(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleSidebar = () => {
@@ -105,6 +116,9 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
     }
   };
 
+  // Show loading state during server rendering or before hydration
+  const isLoading = !mounted || !isHydrated;
+
   const userName = user?.name || "Guest";
   const userInitials = userName
     .split(" ")
@@ -119,8 +133,21 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1));
 
-  // If not mounted yet, render nothing to avoid hydration mismatch
-  if (!mounted) return null;
+  // If not mounted yet, render a minimal shell to prevent hydration issues
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background flex">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-pulse">
+            <AnimatedLogo size={48} className="text-muted-foreground" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show skeleton for user profile area while user data is loading
+  const showUserSkeleton = !user && isHydrated;
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -245,8 +272,8 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
 
             {/* User Profile */}
             <div className="border-t border-border/40 pt-3">
-              {!user ? (
-                // Skeleton Loader for User Profile
+              {showUserSkeleton ? (
+                // Skeleton Loader for User Profile while loading
                 <div className={cn("flex items-center gap-2 rounded-xl p-2", isCollapsed && "justify-center")}>
                   <Skeleton className="h-8 w-8 rounded-full" />
                   {!isCollapsed && (
@@ -255,6 +282,15 @@ export function DashboardLayout({ children, title, showNewDealButton = true }: D
                       <Skeleton className="h-2 w-16" />
                     </div>
                   )}
+                </div>
+              ) : !user ? (
+                // No user after hydration - show login link
+                <div className={cn("flex items-center gap-2 rounded-xl p-2", isCollapsed && "justify-center")}>
+                  <Link href="/login">
+                    <Button variant="ghost" size="sm" className="w-full">
+                      {isCollapsed ? <User className="h-4 w-4" /> : "Sign In"}
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 isCollapsed ? (

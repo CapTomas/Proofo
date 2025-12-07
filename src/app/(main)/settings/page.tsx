@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   User,
   Mail,
@@ -32,9 +31,9 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    
+
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    
+
     if (user) {
       setUser({
         ...user,
@@ -49,7 +48,7 @@ export default function SettingsPage() {
         createdAt: new Date().toISOString(),
       });
     }
-    
+
     setIsSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -58,8 +57,7 @@ export default function SettingsPage() {
   const isPro = user?.isPro || false;
 
   return (
-    <DashboardLayout title="Settings" showNewDealButton={false}>
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
           {/* Profile Section */}
           <Card>
             <CardHeader>
@@ -116,8 +114,8 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button 
-                onClick={handleSave} 
+              <Button
+                onClick={handleSave}
                 disabled={isSaving || (!name && !email)}
                 className="w-full sm:w-auto"
               >
@@ -299,6 +297,5 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-    </DashboardLayout>
   );
 }

@@ -12,7 +12,11 @@ export {
   onAuthStateChange,
 } from "./auth";
 
-// Deals exports  
+// Note: Server-side functions (createServerSupabaseClient, getServerUser, etc.)
+// should be imported directly from "@/lib/supabase/server" in server components
+// to avoid bundling server-only code in client components.
+
+// Deals exports
 export {
   getUserDeals,
   getDealByPublicId,

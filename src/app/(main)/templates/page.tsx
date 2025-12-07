@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Plus,
   Search,
@@ -46,8 +45,7 @@ export default function TemplatesPage() {
   );
 
   return (
-    <DashboardLayout title="Templates" showNewDealButton={false}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -115,8 +113,8 @@ export default function TemplatesPage() {
                         </Badge>
                       ))}
                       {template.fields.length > 3 && (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="text-xs font-normal cursor-pointer hover:bg-secondary/80 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -159,6 +157,5 @@ export default function TemplatesPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

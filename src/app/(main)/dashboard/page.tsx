@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { DashboardLayout } from "@/components/dashboard-layout";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowRight,
   Clock,
@@ -567,14 +567,73 @@ export default function DashboardPage() {
     if (verifyId.trim()) router.push(`/verify?id=${verifyId.trim()}`);
   };
 
-  if (!user) return null;
+  // Show loading skeleton while user data is being fetched
+  // The middleware has already verified the user is authenticated,
+  // we're just waiting for client-side state to hydrate
+  if (!user) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+
+        {/* KPI Grid Skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 px-4 sm:px-0">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="p-4 sm:p-5">
+              <div className="flex justify-between items-start mb-2">
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </div>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-3 w-24" />
+            </Card>
+          ))}
+        </div>
+
+        {/* Main Content Skeleton */}
+        <div className="grid lg:grid-cols-3 gap-6 px-4 sm:px-0">
+          <div className="lg:col-span-2">
+            <Card className="h-[424px]">
+              <CardHeader className="pb-2 border-b border-border/40">
+                <Skeleton className="h-5 w-32" />
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3">
+                    <Skeleton className="h-9 w-9 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="space-y-6">
+            <Card className="p-5">
+              <Skeleton className="h-5 w-24 mb-3" />
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-4 w-full" />
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       {needsOnboarding && <OnboardingModal onComplete={() => setNeedsOnboarding(false)} />}
 
-      <DashboardLayout title="Home">
-        <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
+      <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
 
           {/* Header */}
           <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
@@ -910,8 +969,7 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
-        </div>
-      </DashboardLayout>
+      </div>
     </>
   );
 }

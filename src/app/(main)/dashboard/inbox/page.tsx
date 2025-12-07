@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Search,
   Clock,
@@ -79,12 +78,12 @@ export default function InboxPage() {
   // Filter deals where user is the recipient (by email)
   const inboxDeals = useMemo(() => {
     if (!user?.email) return demoInboxDeals;
-    
+
     const recipientDeals = storeDeals.filter(
-      deal => deal.recipientEmail?.toLowerCase() === user.email.toLowerCase() && 
+      deal => deal.recipientEmail?.toLowerCase() === user.email.toLowerCase() &&
               deal.creatorId !== user.id
     );
-    
+
     return recipientDeals.length > 0 ? recipientDeals : demoInboxDeals;
   }, [storeDeals, user?.email, user?.id]);
 
@@ -93,14 +92,14 @@ export default function InboxPage() {
       const matchesSearch =
         deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.creatorName?.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       let matchesStatus = true;
       if (statusFilter === "pending") {
         matchesStatus = deal.status === "pending";
       } else if (statusFilter === "signed") {
         matchesStatus = deal.status === "confirmed";
       }
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [inboxDeals, searchQuery, statusFilter]);
@@ -115,8 +114,7 @@ export default function InboxPage() {
   const isUsingDemoData = !user?.email || inboxDeals === demoInboxDeals;
 
   return (
-    <DashboardLayout title="Inbox">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -253,7 +251,7 @@ export default function InboxPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-medium text-sm truncate">{deal.title}</h3>
-                                <Badge 
+                                <Badge
                                   variant={isPending ? "warning" : "outline"}
                                   className="shrink-0 gap-1 text-xs h-5"
                                 >
@@ -325,6 +323,5 @@ export default function InboxPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

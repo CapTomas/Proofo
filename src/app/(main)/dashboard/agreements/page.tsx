@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Plus,
   Search,
@@ -42,10 +41,10 @@ const statusConfig: Record<DealStatus, { label: string; color: "default" | "seco
 
 export default function AgreementsPage() {
   const router = useRouter();
-  const { 
-    deals: storeDeals, 
-    user, 
-    voidDeal: storeVoidDeal, 
+  const {
+    deals: storeDeals,
+    user,
+    voidDeal: storeVoidDeal,
     setDeals,
   } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,7 +59,7 @@ export default function AgreementsPage() {
   // Fetch deals from database
   const refreshDeals = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
-    
+
     const { deals, error } = await getUserDealsAction();
     if (!error) {
       setDeals(deals || []);
@@ -149,7 +148,7 @@ export default function AgreementsPage() {
         recipientEmail: deal.recipientEmail,
       });
       setIsNudging(null);
-      
+
       if (success) {
         setNudgeSuccess(deal.id);
         setTimeout(() => setNudgeSuccess(null), 3000);
@@ -162,8 +161,7 @@ export default function AgreementsPage() {
   };
 
   return (
-    <DashboardLayout title="Agreements">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -299,7 +297,7 @@ export default function AgreementsPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-medium text-sm truncate">{deal.title}</h3>
-                                <Badge 
+                                <Badge
                                   variant="outline"
                                   className="shrink-0 gap-1 text-xs h-5"
                                 >
@@ -324,8 +322,8 @@ export default function AgreementsPage() {
                                   </Badge>
                                 ))}
                                 {deal.terms.length > 2 && (
-                                  <Badge 
-                                    variant="secondary" 
+                                  <Badge
+                                    variant="secondary"
                                     className="font-normal text-xs h-5 cursor-pointer hover:bg-secondary/80 transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -341,7 +339,7 @@ export default function AgreementsPage() {
                             <div className="flex items-center gap-1.5 shrink-0">
                               {deal.status === "pending" && (
                                 <>
-                                  <Button 
+                                  <Button
                                     variant={copiedId === deal.id ? "default" : "outline"}
                                     size="sm"
                                     onClick={() => copyToClipboard(deal.id, deal.publicId)}
@@ -359,9 +357,9 @@ export default function AgreementsPage() {
                                       </>
                                     )}
                                   </Button>
-                                  <Button 
+                                  <Button
                                     variant={nudgeSuccess === deal.id ? "default" : "outline"}
-                                    size="sm" 
+                                    size="sm"
                                     className="h-7 text-xs gap-1"
                                     onClick={() => handleNudge(deal)}
                                     disabled={isNudging === deal.id}
@@ -407,9 +405,9 @@ export default function AgreementsPage() {
                                     </Button>
                                   </Link>
                                   {deal.status === "pending" && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm" 
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       className="w-full justify-start gap-2 h-8 text-xs"
                                       onClick={() => handleDuplicate(deal.id)}
                                     >
@@ -418,9 +416,9 @@ export default function AgreementsPage() {
                                     </Button>
                                   )}
                                   {deal.status !== "voided" && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm" 
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
                                       onClick={() => handleVoidDeal(deal.id)}
                                       disabled={isVoiding === deal.id}
@@ -447,6 +445,5 @@ export default function AgreementsPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

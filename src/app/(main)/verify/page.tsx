@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AuditTimeline } from "@/components/audit-timeline";
-import { DashboardLayout } from "@/components/dashboard-layout";
 import {
   Shield,
   CheckCircle2,
@@ -39,7 +38,7 @@ export default function VerifyPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  
+
   // Hash verification state
   const [hashVerificationStatus, setHashVerificationStatus] = useState<HashVerificationStatus>("pending");
   const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
@@ -86,7 +85,7 @@ export default function VerifyPage() {
     setIsSearching(true);
     setHashVerificationStatus("pending");
     setCalculatedHash(null);
-    
+
     // First try local store
     const localDeal = getDealByPublicId(dealId.trim());
     if (localDeal) {
@@ -119,7 +118,7 @@ export default function VerifyPage() {
       setSearchedDeal(null);
       setAuditLogs([]);
     }
-    
+
     setHasSearched(true);
     setIsSearching(false);
   };
@@ -135,8 +134,7 @@ export default function VerifyPage() {
   }, [searchedDeal]);
 
   return (
-    <DashboardLayout title="Verify" showNewDealButton={false}>
-      <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10">
           <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
             <Shield className="h-8 w-8 text-primary" />
@@ -212,8 +210,8 @@ export default function VerifyPage() {
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     <div className={`h-14 w-14 rounded-full flex items-center justify-center ${
-                      searchedDeal.status === "confirmed" 
-                        ? "bg-emerald-500/10" 
+                      searchedDeal.status === "confirmed"
+                        ? "bg-emerald-500/10"
                         : searchedDeal.status === "voided"
                         ? "bg-destructive/10"
                         : "bg-muted"
@@ -229,16 +227,16 @@ export default function VerifyPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-lg">
-                          {searchedDeal.status === "confirmed" 
-                            ? "Verified & Sealed" 
+                          {searchedDeal.status === "confirmed"
+                            ? "Verified & Sealed"
                             : searchedDeal.status === "voided"
                             ? "Deal Voided"
                             : "Pending Signature"}
                         </h3>
-                        <Badge 
+                        <Badge
                           variant={
-                            searchedDeal.status === "confirmed" 
-                              ? "success" 
+                            searchedDeal.status === "confirmed"
+                              ? "success"
                               : searchedDeal.status === "voided"
                               ? "destructive"
                               : "warning"
@@ -248,7 +246,7 @@ export default function VerifyPage() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {searchedDeal.status === "confirmed" 
+                        {searchedDeal.status === "confirmed"
                           ? "This deal has been cryptographically sealed and is authentic."
                           : searchedDeal.status === "voided"
                           ? "This deal has been voided and is no longer valid."
@@ -342,7 +340,7 @@ export default function VerifyPage() {
                             </Badge>
                           )}
                         </div>
-                        
+
                         {/* Stored Hash */}
                         <div className="mb-3">
                           <p className="text-xs text-muted-foreground mb-1">Stored Seal:</p>
@@ -361,7 +359,7 @@ export default function VerifyPage() {
                                   Integrity Verified
                                 </p>
                                 <p className="text-muted-foreground text-xs mt-1">
-                                  The cryptographic seal has been independently re-calculated and matches the stored seal. 
+                                  The cryptographic seal has been independently re-calculated and matches the stored seal.
                                   This proves the deal data has not been tampered with since it was sealed.
                                 </p>
                               </div>
@@ -379,7 +377,7 @@ export default function VerifyPage() {
                                     Data Tampering Detected
                                   </p>
                                   <p className="text-muted-foreground text-xs mt-1">
-                                    The re-calculated hash does not match the stored seal. This indicates the deal 
+                                    The re-calculated hash does not match the stored seal. This indicates the deal
                                     data may have been modified after it was originally sealed.
                                   </p>
                                 </div>
@@ -453,6 +451,5 @@ export default function VerifyPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 }
