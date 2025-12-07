@@ -627,7 +627,11 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user) return null;
+  // If we reach here and user is still null, something went wrong - redirect to login
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
 
   return (
     <>
