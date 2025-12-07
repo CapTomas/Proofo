@@ -883,25 +883,41 @@ export default function Home() {
       <ScrollProgress />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-xl">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all duration-300">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-6xl">
-          <Link href="/" className="flex items-center gap-2 group">
-            <AnimatedLogo size={28} className="text-foreground" />
-            <span className="font-bold tracking-tight text-lg">Proofo</span>
-          </Link>
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2 group">
+              <AnimatedLogo size={28} className="text-foreground" />
+              <span className="font-bold tracking-tight text-lg">Proofo</span>
+            </Link>
 
-          <div className="flex items-center gap-4">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
+              <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
+              <Link href="#how-it-works" className="hover:text-foreground transition-colors">How it works</Link>
+              <Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+              <Link href="/verify" className="flex items-center gap-1.5 text-primary hover:opacity-80 transition-opacity">
+                <Shield className="h-3.5 w-3.5" />
+                Verify
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link href="/login">
-              <Button size="sm" variant="ghost" className="text-sm font-medium">
-                Log In
-              </Button>
-            </Link>
-            <Link href="/deal/new">
-              <MagneticWrapper>
-                <Button size="sm" className="font-medium">Get Started</Button>
-              </MagneticWrapper>
-            </Link>
+            <div className="hidden sm:flex items-center gap-2">
+              <Link href="/login">
+                <Button size="sm" variant="ghost" className="text-sm font-medium h-9">
+                  Log In
+                </Button>
+              </Link>
+              <Link href="/deal/new">
+                <MagneticWrapper>
+                  <Button size="sm" className="font-medium h-9 shadow-sm">Get Started</Button>
+                </MagneticWrapper>
+              </Link>
+            </div>
+            {/* Mobile Menu Toggle would go here */}
           </div>
         </div>
       </header>
@@ -961,7 +977,7 @@ export default function Home() {
         </div>
 
         {/* Bento Grid Features */}
-        <section className="mb-40">
+        <section id="features" className="mb-40 scroll-mt-24">
           <div className="container mx-auto px-4 mb-16 text-center max-w-2xl">
             <h2 className="text-3xl font-bold tracking-tight mb-4">Everything you need</h2>
             <p className="text-muted-foreground text-lg">Bridge the gap between a handshake and a lawyer with a suite of tools designed for speed and security.</p>

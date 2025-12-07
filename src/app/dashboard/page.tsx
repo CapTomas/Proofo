@@ -66,6 +66,38 @@ function getRelativeTime(dateStr: string) {
   return formatDate(dateStr);
 }
 
+// Calculate time difference between created and confirmed dates in minutes
+function getSignTimeMinutes(deal: Deal): number {
+  if (!deal.confirmedAt || !deal.createdAt) return 0;
+  const created = new Date(deal.createdAt).getTime();
+  const confirmed = new Date(deal.confirmedAt).getTime();
+  return (confirmed - created) / (1000 * 60);
+}
+
+// Format minutes into a readable time string
+function formatTimeValue(hours: number, minutes: number): string {
+  if (hours > 0) return `~${hours}h`;
+  if (minutes > 0) return `~${minutes}m`;
+  return "N/A";
+}
+
+// Format trend value for time display
+function formatTimeTrend(minutes: number): string | undefined {
+  if (minutes === 0) return undefined;
+  const absMinutes = Math.abs(minutes);
+  if (absMinutes >= 60) {
+    const hours = Math.round(minutes / 60);
+    return `${minutes > 0 ? '+' : ''}${hours}h`;
+  }
+  return `${minutes > 0 ? '+' : ''}${Math.round(minutes)}m`;
+}
+
+// Format completion rate trend value
+function formatCompletionRateTrend(trend: number): string | undefined {
+  if (trend === 0) return undefined;
+  return `${trend > 0 ? '+' : ''}${Math.round(trend)}%`;
+}
+
 // --- MICRO-COMPONENTS ---
 
 const ScrambleText = ({ text, className }: { text: string; className?: string }) => {
@@ -316,25 +348,33 @@ export default function DashboardPage() {
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState("");
+  const [currentDate, setCurrentDate] = useState("");
   const [tipIndex, setTipIndex] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Auth Check
-  useEffect(() => {
-    if (!user) router.replace("/login");
-  }, [user, router]);
+  // Note: Auth is now handled by middleware (server-side)
+  // No client-side redirect needed - middleware already protected this route
 
-  // Clock
+  // Mount detection for hydration safety
   useEffect(() => {
-    const updateTime = () => {
+    setIsMounted(true);
+  }, []);
+
+  // Date and clock - only runs on client after mount to avoid hydration mismatch
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const updateDateTime = () => {
       const now = new Date();
+      setCurrentDate(now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
       setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMounted]);
 
   // Tip Rotation
   useEffect(() => {
@@ -373,10 +413,67 @@ export default function DashboardPage() {
     const confirmed = storeDeals.filter(d => d.status === "confirmed").length;
     const pending = storeDeals.filter(d => d.status === "pending").length;
     const inbox = storeDeals.filter(d => d.recipientEmail === user?.email && d.status === "pending").length;
-    const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt);
-    const avgTimeHours = signedDeals.length > 0 ? 4 : 0;
 
-    return { total, confirmed, pending, inbox, avgTimeHours };
+    // Calculate actual average signing time from confirmed deals
+    const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt && d.createdAt);
+    let avgTimeHours = 0;
+    let avgTimeMinutes = 0;
+
+    if (signedDeals.length > 0) {
+      const totalMinutes = signedDeals.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0);
+      const avgMinutes = totalMinutes / signedDeals.length;
+      avgTimeHours = Math.floor(avgMinutes / 60);
+      avgTimeMinutes = Math.round(avgMinutes % 60);
+    }
+
+    // Calculate completion rate trend (comparing last 7 days vs previous 7 days)
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const recentDeals = storeDeals.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
+    const previousDeals = storeDeals.filter(d => {
+      const createdAt = new Date(d.createdAt);
+      return createdAt >= fourteenDaysAgo && createdAt < sevenDaysAgo;
+    });
+
+    const recentCompleted = recentDeals.filter(d => d.status === "confirmed").length;
+    const previousCompleted = previousDeals.filter(d => d.status === "confirmed").length;
+
+    const recentRate = recentDeals.length > 0 ? (recentCompleted / recentDeals.length) * 100 : 0;
+    const previousRate = previousDeals.length > 0 ? (previousCompleted / previousDeals.length) * 100 : 0;
+    const completionRateTrend = recentRate - previousRate;
+
+    // Calculate average sign time trend (comparing last 5 deals vs previous 5 deals)
+    const sortedConfirmedDeals = signedDeals.toSorted((a, b) =>
+      new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
+    );
+
+    let avgTimeMinutesTrend = 0;
+    if (sortedConfirmedDeals.length >= 2) {
+      const recentFive = sortedConfirmedDeals.slice(0, 5);
+      const previousFive = sortedConfirmedDeals.slice(5, 10);
+
+      if (recentFive.length > 0) {
+        const recentAvg = recentFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / recentFive.length;
+
+        if (previousFive.length > 0) {
+          const previousAvg = previousFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / previousFive.length;
+          avgTimeMinutesTrend = recentAvg - previousAvg; // Negative means improvement (faster)
+        }
+      }
+    }
+
+    return {
+      total,
+      confirmed,
+      pending,
+      inbox,
+      avgTimeHours,
+      avgTimeMinutes,
+      completionRateTrend,
+      avgTimeMinutesTrend
+    };
   }, [storeDeals, user?.email]);
 
   const priorityQueue = useMemo(() => {
@@ -418,7 +515,34 @@ export default function DashboardPage() {
     return dealsWithDates;
   }, [storeDeals]);
 
-  const sparklineData = [2, 5, 3, 8, 4, 9, 7];
+  // Calculate sparkline data from last 7 days of deal creation activity
+  const sparklineData = useMemo(() => {
+    const now = new Date();
+    const data: number[] = [];
+
+    // Pre-convert all deal creation dates to timestamps for efficient comparison
+    const dealTimestamps = storeDeals.map(deal => new Date(deal.createdAt).getTime());
+
+    // Generate data for last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(now);
+      dayStart.setDate(now.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayStartTime = dayStart.getTime();
+
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+      const dayEndTime = dayEnd.getTime();
+
+      const dealsInDay = dealTimestamps.filter(timestamp =>
+        timestamp >= dayStartTime && timestamp <= dayEndTime
+      ).length;
+
+      data.push(dealsInDay);
+    }
+
+    return data;
+  }, [storeDeals]);
 
   // --- ACTIONS ---
 
@@ -459,9 +583,15 @@ export default function DashboardPage() {
                 Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
               </h1>
               <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                <span className="w-1 h-1 rounded-full bg-border" />
-                <span className="font-mono text-xs">{currentTime}</span>
+                {isMounted && currentDate ? (
+                  <>
+                    {currentDate}
+                    <span className="w-1 h-1 rounded-full bg-border" />
+                    <span className="font-mono text-xs">{currentTime}</span>
+                  </>
+                ) : (
+                  <span className="opacity-0">Loading...</span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -505,17 +635,17 @@ export default function DashboardPage() {
               label="Completion Rate"
               value={stats.total > 0 ? `${Math.round((stats.confirmed / stats.total) * 100)}%` : "0%"}
               icon={TrendingUp}
-              trend="+12%"
-              trendDirection="up"
+              trend={formatCompletionRateTrend(stats.completionRateTrend)}
+              trendDirection={stats.completionRateTrend > 0 ? "up" : stats.completionRateTrend < 0 ? "down" : "neutral"}
               href="/dashboard/agreements"
               delay={0.2}
             />
             <StatCard
               label="Avg. Sign Time"
-              value="~4h"
+              value={formatTimeValue(stats.avgTimeHours, stats.avgTimeMinutes)}
               icon={Timer}
-              trend="-30m"
-              trendDirection="up"
+              trend={formatTimeTrend(stats.avgTimeMinutesTrend)}
+              trendDirection={stats.avgTimeMinutesTrend < 0 ? "up" : stats.avgTimeMinutesTrend > 0 ? "down" : "neutral"}
               href="/dashboard/agreements"
               delay={0.3}
             />
