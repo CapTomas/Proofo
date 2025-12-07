@@ -16,6 +16,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // Set loading state at the start to prevent premature renders
+      setIsLoading(true);
+
       // 1. Check Session First
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -33,8 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 2. We have a session. If user is null, we are fetching.
-      // We don't set isLoading(true) to avoid flicker, as DashboardLayout handles the skeleton state.
+      // 2. We have a session - fetch user data immediately
 
       // 3. Fetch Profile & Deals in Parallel
       const [profileResult, dealsResult] = await Promise.all([
@@ -68,10 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isInitializedRef.current) return;
     isInitializedRef.current = true;
 
-    // Initially set loading to false to render layout immediately
-    setIsLoading(false);
-
-    // Start sync
+    // Start sync immediately (it will set loading state internally)
     syncUserAndDeals();
 
     if (!isSupabaseConfigured()) return;
@@ -84,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setDeals([]);
           setNeedsOnboarding(false);
+          setIsLoading(false);
           if (typeof window !== "undefined") {
             localStorage.removeItem("proofo-storage");
           }
