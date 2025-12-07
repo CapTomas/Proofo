@@ -28,10 +28,18 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+    if (!error && data.session) {
+      // Verify the session was properly established
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Session is properly established, safe to redirect
+        return NextResponse.redirect(`${origin}${next}`);
+      } else {
+        console.error("Auth error: Session established but user not found");
+      }
     } else {
       console.error("Auth error:", error);
     }
