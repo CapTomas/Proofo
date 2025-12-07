@@ -343,7 +343,7 @@ const ActivitySparkline = ({ data }: { data: number[] }) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding, isLoading } = useAppStore();
+  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding } = useAppStore();
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
@@ -567,67 +567,6 @@ export default function DashboardPage() {
     if (verifyId.trim()) router.push(`/verify?id=${verifyId.trim()}`);
   };
 
-  // Show loading state while user is being fetched (only after mount to avoid hydration issues)
-  // Only show skeleton when actively loading to avoid showing it indefinitely
-  if (isMounted && isLoading) {
-    return (
-      <DashboardLayout title="Home">
-        <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
-          {/* Loading skeleton for header */}
-          <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
-            <div className="min-w-0 space-y-2">
-              <div className="h-7 w-48 bg-muted animate-pulse rounded" />
-              <div className="h-4 w-64 bg-muted animate-pulse rounded" />
-            </div>
-          </div>
-
-          {/* Loading skeleton for stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 px-4 sm:px-0">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-card border rounded-xl p-4 sm:p-5 h-[100px]">
-                <div className="space-y-2">
-                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
-                  <div className="h-6 w-12 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-20 bg-muted animate-pulse rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Loading skeleton for main content */}
-          <div className="grid lg:grid-cols-3 gap-6 px-4 sm:px-0">
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="h-[424px]">
-                <CardHeader className="pb-2">
-                  <div className="h-6 w-32 bg-muted animate-pulse rounded" />
-                </CardHeader>
-                <CardContent className="p-2 space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded" />
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-            <div className="space-y-6">
-              <Card className="h-[200px]">
-                <CardHeader>
-                  <div className="h-6 w-32 bg-muted animate-pulse rounded" />
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-4 w-full bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Middleware handles auth protection - just return null if no user
   if (!user) return null;
 
   return (

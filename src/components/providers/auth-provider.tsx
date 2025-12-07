@@ -16,17 +16,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Set loading state at the start to prevent premature renders
-      setIsLoading(true);
-
       // 1. Check Session First
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
         // If we have a user in store but no session, it's stale. Clear it.
         // This prevents the "Redirect Loop" where client thinks it's logged in but server doesn't.
-        const currentUser = useAppStore.getState().user;
-        if (currentUser) {
+        if (user) {
           setUser(null);
           setDeals([]);
           if (typeof window !== "undefined") {
@@ -37,7 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 2. We have a session - fetch user data immediately
+      // 2. We have a session. If user is null, we are fetching.
+      // We don't set isLoading(true) to avoid flicker, as DashboardLayout handles the skeleton state.
 
       // 3. Fetch Profile & Deals in Parallel
       const [profileResult, dealsResult] = await Promise.all([
@@ -48,9 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 4. Update User State
       if (profileResult.profile) {
         const fullUser = await getCurrentUser();
-        const currentUser = useAppStore.getState().user;
         // Only update if changed to avoid re-renders
-        if (fullUser && JSON.stringify(fullUser) !== JSON.stringify(currentUser)) {
+        if (fullUser && JSON.stringify(fullUser) !== JSON.stringify(user)) {
           setUser(fullUser);
         }
         setNeedsOnboarding(!profileResult.profile.hasCompletedOnboarding);
@@ -66,13 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [setUser, setDeals, setIsLoading, setNeedsOnboarding]);
+  }, [user, setUser, setDeals, setIsLoading, setNeedsOnboarding]);
 
   useEffect(() => {
     if (isInitializedRef.current) return;
     isInitializedRef.current = true;
 
-    // Start sync immediately (it will set loading state internally)
+    // Initially set loading to false to render layout immediately
+    setIsLoading(false);
+
+    // Start sync
     syncUserAndDeals();
 
     if (!isSupabaseConfigured()) return;
@@ -85,7 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setDeals([]);
           setNeedsOnboarding(false);
-          setIsLoading(false);
           if (typeof window !== "undefined") {
             localStorage.removeItem("proofo-storage");
           }
