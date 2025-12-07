@@ -25,7 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!session) {
         // If we have a user in store but no session, it's stale. Clear it.
         // This prevents the "Redirect Loop" where client thinks it's logged in but server doesn't.
-        if (user) {
+        const currentUser = useAppStore.getState().user;
+        if (currentUser) {
           setUser(null);
           setDeals([]);
           if (typeof window !== "undefined") {
@@ -47,8 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 4. Update User State
       if (profileResult.profile) {
         const fullUser = await getCurrentUser();
+        const currentUser = useAppStore.getState().user;
         // Only update if changed to avoid re-renders
-        if (fullUser && JSON.stringify(fullUser) !== JSON.stringify(user)) {
+        if (fullUser && JSON.stringify(fullUser) !== JSON.stringify(currentUser)) {
           setUser(fullUser);
         }
         setNeedsOnboarding(!profileResult.profile.hasCompletedOnboarding);
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user, setUser, setDeals, setIsLoading, setNeedsOnboarding]);
+  }, [setUser, setDeals, setIsLoading, setNeedsOnboarding]);
 
   useEffect(() => {
     if (isInitializedRef.current) return;
