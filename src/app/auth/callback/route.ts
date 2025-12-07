@@ -36,12 +36,6 @@ export async function GET(request: NextRequest) {
       
       if (user) {
         // Session is properly established, safe to redirect
-        const forwardedHost = request.headers.get('x-forwarded-host');
-        const isLocalhost = forwardedHost?.includes('localhost');
-        
-        if (isLocalhost) {
-          return NextResponse.redirect(`${origin}${next}`);
-        }
         return NextResponse.redirect(`${origin}${next}`);
       } else {
         console.error("Auth error: Session established but user not found");

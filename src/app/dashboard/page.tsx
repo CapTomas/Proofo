@@ -568,7 +568,8 @@ export default function DashboardPage() {
   };
 
   // Show loading state while user is being fetched (only after mount to avoid hydration issues)
-  if (isMounted && !user) {
+  // Check both user and isLoading to ensure we show skeleton during auth sync
+  if (isMounted && (!user || isLoading)) {
     return (
       <DashboardLayout title="Home">
         <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
