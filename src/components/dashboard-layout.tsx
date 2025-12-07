@@ -32,6 +32,8 @@ import {
   PanelLeftOpen,
   ChevronRight,
   Search,
+  Menu,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -61,6 +63,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   // Determine if "New Deal" button should be shown based on current path
   const showNewDealButton = !["/settings", "/templates", "/verify"].some(path => pathname.startsWith(path));
@@ -71,13 +75,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const savedState = localStorage.getItem("sidebar-collapsed");
     if (savedState) setIsCollapsed(savedState === "true");
 
+    // Check if desktop
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+
     // Give Zustand time to rehydrate from localStorage
     // This is a small delay to let the persisted state load
     const timer = setTimeout(() => {
       setIsHydrated(true);
     }, 50);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkDesktop);
+    };
   }, []);
 
   const toggleSidebar = () => {
@@ -164,7 +176,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             "h-16 flex items-center border-b border-border/40 transition-all duration-300",
             isCollapsed ? "justify-center px-0" : "justify-between px-6"
           )}>
-            <Link href="/" className="flex items-center gap-3 group overflow-hidden">
+            <Link href="/dashboard" className="flex items-center gap-3 group overflow-hidden">
               <AnimatedLogo size={isCollapsed ? 32 : 28} className="text-foreground shrink-0" />
               {!isCollapsed && (
                 <motion.span
@@ -357,9 +369,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main Content Wrapper */}
         <motion.div
           className="flex-1 flex flex-col min-w-0"
-          animate={{ paddingLeft: isCollapsed ? 80 : 280 }}
+          animate={{ paddingLeft: isDesktop ? (isCollapsed ? 80 : 280) : 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          style={{ paddingLeft: 0 }} // Reset for mobile
         >
           <div className="lg:pl-0 w-full">
             {/* Top Header */}
@@ -367,8 +378,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               {/* Mobile Logo & Breadcrumbs */}
               <div className="flex items-center gap-4 flex-1">
                 <div className="lg:hidden flex items-center gap-2 mr-2">
-                  <Link href="/" className="flex items-center gap-2">
+                  <Link href="/dashboard" className="flex items-center gap-2">
                     <AnimatedLogo size={24} className="text-foreground" />
+                    <span className="font-bold text-base tracking-tight">Proofo</span>
                   </Link>
                 </div>
 
@@ -417,7 +429,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </header>
 
             {/* Page Content */}
-            <main className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
+            <main className="p-4 sm:p-8 pb-20 lg:pb-8 max-w-7xl mx-auto w-full">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -429,10 +441,119 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </motion.div>
 
-        {/* Mobile Nav Overlay */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-50 flex items-center justify-around px-2 pb-safe">
-          {navItems.slice(0, 5).map((item) => {
-            const isActive = pathname === item.href;
+        {/* Mobile Menu Drawer */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileMenuOpen(false)}
+                className="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+              />
+              {/* Drawer */}
+              <motion.div
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className="lg:hidden fixed inset-y-0 left-0 w-[280px] bg-card border-r z-50 flex flex-col"
+              >
+                {/* Header */}
+                <div className="h-16 flex items-center justify-between px-6 border-b">
+                  <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <AnimatedLogo size={28} className="text-foreground" />
+                    <span className="font-bold text-lg tracking-tight">Proofo</span>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="h-8 w-8"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto">
+                  {navItems.map((item) => {
+                    const isActive = pathname === item.href ||
+                      (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                    const Icon = item.icon;
+
+                    return (
+                      <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}>
+                        <Button
+                          variant={isActive ? "secondary" : "ghost"}
+                          className={cn(
+                            "w-full justify-start gap-3 h-10 px-3 text-sm font-medium rounded-xl",
+                            isActive && "bg-primary/10 text-primary"
+                          )}
+                        >
+                          <Icon className="h-4.5 w-4.5 shrink-0" />
+                          {item.label}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                {/* Footer with User & Logout */}
+                <div className="p-3 border-t space-y-3">
+                  {user ? (
+                    <>
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-muted/50">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0">
+                            {userInitials}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{userName}</p>
+                            <p className="text-xs text-muted-foreground">{isPro ? "Pro Plan" : "Free Plan"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {isLoggingOut ? "Logging out..." : "Log out"}
+                      </Button>
+                    </>
+                  ) : (
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-3">
+                        <User className="h-4 w-4" />
+                        Sign In
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile Bottom Nav */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-30 flex items-center justify-around">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex flex-col items-center justify-center gap-1 h-full text-muted-foreground hover:text-foreground hover:bg-transparent flex-1"
+          >
+            <Menu className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Menu</span>
+          </Button>
+          {[navItems[0], navItems[1], navItems[2]].map((item) => {
+            const isActive = pathname === item.href ||
+              (item.href !== "/dashboard" && pathname.startsWith(item.href));
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href} className="flex-1">
@@ -441,7 +562,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}>
                   <Icon className={cn("h-5 w-5", isActive && "fill-primary/20")} />
-                  {item.label}
+                  <span>{item.label}</span>
                 </div>
               </Link>
             );
