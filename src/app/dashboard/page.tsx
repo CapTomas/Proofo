@@ -568,8 +568,8 @@ export default function DashboardPage() {
   };
 
   // Show loading state while user is being fetched (only after mount to avoid hydration issues)
-  // Check both user and isLoading to ensure we show skeleton during auth sync
-  if (isMounted && (!user || isLoading)) {
+  // Only show skeleton when actively loading to avoid showing it indefinitely
+  if (isMounted && isLoading) {
     return (
       <DashboardLayout title="Home">
         <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
@@ -627,11 +627,8 @@ export default function DashboardPage() {
     );
   }
 
-  // If we reach here and user is still null, something went wrong - redirect to login
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
+  // Middleware handles auth protection - just return null if no user
+  if (!user) return null;
 
   return (
     <>
