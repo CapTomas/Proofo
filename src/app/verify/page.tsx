@@ -144,7 +144,7 @@ function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialDealId = searchParams.get("id") || "";
-  
+
   const { getDealByPublicId, getAuditLogsForDeal } = useAppStore();
   const [dealId, setDealId] = useState(initialDealId);
   const [searchedDeal, setSearchedDeal] = useState<Deal | null>(null);
@@ -214,10 +214,10 @@ function VerifyContent() {
     if (searchedDeal) {
       const verifyHash = async () => {
         setHashVerificationStatus("verifying");
-        
+
         // Simulate calculation delay for effect
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
+
         try {
           const hash = await calculateDealSeal({
             dealId: searchedDeal.id,
@@ -226,7 +226,7 @@ function VerifyContent() {
             timestamp: searchedDeal.confirmedAt || searchedDeal.createdAt,
           });
           setCalculatedHash(hash);
-          
+
           if (searchedDeal.dealSeal && hash === searchedDeal.dealSeal) {
             setHashVerificationStatus("valid");
           } else if (searchedDeal.dealSeal) {
@@ -240,7 +240,7 @@ function VerifyContent() {
           setHashVerificationStatus("error");
         }
       };
-      
+
       verifyHash();
     }
   }, [searchedDeal]);
@@ -255,7 +255,7 @@ function VerifyContent() {
       <PublicHeader currentPage="verify" />
 
       <main className="relative pt-28 pb-20 container mx-auto px-4 max-w-6xl">
-        
+
         {/* Back Navigation */}
         <div className="mb-8">
           <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group">
@@ -265,7 +265,7 @@ function VerifyContent() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
-          
+
           {/* LEFT COLUMN: Context & Search */}
           <div className="lg:sticky lg:top-32 space-y-12">
             <motion.div
@@ -299,7 +299,7 @@ function VerifyContent() {
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden">
                  <div className="relative z-10">
                    <h3 className="text-2xl font-bold mb-6">Check Deal Status</h3>
-                   
+
                    <form onSubmit={handleSearch} className="space-y-4">
                      <div className="space-y-2">
                        <Label htmlFor="deal-id" className="text-muted-foreground">Deal ID</Label>
@@ -314,10 +314,10 @@ function VerifyContent() {
                          />
                        </div>
                      </div>
-                     
-                     <Button 
-                       type="submit" 
-                       size="xl" 
+
+                     <Button
+                       type="submit"
+                       size="xl"
                        className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
                        disabled={isSearching || !dealId}
                      >
@@ -411,24 +411,24 @@ function VerifyContent() {
                           <Hash className="h-4 w-4 text-primary" />
                           Cryptographic Proof
                         </h3>
-                        
+
                         <div className="space-y-3">
                           {searchedDeal.dealSeal && (
-                            <CopyableHash 
-                              label="Recorded Seal Hash (Immutable)" 
-                              hash={searchedDeal.dealSeal} 
+                            <CopyableHash
+                              label="Recorded Seal Hash (Immutable)"
+                              hash={searchedDeal.dealSeal}
                             />
                           )}
-                          
+
                           {calculatedHash && (
-                            <CopyableHash 
-                              label="Calculated Hash (Real-time Verification)" 
-                              hash={calculatedHash} 
+                            <CopyableHash
+                              label="Calculated Hash (Real-time Verification)"
+                              hash={calculatedHash}
                             />
                           )}
 
                           {hashVerificationStatus === "valid" && (
-                            <motion.div 
+                            <motion.div
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20"
@@ -437,9 +437,9 @@ function VerifyContent() {
                               Hashes match perfectly. Document integrity verified.
                             </motion.div>
                           )}
-                          
+
                           {hashVerificationStatus === "invalid" && (
-                            <motion.div 
+                            <motion.div
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg border border-destructive/20"

@@ -111,7 +111,7 @@ function DashboardVerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialDealId = searchParams.get("id") || "";
-  
+
   const { getDealByPublicId, getAuditLogsForDeal } = useAppStore();
   const [dealId, setDealId] = useState(initialDealId);
   const [searchedDeal, setSearchedDeal] = useState<Deal | null>(null);
@@ -181,10 +181,10 @@ function DashboardVerifyContent() {
     if (searchedDeal) {
       const verifyHash = async () => {
         setHashVerificationStatus("verifying");
-        
+
         // Simulate calculation delay for effect
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
+
         try {
           const hash = await calculateDealSeal({
             dealId: searchedDeal.id,
@@ -193,7 +193,7 @@ function DashboardVerifyContent() {
             timestamp: searchedDeal.confirmedAt || searchedDeal.createdAt,
           });
           setCalculatedHash(hash);
-          
+
           if (searchedDeal.dealSeal && hash === searchedDeal.dealSeal) {
             setHashVerificationStatus("valid");
           } else if (searchedDeal.dealSeal) {
@@ -206,7 +206,7 @@ function DashboardVerifyContent() {
           setHashVerificationStatus("error");
         }
       };
-      
+
       verifyHash();
     }
   }, [searchedDeal]);
@@ -249,8 +249,8 @@ function DashboardVerifyContent() {
                     />
                   </div>
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full"
                   disabled={isSearching || !dealId}
                 >
@@ -363,12 +363,12 @@ function DashboardVerifyContent() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="md:col-span-2 space-y-3 pt-2 border-t">
                        {searchedDeal.dealSeal && (
-                        <CopyableHash 
-                          label="Seal Hash" 
-                          hash={searchedDeal.dealSeal} 
+                        <CopyableHash
+                          label="Seal Hash"
+                          hash={searchedDeal.dealSeal}
                         />
                       )}
                     </div>
