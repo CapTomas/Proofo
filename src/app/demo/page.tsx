@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SignaturePad } from "@/components/signature-pad";
-import { AnimatedLogo } from "@/components/animated-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { PublicHeader } from "@/components/public-header";
 import {
   ArrowRight,
   CheckCircle2,
@@ -95,28 +94,12 @@ export default function DemoPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-xl">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-6xl">
-          <Link href="/" className="flex items-center gap-2 group">
-            <AnimatedLogo size={28} className="text-foreground" />
-            <span className="font-bold tracking-tight text-lg">Proofo</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Link href="/dashboard">
-              <Button size="sm" className="font-medium">
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader currentPage="demo" />
 
-      <main className="relative pt-32 pb-20 container mx-auto px-4 max-w-6xl">
+      <main className="relative pt-28 pb-20 container mx-auto px-4 max-w-6xl">
 
         {/* Back Navigation */}
-        <div className="mb-12">
+        <div className="mb-8">
           <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group">
             <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             Back to Home

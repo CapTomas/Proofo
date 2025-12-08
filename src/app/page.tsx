@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   Menu,
   X,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -88,7 +89,7 @@ const ScrollProgress = () => {
 
   return (
     <motion.div
-      className="fixed top-0 left-0 right-0 h-[3px] bg-primary origin-left z-[100]"
+      className="fixed top-0 left-0 right-0 h-[3px] bg-primary origin-left z-100"
       style={{ scaleX }}
     />
   );
@@ -318,7 +319,7 @@ const AnimatedQR = () => (
     <QrCode className="w-8 h-8 text-primary" />
     {/* Scan Line - Full Height Scan */}
     <motion.div
-      className="absolute left-0 right-0 h-[2px] bg-primary shadow-[0_0_8px_rgba(0,0,0,0.5)]"
+      className="absolute left-0 right-0 h-0.5 bg-primary shadow-[0_0_8px_rgba(0,0,0,0.5)]"
       initial={{ top: "-10%" }}
       animate={{ top: "110%" }}
       transition={{
@@ -334,10 +335,10 @@ const AnimatedQR = () => (
 const AnimatedSign = () => (
   <div className="relative w-12 h-12 flex items-center justify-center overflow-hidden">
     {/* Centered Document Line */}
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[-5px] w-8 h-[2px] bg-border rounded-full" />
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[-5px] w-8 h-0.5 bg-border rounded-full" />
 
     {/* Drawn Signature Line - Perfectly centered, shorter path */}
-    <svg className="absolute top-1/2 left-1/2 -translate-x-[10px] -translate-y-[10px] w-8 h-8 overflow-visible" viewBox="0 0 32 32">
+    <svg className="absolute top-1/2 left-1/2 -translate-x-2.5 -translate-y-2.5 w-8 h-8 overflow-visible" viewBox="0 0 32 32">
       <motion.path
         d="M6,16 Q12,12 16,16 T26,16" // Start at 6, End at 26 (centered in 32)
         fill="none"
@@ -383,7 +384,7 @@ const AnimatedSign = () => (
         }}
       >
         {/* Actual Icon - Translated so tip (bottom-left of icon) is at (0,0) */}
-        <Pen className="w-5 h-5 text-primary -scale-x-100 -translate-x-[13px] -translate-y-[0px]" />
+        <Pen className="w-5 h-5 text-primary -scale-x-100 -translate-x-[13px] translate-y-0" />
       </motion.div>
     </motion.div>
   </div>
@@ -407,7 +408,7 @@ const AnimatedProof = () => (
         ease: "linear"
       }}
     >
-      <div className="w-[2px] h-3 bg-primary origin-bottom -translate-y-1.5 rounded-full" />
+      <div className="w-0.5 h-3 bg-primary origin-bottom -translate-y-1.5 rounded-full" />
     </motion.div>
 
     {/* Hour Hand - Slight movement */}
@@ -421,7 +422,7 @@ const AnimatedProof = () => (
         ease: "linear"
       }}
     >
-      <div className="w-[2px] h-2 bg-primary origin-bottom -translate-y-1 rounded-full" />
+      <div className="w-0.5 h-2 bg-primary origin-bottom -translate-y-1 rounded-full" />
     </motion.div>
   </div>
 );
@@ -526,9 +527,9 @@ const BentoGrid = () => (
             Draw-to-sign creates psychological trust that text messages can't match.
           </p>
           <div className="mt-auto bg-secondary/20 rounded-xl p-4 border border-dashed border-border flex items-center justify-center h-40 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(#00000010_1px,transparent_1px)] [background-size:16px_16px] opacity-50"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(#00000010_1px,transparent_1px)] bg-size-[16px_16px] opacity-50"></div>
             {/* Animated Signature */}
-            <div className="rotate-[-6deg]">
+            <div className="-rotate-6">
               <SignatureAnimation />
             </div>
           </div>
@@ -605,7 +606,7 @@ const BentoGrid = () => (
 const WorkflowSection = () => (
   <div className="relative">
     {/* Connecting Line - Desktop */}
-    <div className="hidden md:block absolute top-[2.5rem] left-[10%] right-[10%] h-[1px] bg-border z-0" />
+    <div className="hidden md:block absolute top-10 left-[10%] right-[10%] h-px bg-border z-0" />
 
     <div className="grid md:grid-cols-4 gap-8 relative z-10">
       {[
@@ -900,6 +901,10 @@ export default function Home() {
               <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
               <Link href="#how-it-works" className="hover:text-foreground transition-colors">How it works</Link>
               <Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+              <Link href="/demo" className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                <Sparkles className="h-3.5 w-3.5" />
+                Demo
+              </Link>
               <Link href="/verify" className="flex items-center gap-1.5 text-primary hover:opacity-80 transition-opacity">
                 <Shield className="h-3.5 w-3.5" />
                 Verify
@@ -944,7 +949,7 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm"
+              className="fixed inset-0 bg-black/50 z-60 backdrop-blur-sm"
             />
             {/* Drawer */}
             <motion.div
@@ -952,7 +957,7 @@ export default function Home() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed inset-y-0 left-0 w-[280px] bg-card border-r z-[70] flex flex-col"
+              className="fixed inset-y-0 left-0 w-[280px] bg-card border-r z-70 flex flex-col"
             >
               {/* Header */}
               <div className="h-16 flex items-center justify-between px-6 border-b">
@@ -1009,6 +1014,18 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link
+                  href="/demo"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 h-10 px-3 text-sm font-medium rounded-xl"
+                  >
+                    <Sparkles className="h-4.5 w-4.5 shrink-0" />
+                    Demo
+                  </Button>
+                </Link>
+                <Link
                   href="/verify"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -1016,7 +1033,7 @@ export default function Home() {
                     variant="ghost"
                     className="w-full justify-start gap-3 h-10 px-3 text-sm font-medium rounded-xl"
                   >
-                    <Shield className="h-4.5 w-4.5 shrink-0" />
+                    <Shield className="h-4.5 w-4.5 shrink-0 text-primary" />
                     Verify
                   </Button>
                 </Link>

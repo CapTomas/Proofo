@@ -46,10 +46,10 @@ export function LoginModal({
 
   // Helper function to create demo user and handle success callback
   const createDemoUser = (emailAddress: string) => {
-    const userName = emailAddress.includes("@") 
-      ? emailAddress.split("@")[0] 
+    const userName = emailAddress.includes("@")
+      ? emailAddress.split("@")[0]
       : "Demo User";
-    
+
     setUser({
       id: `demo-${Date.now()}`,
       email: emailAddress,
@@ -227,7 +227,7 @@ export function LoginModal({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200 }}
-                className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6"
+                className="h-20 w-20 rounded-full bg-linear-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6"
               >
                 <Mail className="h-10 w-10 text-primary" />
               </motion.div>

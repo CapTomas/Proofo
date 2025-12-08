@@ -5,6 +5,7 @@ export type { Database, DealStatus, Json } from "./types";
 export {
   signInWithEmail,
   signInWithGoogle,
+  verifyOtp,
   signOut,
   getSession,
   getCurrentUser,

@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Mail, ArrowRight, Shield, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, ArrowRight, Shield, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signInWithEmail, signInWithGoogle, isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { signInWithEmail, signInWithGoogle, verifyOtp, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store";
 import { AnimatedLogo } from "@/components/animated-logo";
+import { OtpInput } from "@/components/otp-input";
 
 /**
  * Error messages for different auth error codes
@@ -36,6 +37,8 @@ function LoginContent() {
   const [isSent, setIsSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [otpCode, setOtpCode] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const isSupabaseReady = isSupabaseConfigured();
   const hasCheckedSessionRef = useRef(false);
 
@@ -136,6 +139,32 @@ function LoginContent() {
     }
   };
 
+  const handleVerifyOtp = async (code: string) => {
+    setError(null);
+    setIsVerifyingOtp(true);
+
+    try {
+      const { error: verifyError, session } = await verifyOtp(email, code);
+
+      if (session) {
+        // Success - redirect to dashboard
+        // Don't show any errors, just redirect immediately
+        const redirect = searchParams.get("redirect") || "/dashboard";
+        router.push(redirect);
+      } else if (verifyError) {
+        // Only show error if there's no session
+        setError(verifyError.message);
+        setOtpCode(""); // Clear on error
+        setIsVerifyingOtp(false);
+      }
+    } catch (err) {
+      setError("Failed to verify code. Please try again.");
+      setOtpCode(""); // Clear on error
+      setIsVerifyingOtp(false);
+    }
+    // Note: Don't set isVerifyingOtp to false on success - keep it true until redirect
+  };
+
   const handleGoogleSignIn = async () => {
     setError(null);
 
@@ -171,7 +200,7 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-muted/20" />
+      <div className="absolute inset-0 bg-linear-to-b from-background via-background to-muted/20" />
       <div className="absolute inset-0 z-0 cursor-pointer" onClick={() => router.push("/")} aria-label="Go back" />
 
       <div className="w-full max-w-md relative z-10">
@@ -267,22 +296,71 @@ function LoginContent() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center py-6"
+                className="space-y-5"
               >
-                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
-                  <Mail className="h-10 w-10 text-primary" />
+                <div className="text-center">
+                  <div className="h-16 w-16 rounded-full bg-linear-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Mail className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">Check your email</h3>
+                  <p className="text-sm text-muted-foreground">
+                    We sent a code to <strong className="text-foreground">{email}</strong>
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Check your email</h3>
-                <p className="text-muted-foreground mb-6">
-                  We sent a magic link to<br />
-                  <strong className="text-foreground">{email}</strong>
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Click the link in the email to sign in. The link expires in 1 hour.
-                </p>
-                <Button variant="ghost" onClick={() => setIsSent(false)}>
-                  Use a different email
-                </Button>
+
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2"
+                  >
+                    <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                    <p className="text-sm text-destructive">{error}</p>
+                  </motion.div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium mb-3 block text-center">Enter verification code</Label>
+                    <OtpInput
+                      length={6}
+                      value={otpCode}
+                      onChange={setOtpCode}
+                      onComplete={handleVerifyOtp}
+                      disabled={isVerifyingOtp}
+                      autoFocus
+                    />
+                    {isVerifyingOtp && (
+                      <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Verifying...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><Separator /></div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-3 text-muted-foreground">Or</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Click the magic link in your email
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-center gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setIsSent(false); setOtpCode(""); setError(null); }}
+                    className="text-sm"
+                  >
+                    Use different email
+                  </Button>
+                </div>
               </motion.div>
             )}
             <div className="pt-2">
