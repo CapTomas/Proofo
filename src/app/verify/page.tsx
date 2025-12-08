@@ -4,43 +4,50 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PublicHeader } from "@/components/public-header";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { useAppStore } from "@/store";
-import { formatDate, calculateDealSeal } from "@/lib/crypto";
+import { formatDate, calculateDealSeal, formatDateTime } from "@/lib/crypto";
 import { getDealByPublicIdAction, getAuditLogsAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
+import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
 import {
   Shield,
   Search,
   AlertCircle,
   CheckCircle2,
   Clock,
+  Sparkles,
   User,
   XCircle,
   RefreshCw,
-  Lock,
-  FileCheck,
   Copy,
   Check,
-  ExternalLink,
   Hash,
   Calendar,
   ArrowLeft,
-  Sparkles,
-  ArrowRight
+  ArrowRight,
+  Fingerprint,
+  FileText,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  Terminal,
+  ScanLine,
 } from "lucide-react";
 import Link from "next/link";
 
-// Hash verification status type
+// --- TYPES ---
+
 type HashVerificationStatus = "pending" | "verifying" | "valid" | "invalid" | "error";
 
-// Scramble text animation component
+// --- MICRO-COMPONENTS ---
+
 const ScrambleText = ({ text, className, trigger = true }: { text: string; className?: string; trigger?: boolean }) => {
   const [displayText, setDisplayText] = useState(text);
   const chars = "0123456789abcdef";
@@ -67,7 +74,6 @@ const ScrambleText = ({ text, className, trigger = true }: { text: string; class
   return <span className={className}>{displayText}</span>;
 };
 
-// Pulsing shield animation for verification
 const PulsingShield = ({ status }: { status: HashVerificationStatus }) => {
   const colors = {
     pending: "border-border/50 text-muted-foreground",
@@ -78,7 +84,7 @@ const PulsingShield = ({ status }: { status: HashVerificationStatus }) => {
   };
 
   return (
-    <div className="relative flex items-center justify-center w-16 h-16">
+    <div className="relative flex items-center justify-center w-12 h-12">
       {status === "verifying" && (
         <>
           <motion.div
@@ -93,24 +99,23 @@ const PulsingShield = ({ status }: { status: HashVerificationStatus }) => {
           />
         </>
       )}
-      <div className={`h-12 w-12 rounded-xl border-2 ${colors[status]} flex items-center justify-center bg-background transition-colors duration-300`}>
+      <div className={`h-10 w-10 rounded-xl border-2 ${colors[status]} flex items-center justify-center bg-background transition-colors duration-300 shadow-sm`}>
         {status === "verifying" ? (
-          <RefreshCw className="h-5 w-5 animate-spin" />
+          <RefreshCw className="h-4 w-4 animate-spin" />
         ) : status === "valid" ? (
-          <CheckCircle2 className="h-5 w-5" />
+          <CheckCircle2 className="h-4 w-4" />
         ) : status === "invalid" ? (
-          <XCircle className="h-5 w-5" />
+          <XCircle className="h-4 w-4" />
         ) : status === "error" ? (
-          <AlertCircle className="h-5 w-5" />
+          <AlertCircle className="h-4 w-4" />
         ) : (
-          <Shield className="h-5 w-5" />
+          <Shield className="h-4 w-4" />
         )}
       </div>
     </div>
   );
 };
 
-// Copyable Hash Display
 const CopyableHash = ({ hash, label }: { hash: string; label: string }) => {
   const [copied, setCopied] = useState(false);
 
@@ -121,19 +126,18 @@ const CopyableHash = ({ hash, label }: { hash: string; label: string }) => {
   };
 
   return (
-    <div className="space-y-1.5">
-      <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</div>
+    <div className="space-y-1 w-full">
+      <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium flex items-center justify-between">
+        <span>{label}</span>
+        {copied && <span className="text-emerald-500 flex items-center gap-1"><Check className="h-3 w-3" /> Copied</span>}
+      </div>
       <div
         onClick={handleCopy}
         className="group cursor-pointer font-mono text-[10px] text-muted-foreground bg-secondary/50 px-3 py-2 rounded-lg border border-border/50 hover:bg-secondary/70 transition-colors break-all flex items-center justify-between gap-2"
       >
         <span className="truncate">{hash}</span>
         <div className="shrink-0">
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-emerald-500" />
-          ) : (
-            <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          )}
+          <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
     </div>
@@ -151,6 +155,8 @@ function VerifyContent() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Hash verification state
   const [hashVerificationStatus, setHashVerificationStatus] = useState<HashVerificationStatus>("pending");
@@ -162,6 +168,7 @@ function VerifyContent() {
     setIsSearching(true);
     setHashVerificationStatus("pending");
     setCalculatedHash(null);
+    setShowTerms(false);
 
     if (updateUrl) {
       router.push(`/verify?id=${searchId}`, { scroll: false });
@@ -202,9 +209,17 @@ function VerifyContent() {
     setIsSearching(false);
   }, [getDealByPublicId, getAuditLogsForDeal, router]);
 
-  // Initial search if ID is present
+  // Handle URL changes and initial load
   useEffect(() => {
-    if (initialDealId && !hasSearched) {
+    if (!initialDealId) {
+      // URL is empty? Reset the UI to search mode
+      setHasSearched(false);
+      setSearchedDeal(null);
+      setDealId("");
+      setHashVerificationStatus("pending");
+    } else if (initialDealId && !hasSearched) {
+      // URL has an ID and we haven't searched yet? Perform search
+      setDealId(initialDealId); // Sync input with URL
       performSearch(initialDealId);
     }
   }, [initialDealId, hasSearched, performSearch]);
@@ -232,7 +247,6 @@ function VerifyContent() {
           } else if (searchedDeal.dealSeal) {
             setHashVerificationStatus("invalid");
           } else {
-            // If no seal hash exists yet (e.g. draft), we just show the calculated one
             setHashVerificationStatus("pending");
           }
         } catch (error) {
@@ -248,6 +262,29 @@ function VerifyContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     performSearch(dealId, true);
+  };
+
+  const handleReset = () => {
+    // Just clear the URL. The useEffect above will handle the state reset.
+    router.push("/verify");
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!searchedDeal) return;
+    setIsDownloading(true);
+    try {
+      const { pdfBlob } = await generateDealPDF({
+        deal: searchedDeal,
+        signatureDataUrl: searchedDeal.signatureUrl || "",
+        isPro: false,
+        verificationUrl: window.location.href,
+      });
+      downloadPDF(pdfBlob, generatePDFFilename(searchedDeal));
+    } catch (error) {
+      console.error("Failed to generate PDF", error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -266,7 +303,7 @@ function VerifyContent() {
 
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
 
-          {/* LEFT COLUMN: Context & Search */}
+          {/* LEFT COLUMN: Context & CTA */}
           <div className="lg:sticky lg:top-32 space-y-12">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -284,62 +321,35 @@ function VerifyContent() {
               </h1>
 
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                Cryptographic proof of every agreement. <br />
-                Enter a Deal ID to verify its integrity.
+                Ensure the integrity of your agreements with our cryptographic verification tool. Enter a Deal ID to audit the full history, view the agreed terms, and validate the digital seal.
               </p>
             </motion.div>
 
-            {/* Search Box */}
+            {/* CTA Box */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="pt-4"
+              className="hidden lg:block pt-4"
             >
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden">
                  <div className="relative z-10">
-                   <h3 className="text-2xl font-bold mb-6">Check Deal Status</h3>
-
-                   <form onSubmit={handleSearch} className="space-y-4">
-                     <div className="space-y-2">
-                       <Label htmlFor="deal-id" className="text-muted-foreground">Deal ID</Label>
-                       <div className="relative">
-                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                         <Input
-                           id="deal-id"
-                           placeholder="e.g. deal_123abc..."
-                           value={dealId}
-                           onChange={(e) => setDealId(e.target.value)}
-                           className="pl-10 h-12 bg-background border-border/50 text-base"
-                         />
-                       </div>
-                     </div>
-
-                     <Button
-                       type="submit"
-                       size="xl"
-                       className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
-                       disabled={isSearching || !dealId}
-                     >
-                       {isSearching ? (
-                         <>
-                           <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                           Verifying...
-                         </>
-                       ) : (
-                         <>
-                           Verify Deal
-                           <ArrowRight className="ml-2 h-4 w-4" />
-                         </>
-                       )}
+                   <h3 className="text-2xl font-bold mb-3">Ready to create real deals?</h3>
+                   <p className="text-muted-foreground mb-8 text-base">
+                     Start creating enforceable agreements in seconds.
+                   </p>
+                   <Link href="/dashboard">
+                     <Button size="xl" className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14">
+                       Create Your First Deal
+                       <ArrowRight className="ml-2 h-5 w-5" />
                      </Button>
-                   </form>
+                   </Link>
                  </div>
               </div>
             </motion.div>
           </div>
 
-          {/* RIGHT COLUMN: Results */}
+          {/* RIGHT COLUMN: Interactive Verification Card */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -348,16 +358,91 @@ function VerifyContent() {
           >
             <AnimatePresence mode="wait">
               {!hasSearched ? (
+                // Initial State: Search Form (Styled like Demo Card)
                 <motion.div
-                  key="empty"
+                  key="search"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="hidden lg:flex flex-col items-center justify-center py-20 text-center space-y-6"
+                  exit={{ opacity: 0, y: -20 }}
                 >
-                  {/* Empty state is now invisible/minimal as requested */}
+                  <Card className="overflow-hidden border shadow-card bg-card w-full">
+                    {/* Header - System Style */}
+                    <div className="p-4 border-b flex items-center justify-between bg-background">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-primary/60 font-semibold shadow-inner border border-border/50">
+                          <Terminal className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">Proofo Verification</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            System Ready
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="gap-1 px-2 h-6 text-xs bg-secondary/50">
+                        <span className="relative flex h-2 w-2 mr-1">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        Online
+                      </Badge>
+                    </div>
+
+                    {/* Title Bar */}
+                    <div className="bg-muted/30 border-b py-4 px-5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <ScanLine className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg leading-tight">Secure Lookup</CardTitle>
+                          <p className="text-muted-foreground text-xs mt-0.5">Enter Deal ID to retrieve proof</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardContent className="p-6 sm:p-8">
+                      <form onSubmit={handleSearch} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="deal-id" className="text-xs font-medium uppercase tracking-wider text-muted-foreground ml-1">Deal ID</Label>
+                          <div className="relative group/input">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
+                            <Input
+                              id="deal-id"
+                              placeholder="e.g. deal_123abc..."
+                              value={dealId}
+                              onChange={(e) => setDealId(e.target.value)}
+                              className="pl-12 h-14 text-lg bg-background border-border/50 rounded-xl transition-all shadow-sm focus:ring-2 focus:ring-primary/20 font-mono"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          type="submit"
+                          size="xl"
+                          className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
+                          disabled={isSearching || !dealId}
+                        >
+                          {isSearching ? (
+                            <>
+                              <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              Verify Deal
+                              <ArrowRight className="ml-2 h-5 w-5" />
+                            </>
+                          )}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
                 </motion.div>
               ) : searchedDeal ? (
+                // Result State: Deal Details (Compact & Unified)
                 <motion.div
                   key="result"
                   initial={{ opacity: 0, y: 20 }}
@@ -367,114 +452,198 @@ function VerifyContent() {
                 >
                   {/* Verification Status Card */}
                   <Card className="overflow-hidden border shadow-card bg-card w-full">
-                    <div className="p-6 border-b bg-background/50">
-                      <div className="flex items-start justify-between gap-4">
+                    {/* Header - Matches Demo Style */}
+                    <div className="p-4 border-b flex items-center justify-between bg-background">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold shadow-lg shadow-primary/20 text-sm">
+                          {searchedDeal.creatorName.slice(0, 2).toUpperCase()}
+                        </div>
                         <div>
-                          <h2 className="text-xl font-bold flex items-center gap-2">
-                            {searchedDeal.title}
-                          </h2>
-                          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                            <Calendar className="h-3.5 w-3.5" />
+                          <p className="font-semibold text-sm">{searchedDeal.creatorName}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
                             Created {formatDate(searchedDeal.createdAt)}
                           </p>
                         </div>
-                        <PulsingShield status={hashVerificationStatus} />
+                      </div>
+                      <PulsingShield status={hashVerificationStatus} />
+                    </div>
+
+                    {/* Title Bar - Matches Demo Style */}
+                    <div className="bg-muted/30 border-b py-4 px-5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <Fingerprint className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-lg leading-tight truncate">{searchedDeal.title}</CardTitle>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 bg-background border-border/50">
+                                {searchedDeal.publicId}
+                              </Badge>
+                              {searchedDeal.status === 'confirmed' ? (
+                                <span className="text-[10px] text-emerald-600 font-medium">Sealed</span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground font-medium capitalize">{searchedDeal.status}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="p-6 space-y-6">
-                      {/* Status Badge */}
-                      <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border">
-                        <div className="flex items-center gap-3">
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                            searchedDeal.status === 'sealed' ? 'bg-emerald-500/10 text-emerald-600' :
-                            searchedDeal.status === 'active' ? 'bg-blue-500/10 text-blue-600' :
-                            'bg-secondary text-muted-foreground'
-                          }`}>
-                            {searchedDeal.status === 'sealed' ? <CheckCircle2 className="h-5 w-5" /> :
-                             searchedDeal.status === 'active' ? <Clock className="h-5 w-5" /> :
-                             <FileCheck className="h-5 w-5" />}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">Current Status</p>
-                            <p className="text-xs text-muted-foreground capitalize">{searchedDeal.status}</p>
+                    <div className="p-0">
+                      {/* Compact Metadata Grid */}
+                      <div className="grid grid-cols-2 divide-x border-b bg-card">
+                        <div className="p-3 sm:p-4 space-y-0.5">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recipient</div>
+                          <div className="flex items-center gap-2 font-medium text-sm truncate">
+                            <User className="h-3.5 w-3.5 text-primary/60" />
+                            {searchedDeal.recipientName || "Pending"}
                           </div>
                         </div>
-                        <Badge variant={searchedDeal.status === 'sealed' ? 'success' : 'outline'}>
-                          {searchedDeal.status}
-                        </Badge>
+                        <div className="p-3 sm:p-4 space-y-0.5">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Sealed Date</div>
+                          <div className="flex items-center gap-2 font-medium text-sm truncate">
+                            <Clock className="h-3.5 w-3.5 text-primary/60" />
+                            {searchedDeal.confirmedAt ? formatDateTime(searchedDeal.confirmedAt) : "Not sealed"}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Hash Comparison */}
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-semibold flex items-center gap-2">
-                          <Hash className="h-4 w-4 text-primary" />
-                          Cryptographic Proof
-                        </h3>
-
+                      <div className="p-5 space-y-5">
+                        {/* Hash Comparison */}
                         <div className="space-y-3">
-                          {searchedDeal.dealSeal && (
-                            <CopyableHash
-                              label="Recorded Seal Hash (Immutable)"
-                              hash={searchedDeal.dealSeal}
-                            />
-                          )}
+                          <h3 className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
+                            <Hash className="h-3.5 w-3.5" />
+                            Cryptographic Proof
+                          </h3>
 
-                          {calculatedHash && (
-                            <CopyableHash
-                              label="Calculated Hash (Real-time Verification)"
-                              hash={calculatedHash}
-                            />
-                          )}
+                          <div className="space-y-2">
+                            {searchedDeal.dealSeal ? (
+                              <CopyableHash
+                                label="Recorded Seal Hash (Immutable)"
+                                hash={searchedDeal.dealSeal}
+                              />
+                            ) : (
+                              <div className="text-xs text-muted-foreground italic bg-muted/30 p-2 rounded border border-dashed">
+                                No seal recorded yet.
+                              </div>
+                            )}
 
-                          {hashVerificationStatus === "valid" && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Hashes match perfectly. Document integrity verified.
-                            </motion.div>
-                          )}
+                            {calculatedHash && (
+                              <CopyableHash
+                                label="Calculated Hash"
+                                hash={calculatedHash}
+                              />
+                            )}
 
-                          {hashVerificationStatus === "invalid" && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg border border-destructive/20"
-                            >
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              Hash mismatch! Document may have been altered.
-                            </motion.div>
-                          )}
+                            {hashVerificationStatus === "valid" && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 mt-2"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span className="font-medium">Hashes match perfectly. Integrity verified.</span>
+                              </motion.div>
+                            )}
+
+                            {hashVerificationStatus === "invalid" && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg border border-destructive/20 mt-2"
+                              >
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                <span className="font-medium">Hash mismatch! Document may have been altered.</span>
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Deal Terms (Collapsible) */}
+                        <div className="space-y-2 pt-2 border-t">
+                          <button
+                            onClick={() => setShowTerms(!showTerms)}
+                            className="flex items-center justify-between w-full text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors py-1"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-3.5 w-3.5" />
+                              Agreement Details
+                            </div>
+                            {showTerms ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
+
+                          <AnimatePresence>
+                            {showTerms && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="bg-muted/30 rounded-lg p-3 space-y-2 border text-sm mt-1">
+                                  {searchedDeal.terms.map((term, i) => (
+                                    <div key={i} className="grid grid-cols-3 gap-2">
+                                      <span className="text-muted-foreground col-span-1 text-xs font-medium">{term.label}</span>
+                                      <span className="font-medium col-span-2 text-xs">{term.value}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        {/* Audit Trail */}
+                        <div className="space-y-2 pt-2 border-t">
+                          <h3 className="text-xs font-semibold flex items-center gap-2 uppercase tracking-wider text-muted-foreground">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Audit Trail
+                          </h3>
+                          <div className="max-h-[200px] overflow-y-auto pr-2 custom-scrollbar mt-1">
+                            <AuditTimeline logs={auditLogs} compact />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </Card>
 
-                  {/* Audit Trail */}
-                  <Card className="overflow-hidden border shadow-sm">
-                    <CardHeader className="pb-4 border-b bg-muted/30">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary" />
-                        Audit Trail
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="max-h-[400px] overflow-y-auto p-6">
-                        <AuditTimeline logs={auditLogs} />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {searchedDeal.status === 'confirmed' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleDownloadPDF}
+                        disabled={isDownloading}
+                        className="gap-2 h-10 rounded-xl"
+                      >
+                        {isDownloading ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        Download Receipt
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      onClick={handleReset}
+                      className="text-muted-foreground hover:text-foreground h-10 rounded-xl"
+                    >
+                      Verify Another Deal
+                    </Button>
+                  </div>
                 </motion.div>
               ) : (
+                // Result State: Not Found
                 <motion.div
                   key="not-found"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex flex-col items-center justify-center py-16 text-center space-y-4 border rounded-3xl bg-card border-destructive/20"
+                  className="flex flex-col items-center justify-center py-16 text-center space-y-4 border rounded-3xl bg-card border-destructive/20 shadow-sm"
                 >
                   <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
                     <AlertCircle className="h-8 w-8" />
@@ -482,17 +651,36 @@ function VerifyContent() {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Deal Not Found</h3>
                     <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1">
-                      We couldn't find a deal with ID <span className="font-mono text-foreground bg-secondary px-1 rounded">{dealId}</span>.
+                      We couldn&apos;t find a deal with ID <span className="font-mono text-foreground bg-secondary px-1 rounded">{dealId}</span>.
                       Please check the ID and try again.
                     </p>
                   </div>
-                  <Button variant="outline" onClick={() => setHasSearched(false)} className="mt-4">
+                  <Button variant="outline" onClick={handleReset} className="mt-4 rounded-xl">
                     Try Again
                   </Button>
                 </motion.div>
               )}
             </AnimatePresence>
           </motion.div>
+
+          {/* Mobile Only CTA (Bottom) */}
+          <div className="lg:hidden pb-12">
+            <div className="bg-secondary/30 rounded-3xl p-6 border border-border relative overflow-hidden">
+               <div className="relative z-10 text-center">
+                 <h3 className="text-xl font-bold mb-2">Ready to create real deals?</h3>
+                 <p className="text-muted-foreground mb-4 text-sm">
+                   Start creating enforceable agreements in seconds.
+                 </p>
+                 <Link href="/dashboard">
+                   <Button size="lg" className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12">
+                     Create Your First Deal
+                     <ArrowRight className="ml-2 h-4 w-4" />
+                   </Button>
+                 </Link>
+               </div>
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
