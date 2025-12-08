@@ -51,7 +51,7 @@ const navItems = [
   { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/dashboard/people", label: "People", icon: Users },
-  { href: "/verify", label: "Verify", icon: Shield },
+  { href: "/dashboard/verify", label: "Verify", icon: Shield },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -109,23 +109,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isCollapsed]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    if (isLoggingOut) return; // Prevent multiple clicks
+
     setIsLoggingOut(true);
-    try {
-      if (isSupabaseConfigured()) {
-        await signOut();
-      }
-      setUser(null);
-      setDeals([]);
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("proofo-storage");
-      }
-      router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      setIsLoggingOut(false);
+
+    // Immediately clear local state and storage for instant UX
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("proofo-storage");
     }
+    setUser(null);
+    setDeals([]);
+
+    // Navigate immediately - don't wait for Supabase
+    router.push("/");
+
+    // Sign out from Supabase in background (fire and forget)
+    if (isSupabaseConfigured()) {
+      signOut().catch((err) => console.error("Background signout error:", err));
+    }
+
+    // Reset loading state after navigation starts
+    setTimeout(() => setIsLoggingOut(false), 100);
   };
 
   // Show loading state during server rendering or before hydration
@@ -251,7 +256,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Pro Banner */}
             {user && !isPro && (
               <div className={cn(
-                "rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-transparent border border-primary/10 overflow-hidden transition-all duration-300",
+                "rounded-xl bg-linear-to-br from-primary/5 via-primary/10 to-transparent border border-primary/10 overflow-hidden transition-all duration-300",
                 isCollapsed ? "p-2" : "p-4"
               )}>
                 {isCollapsed ? (
@@ -308,8 +313,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 isCollapsed ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="w-full h-10 rounded-xl" onClick={handleLogout}>
-                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold">
+                      <Button variant="ghost" size="icon" className="w-full h-10 rounded-xl" onClick={handleLogout} disabled={isLoggingOut}>
+                        <div className="h-6 w-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold">
                           {userInitials}
                         </div>
                       </Button>
@@ -322,7 +327,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 ) : (
                   <div className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-muted/50 transition-colors group">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0 shadow-sm">
+                      <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0 shadow-sm">
                         {userInitials}
                       </div>
                       <div className="min-w-0">
@@ -335,6 +340,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       size="icon"
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                       onClick={handleLogout}
+                      disabled={isLoggingOut}
                       title="Log out"
                     >
                       <LogOut className="h-3.5 w-3.5" />
@@ -374,7 +380,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="lg:pl-0 w-full">
             {/* Top Header */}
-            <header className="h-16 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all supports-[backdrop-filter]:bg-background/60">
+            <header className="h-16 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all supports-backdrop-filter:bg-background/60">
               {/* Mobile Logo & Breadcrumbs */}
               <div className="flex items-center gap-4 flex-1">
                 <div className="lg:hidden flex items-center gap-2 mr-2">
@@ -386,7 +392,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
                 {/* Breadcrumbs */}
                 <nav className="hidden sm:flex items-center text-sm">
-                  <div className="h-4 w-[1px] bg-border/60 mx-3 rotate-[15deg]" />
+                  <div className="h-4 w-px bg-border/60 mx-3 rotate-15" />
                   <div className="flex items-center text-muted-foreground">
                     {breadcrumbs.length === 0 ? (
                       <span className="text-foreground font-medium">Dashboard</span>
@@ -507,7 +513,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     <>
                       <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-muted/50">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0">
                             {userInitials}
                           </div>
                           <div>

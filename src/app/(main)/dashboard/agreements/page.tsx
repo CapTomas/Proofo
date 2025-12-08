@@ -267,7 +267,7 @@ export default function AgreementsPage() {
                     <p className="text-sm text-muted-foreground mb-4">
                       {searchQuery || statusFilter !== "all"
                         ? "Try adjusting your search"
-                        : "Create your first deal"}
+                        : "Create Your First Proof"}
                     </p>
                     <Link href="/deal/new">
                       <Button size="sm">

@@ -4,20 +4,43 @@ import { Database } from "./types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-// Sign in with email (magic link)
+// Sign in with email (magic link + OTP)
 export async function signInWithEmail(email: string, redirectTo?: string): Promise<{ error: Error | null }> {
   if (!isSupabaseConfigured()) {
     return { error: new Error("Supabase is not configured. Please set up environment variables.") };
   }
 
+  // Send both magic link and OTP code
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
       emailRedirectTo: redirectTo || `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
+      shouldCreateUser: true,
+      // This doesn't generate a 6-digit code by default in Supabase
+      // The 6-digit code feature needs to be enabled in Supabase Dashboard:
+      // Authentication > Email Templates > Enable "Use a secure 6-digit code"
     },
   });
 
   return { error: error ? new Error(error.message) : null };
+}
+
+// Verify OTP token
+export async function verifyOtp(email: string, token: string): Promise<{ error: Error | null; session: unknown }> {
+  if (!isSupabaseConfigured()) {
+    return { error: new Error("Supabase is not configured. Please set up environment variables."), session: null };
+  }
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'email',
+  });
+
+  return {
+    error: error ? new Error(error.message) : null,
+    session: data.session
+  };
 }
 
 // Sign in with Google OAuth
@@ -61,7 +84,7 @@ export async function getSession() {
   }
 
   const { data: { session }, error } = await supabase.auth.getSession();
-  
+
   if (error || !session) {
     return { session: null, user: null };
   }
@@ -76,7 +99,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   const { data: { user: authUser } } = await supabase.auth.getUser();
-  
+
   if (!authUser) {
     return null;
   }
@@ -116,7 +139,7 @@ export async function updateProfile(updates: Partial<Pick<User, "name" | "avatar
   }
 
   const { data: { user: authUser } } = await supabase.auth.getUser();
-  
+
   if (!authUser) {
     return { error: new Error("Not authenticated") };
   }

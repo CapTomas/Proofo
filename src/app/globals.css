@@ -38,7 +38,7 @@
 
 :root {
   /* Light Mode: Warm Paper */
-  --background: #FDFDFC; /* Slightly warmer than pure white */
+  --background: #f9f9f9; /* Slightly warmer than pure white */
   --foreground: #111111; /* Soft black */
 
   --card: #FFFFFF;
@@ -68,7 +68,7 @@
   --warning: #F59E0B;
   --warning-foreground: #FFFFFF;
 
-  --border: #E5E5E5;
+  --border: #e1e1e1;
   --input: #E5E5E5;
   --ring: #111111;
 
@@ -113,12 +113,51 @@
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent; /* Completely clear track */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: transparent; /* Hidden by default */
+    border-radius: 20px;
+    /* This creates the logic to show it only when scrolling or hovering,
+       simulated by making it match the background or be transparent until hover */
+    background-color: var(--border);
+    opacity: 0;
+    transition: background-color 0.2s ease;
+  }
+
+  /* Only make it darker/visible when hovering the scroll area */
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: var(--muted-foreground);
+    opacity: 0.5;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--foreground);
+    opacity: 1;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
   }
 }
 

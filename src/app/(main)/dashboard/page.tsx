@@ -564,7 +564,7 @@ export default function DashboardPage() {
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyId.trim()) router.push(`/verify?id=${verifyId.trim()}`);
+    if (verifyId.trim()) router.push(`/dashboard/verify?id=${verifyId.trim()}`);
   };
 
   // Show loading skeleton while user data is being fetched
@@ -845,7 +845,7 @@ export default function DashboardPage() {
             <div className="space-y-6">
 
               {/* Latest Snapshot - Fixed Height 200px */}
-              <Card className="h-[200px] overflow-hidden border-primary/20 bg-gradient-to-b from-card to-muted/20 flex flex-col">
+              <Card className="h-[200px] overflow-hidden border-primary/20 bg-linear-to-b from-card to-muted/20 flex flex-col">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <FileClock className="h-4 w-4 text-primary" />
