@@ -52,7 +52,7 @@ In demo mode, all data is stored locally in the browser using Zustand with local
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or pnpm
 - A [Supabase](https://supabase.com) account (free tier works)
 
@@ -89,7 +89,7 @@ In demo mode, all data is stored locally in the browser using Zustand with local
 4. **Site URL Configuration**:
    - Go to **Authentication** > **URL Configuration**
    - Set **Site URL**: `http://localhost:3000` (for development)
-   - Add **Redirect URLs**: 
+   - Add **Redirect URLs**:
      - `http://localhost:3000/auth/callback`
      - Your production URL (e.g., `https://yourapp.com/auth/callback`)
 
@@ -154,7 +154,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 1. Click "Get Started" or go to `/login`
 2. Sign in with Google or enter your email for a magic link
 3. Complete the onboarding (enter your name)
-4. Click "New Deal" to create your first deal
+4. Click "New Deal" to create your first proof
 5. Select a template (e.g., "Lend Item")
 6. Fill in the recipient's name and deal details
 7. Review and click "Create Deal"

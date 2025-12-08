@@ -92,7 +92,7 @@ export function UpgradeModal({ isOpen, onClose, onUpgrade }: UpgradeModalProps) 
       >
         <Card className="shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6 relative">
+          <div className="bg-linear-to-br from-primary to-primary/80 text-primary-foreground p-6 relative">
             <button
               onClick={onClose}
               className="absolute top-4 right-4 h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"

@@ -340,7 +340,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   // Auto-send receipt email for logged-in users (fire-and-forget)
   const sendReceiptForLoggedInUser = async (deal: Deal, recipientEmail: string) => {
     try {
-      const verificationUrl = typeof window !== "undefined" 
+      const verificationUrl = typeof window !== "undefined"
         ? `${window.location.origin}/verify?id=${deal.publicId}`
         : `https://proofo.app/verify?id=${deal.publicId}`;
 
@@ -360,7 +360,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
         pdfBase64,
         pdfFilename,
       });
-      
+
       // Only set emailSent to true if the email was actually sent successfully
       if (success) {
         setEmailSent(true);
@@ -378,13 +378,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   // PDF Download Handler
   const handleDownloadPDF = async () => {
     if (!confirmedDeal && !displayDeal) return;
-    
+
     const targetDeal = confirmedDeal || displayDeal;
     if (!targetDeal) return;
 
     setIsGeneratingPDF(true);
     try {
-      const verificationUrl = typeof window !== "undefined" 
+      const verificationUrl = typeof window !== "undefined"
         ? `${window.location.origin}/verify?id=${targetDeal.publicId}`
         : `https://proofo.app/verify?id=${targetDeal.publicId}`;
 
@@ -414,7 +414,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     try {
       // First generate the PDF
-      const verificationUrl = typeof window !== "undefined" 
+      const verificationUrl = typeof window !== "undefined"
         ? `${window.location.origin}/verify?id=${confirmedDeal.publicId}`
         : `https://proofo.app/verify?id=${confirmedDeal.publicId}`;
 
@@ -497,7 +497,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
         <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-center">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
+            <div className="h-9 w-9 rounded-xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
               <span className="text-primary-foreground font-bold text-lg">P</span>
             </div>
             <span className="font-bold text-xl tracking-tight">Proofo</span>
@@ -613,7 +613,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               <Card className="mb-6 border-emerald-500/30">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold">
+                    <div className="h-12 w-12 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold">
                       {creatorInitials}
                     </div>
                     <div className="flex-1">
@@ -762,8 +762,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="gap-2"
                   onClick={handleDownloadPDF}
                   disabled={isGeneratingPDF}
@@ -833,7 +833,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               <Card className="mb-6">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold">
+                    <div className="h-12 w-12 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold">
                       {creatorInitials}
                     </div>
                     <div className="flex-1">
@@ -978,7 +978,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <Card className="mb-6 border-emerald-500/30 bg-emerald-500/5">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
+                      <div className="h-10 w-10 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
                         {getUserInitials(user.name, user.email)}
                       </div>
                       <div className="flex-1">
@@ -1087,7 +1087,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.5, type: "spring" }}
-                    className="absolute inset-6 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/30"
+                    className="absolute inset-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/30"
                   >
                     <FileCheck className="h-10 w-10 text-primary-foreground" />
                   </motion.div>
@@ -1126,7 +1126,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30"
+                  className="h-20 w-20 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30"
                 >
                   <CheckCircle2 className="h-10 w-10 text-white" />
                 </motion.div>
@@ -1235,7 +1235,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/30"
+                className="h-24 w-24 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/30"
               >
                 <CheckCircle2 className="h-12 w-12 text-white" />
               </motion.div>
@@ -1296,7 +1296,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       <div className="flex items-center justify-between py-2 border-b">
                         <span className="text-muted-foreground text-sm">Signed By</span>
                         <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-medium">
+                          <div className="h-6 w-6 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-medium">
                             {getUserInitials(user.name, user.email)}
                           </div>
                           <span className="font-medium text-sm">{user.name || user.email}</span>
@@ -1306,7 +1306,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <div className="flex items-center justify-between py-2">
                       <span className="text-muted-foreground text-sm">With</span>
                       <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground text-xs font-medium">
+                        <div className="h-6 w-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground text-xs font-medium">
                           {creatorInitials}
                         </div>
                         <span className="font-medium text-sm">{displayDeal.creatorName}</span>
@@ -1317,8 +1317,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </Card>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="gap-2"
                   onClick={handleDownloadPDF}
                   disabled={isGeneratingPDF}

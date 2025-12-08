@@ -367,7 +367,7 @@ function LoginContent() {
               <p className="text-center text-sm text-muted-foreground">
                 New to Proofo?{" "}
                 <Link href="/deal/new" className="text-primary font-medium hover:underline">
-                  Create your first deal
+                  Create Your First Proof
                 </Link>
               </p>
             </div>

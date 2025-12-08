@@ -61,7 +61,7 @@ function NewDealContent() {
   const { user, addDeal, addAuditLog, getDealById } = useAppStore();
   const searchParams = useSearchParams();
   const sourceId = searchParams.get("source");
-  
+
   const [currentStep, setCurrentStep] = useState<Step>("template");
   const [selectedTemplate, setSelectedTemplate] = useState<DealTemplate | null>(null);
   const [recipientName, setRecipientName] = useState("");
@@ -164,7 +164,7 @@ function NewDealContent() {
           return;
         }
       }
-      
+
       // Fallback to local store
       const localDeal = getDealById(sourceId);
       if (localDeal) {
@@ -244,8 +244,8 @@ function NewDealContent() {
       .filter((field) => formData[field.id])
       .map((field) => ({
         label: field.label,
-        value: field.type === "currency" 
-          ? `$${formData[field.id]}` 
+        value: field.type === "currency"
+          ? `$${formData[field.id]}`
           : formData[field.id],
         type: field.type === "textarea" ? "text" : field.type,
       }));
@@ -259,7 +259,7 @@ function NewDealContent() {
 
     // Try to use server action if user is authenticated with Supabase
     const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
-    
+
     if (isRealUser) {
       // Use server action for real database storage
       const { deal, shareUrl: serverShareUrl, error } = await createDealAction({
@@ -421,7 +421,7 @@ function NewDealContent() {
             <span className="hidden sm:inline">{user ? "Back to Dashboard" : "Back to Home"}</span>
           </Link>
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
+            <div className="h-9 w-9 rounded-xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
               <span className="text-primary-foreground font-bold text-lg">P</span>
             </div>
             <span className="font-bold text-xl tracking-tight hidden sm:inline">Proofo</span>
@@ -436,7 +436,7 @@ function NewDealContent() {
           <div className="flex items-center justify-between relative">
             {/* Progress Line */}
             <div className="absolute top-5 left-0 right-0 h-0.5 bg-muted mx-8">
-              <motion.div 
+              <motion.div
                 className="h-full bg-primary"
                 initial={{ width: "0%" }}
                 animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
@@ -447,7 +447,7 @@ function NewDealContent() {
             {steps.map((step, index) => {
               const isCompleted = currentStepIndex > index;
               const isCurrent = currentStep === step;
-              
+
               return (
                 <div key={step} className="relative z-10 flex flex-col items-center">
                   <motion.div
@@ -633,8 +633,8 @@ function NewDealContent() {
                   <Separator />
 
                   {selectedTemplate.fields.map((field, index) => (
-                    <motion.div 
-                      key={field.id} 
+                    <motion.div
+                      key={field.id}
                       className="space-y-2"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -717,8 +717,8 @@ function NewDealContent() {
                     </div>
                   )}
                   {selectedTemplate.fields.map((field, index) => (
-                    <motion.div 
-                      key={field.id} 
+                    <motion.div
+                      key={field.id}
                       className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -731,7 +731,7 @@ function NewDealContent() {
                       </span>
                     </motion.div>
                   ))}
-                  
+
                   <div className="flex items-start gap-3 mt-6 p-4 rounded-xl bg-primary/5 border border-primary/10">
                     <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -784,7 +784,7 @@ function NewDealContent() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
+                  className="h-20 w-20 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
                 >
                   <CheckCircle2 className="h-10 w-10 text-white" />
                 </motion.div>
@@ -798,7 +798,7 @@ function NewDealContent() {
                 <CardContent className="p-6 sm:p-8 space-y-8">
                   {/* QR Code */}
                   <div className="flex justify-center">
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 }}
@@ -818,8 +818,8 @@ function NewDealContent() {
                     <Label className="text-sm font-medium">Deal Link</Label>
                     <div className="flex gap-2">
                       <Input value={dealLink} readOnly className="font-mono text-sm" />
-                      <Button 
-                        variant={copied ? "default" : "outline"} 
+                      <Button
+                        variant={copied ? "default" : "outline"}
                         onClick={copyToClipboard}
                         className="shrink-0 gap-2 min-w-[100px]"
                       >
@@ -854,8 +854,8 @@ function NewDealContent() {
                       <Copy className="h-4 w-4" />
                       Copy Link
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="gap-2"
                       onClick={() => {
                         if (user) {
@@ -884,8 +884,8 @@ function NewDealContent() {
                         Go to Dashboard
                       </Button>
                     </Link>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       className="w-full sm:w-auto gap-2"
                       onClick={() => {
                         setCurrentStep("template");

@@ -879,9 +879,12 @@ export default function Home() {
     }
   }, [user, router]);
 
-  return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary">
+return (
+    <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
       <ScrollProgress />
+
+      {/* Top Right Gradient Decoration */}
+     <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-[80px] md:blur-[100px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
 
       <PublicHeader currentPage="home" />
 
@@ -913,7 +916,7 @@ export default function Home() {
               <Link href="/deal/new">
                 <MagneticWrapper>
                   <Button size="xl" className="h-14 px-8 text-base rounded-full shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all">
-                    Create Your First Deal
+                    Create Your First Proof
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </MagneticWrapper>

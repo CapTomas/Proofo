@@ -91,8 +91,12 @@ export default function DemoPage() {
     setSignature(null);
   };
 
-  return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary">
+return (
+    <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
+
+      {/* Top Right Gradient Decoration */}
+     <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-[80px] md:blur-[100px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
+
       {/* Header */}
       <PublicHeader currentPage="demo" />
 
@@ -146,7 +150,7 @@ export default function DemoPage() {
                    </p>
                    <Link href="/dashboard">
                      <Button size="xl" className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14">
-                       Create Your First Deal
+                       Create Your First Proof
                        <ArrowRight className="ml-2 h-5 w-5" />
                      </Button>
                    </Link>
@@ -167,7 +171,7 @@ export default function DemoPage() {
               {/* Creator Info Header - Compact */}
               <div className="p-4 border-b flex items-center justify-between bg-background">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold shadow-lg shadow-primary/20 text-sm">
+                  <div className="h-10 w-10 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold shadow-lg shadow-primary/20 text-sm">
                     AJ
                   </div>
                   <div>
@@ -192,7 +196,7 @@ export default function DemoPage() {
               </div>
 
               {/* Document Body - Compact */}
-              <div className="bg-muted/50 dark:bg-muted/30 border-b py-4 px-5">
+              <div className="bg-muted dark:bg-muted/30 border-b py-4 px-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                     <PenLine className="h-5 w-5 text-primary" />
@@ -396,7 +400,7 @@ export default function DemoPage() {
                  </p>
                  <Link href="/dashboard">
                    <Button size="lg" className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12">
-                     Create Your First Deal
+                     Create Your First Proof
                      <ArrowRight className="ml-2 h-4 w-4" />
                    </Button>
                  </Link>

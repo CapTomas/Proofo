@@ -38,7 +38,7 @@
 
 :root {
   /* Light Mode: Warm Paper */
-  --background: #FDFDFC; /* Slightly warmer than pure white */
+  --background: #f9f9f9; /* Slightly warmer than pure white */
   --foreground: #111111; /* Soft black */
 
   --card: #FFFFFF;
@@ -68,7 +68,7 @@
   --warning: #F59E0B;
   --warning-foreground: #FFFFFF;
 
-  --border: #E5E5E5;
+  --border: #e1e1e1;
   --input: #E5E5E5;
   --ring: #111111;
 
