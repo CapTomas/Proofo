@@ -192,7 +192,7 @@ export default function DemoPage() {
               </div>
 
               {/* Document Body - Compact */}
-              <div className="bg-muted/30 border-b py-4 px-5">
+              <div className="bg-muted/50 dark:bg-muted/30 border-b py-4 px-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                     <PenLine className="h-5 w-5 text-primary" />

@@ -390,7 +390,7 @@ function VerifyContent() {
                     </div>
 
                     {/* Title Bar */}
-                    <div className="bg-muted/30 border-b py-4 px-5">
+                    <div className="bg-muted/50 dark:bg-muted/30 border-b py-4 px-5">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                           <ScanLine className="h-5 w-5 text-primary" />
@@ -470,7 +470,7 @@ function VerifyContent() {
                     </div>
 
                     {/* Title Bar - Matches Demo Style */}
-                    <div className="bg-muted/30 border-b py-4 px-5">
+                    <div className="bg-muted/50 dark:bg-muted/30 border-b py-4 px-5">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
