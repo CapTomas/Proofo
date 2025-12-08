@@ -221,7 +221,7 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={{ left: 0, right: 0.5 }}
               onDragEnd={handleDragEnd}
-              className="fixed inset-y-0 right-0 w-full sm:w-[360px] bg-background/100 backdrop-blur-3xl border-l border-white/10 dark:border-white/5 z-50 flex flex-col shadow-2xl"
+              className="fixed inset-y-0 right-0 w-full sm:w-[360px] bg-background backdrop-blur-3xl border-l border-white/10 dark:border-white/5 z-50 flex flex-col shadow-2xl"
             >
               {/* Gradient Blob Background */}
               <div className="absolute top-[-20%] right-[-20%] w-[80%] h-[50%] bg-primary/10 rounded-full blur-3xl pointer-events-none opacity-50" />

@@ -174,7 +174,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           initial={false}
           animate={{ width: isCollapsed ? 80 : 280 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="hidden lg:flex flex-col fixed inset-y-0 z-40 border-r bg-card/50 backdrop-blur-xl"
+          className="hidden lg:flex flex-col fixed inset-y-0 z-40 border-r bg-card dark:bg-card/50 backdrop-blur-xl"
         >
           {/* Logo Area */}
           <div className={cn(
