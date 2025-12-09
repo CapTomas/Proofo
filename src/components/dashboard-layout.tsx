@@ -1,11 +1,9 @@
-wholefile:
 "use client";
 
 import { useState, useEffect } from "react";
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { AnimatedLogo } from "@/components/animated-logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,20 +17,14 @@ import {
   Settings,
   User,
   LogOut,
-  ChevronLeft,
   Crown,
   LayoutTemplate,
-  RefreshCw,
   FileText,
   Inbox,
   Users,
   Shield,
-  Plus,
   PanelLeftClose,
   PanelLeftOpen,
-  ChevronRight,
-  Search,
-  Menu,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,6 +32,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
 import { signOut, isSupabaseConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { DashboardHeader } from "./dashboard-header";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -66,9 +59,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
 
-  // Determine if "New Deal" button should be shown based on current path
-  const showNewDealButton = !["/settings", "/templates", "/verify"].some(path => pathname.startsWith(path));
-
   // Handle client-side mounting and hydration
   useEffect(() => {
     setMounted(true);
@@ -80,8 +70,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
 
-    // Give Zustand time to rehydrate from localStorage
-    // This is a small delay to let the persisted state load
     const timer = setTimeout(() => {
       setIsHydrated(true);
     }, 50);
@@ -98,87 +86,52 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     localStorage.setItem("sidebar-collapsed", String(newState));
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
-        e.preventDefault();
-        toggleSidebar();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCollapsed]);
-
   const handleLogout = () => {
-    if (isLoggingOut) return; // Prevent multiple clicks
-
+    if (isLoggingOut) return;
     setIsLoggingOut(true);
 
-    // Immediately clear local state and storage for instant UX
     if (typeof window !== "undefined") {
       localStorage.removeItem("proofo-storage");
     }
     setUser(null);
     setDeals([]);
-
-    // Navigate immediately - don't wait for Supabase
     router.push("/");
 
-    // Sign out from Supabase in background (fire and forget)
     if (isSupabaseConfigured()) {
       signOut().catch((err) => console.error("Background signout error:", err));
     }
-
-    // Reset loading state after navigation starts
     setTimeout(() => setIsLoggingOut(false), 100);
   };
 
-  // Show loading state during server rendering or before hydration
-  const isLoading = !mounted || !isHydrated;
-
   const userName = user?.name || "Guest";
-  const userInitials = userName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const userInitials = userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   const isPro = user?.isPro || false;
 
-  const breadcrumbs = pathname
-    .split("/")
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1));
+  const showUserSkeleton = !user && isHydrated;
 
-  // If not mounted yet, render a minimal shell to prevent hydration issues
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-background flex">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-pulse">
-            <AnimatedLogo size={48} className="text-muted-foreground" />
-          </div>
+      <div className="h-screen w-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse">
+          <AnimatedLogo size={48} className="text-muted-foreground" />
         </div>
       </div>
     );
   }
 
-  // Show skeleton for user profile area while user data is loading
-  const showUserSkeleton = !user && isHydrated;
-
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="min-h-screen bg-background flex overflow-hidden">
-        {/* Sidebar */}
+      <div className="flex h-screen w-full overflow-hidden bg-background">
+        {/* Sidebar - Fixed Left */}
         <motion.aside
           initial={false}
           animate={{ width: isCollapsed ? 80 : 280 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="hidden lg:flex flex-col fixed inset-y-0 z-40 border-r bg-card dark:bg-card/50 backdrop-blur-xl"
+          className="hidden lg:flex flex-col border-r bg-card dark:bg-card/50 backdrop-blur-xl z-40 shrink-0"
         >
           {/* Logo Area */}
           <div className={cn(
-            "h-16 flex items-center border-b border-border/40 transition-all duration-300",
+            "h-16 flex items-center border-b border-border/40 transition-all duration-300 shrink-0",
             isCollapsed ? "justify-center px-0" : "justify-between px-6"
           )}>
             <Link href="/dashboard" className="flex items-center gap-3 group overflow-hidden">
@@ -252,7 +205,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
 
           {/* Footer Actions */}
-          <div className="p-3 space-y-3">
+          <div className="p-3 space-y-3 shrink-0">
             {/* Pro Banner */}
             {user && !isPro && (
               <div className={cn(
@@ -290,7 +243,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* User Profile */}
             <div className="border-t border-border/40 pt-3">
               {showUserSkeleton ? (
-                // Skeleton Loader for User Profile while loading
                 <div className={cn("flex items-center gap-2 rounded-xl p-2", isCollapsed && "justify-center")}>
                   <Skeleton className="h-8 w-8 rounded-full" />
                   {!isCollapsed && (
@@ -301,7 +253,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   )}
                 </div>
               ) : !user ? (
-                // No user after hydration - show login link
                 <div className={cn("flex items-center gap-2 rounded-xl p-2", isCollapsed && "justify-center")}>
                   <Link href="/login">
                     <Button variant="ghost" size="sm" className="w-full">
@@ -372,70 +323,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </motion.aside>
 
-        {/* Main Content Wrapper */}
-        <motion.div
-          className="flex-1 flex flex-col min-w-0"
-          animate={{ paddingLeft: isDesktop ? (isCollapsed ? 80 : 280) : 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          <div className="lg:pl-0 w-full">
-            {/* Top Header */}
-            <header className="h-16 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8 border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all supports-backdrop-filter:bg-background/60">
-              {/* Mobile Logo & Breadcrumbs */}
-              <div className="flex items-center gap-4 flex-1">
-                <div className="lg:hidden flex items-center gap-2 mr-2">
-                  <Link href="/dashboard" className="flex items-center gap-2">
-                    <AnimatedLogo size={24} className="text-foreground" />
-                    <span className="font-bold text-base tracking-tight">Proofo</span>
-                  </Link>
-                </div>
+        {/* Main Content Column */}
+        <div className="flex flex-col flex-1 min-w-0 h-full">
+          {/* Static Header */}
+          <DashboardHeader
+            onMenuClick={() => setMobileMenuOpen(true)}
+            isDesktop={isDesktop}
+          />
 
-                {/* Breadcrumbs */}
-                <nav className="hidden sm:flex items-center text-sm">
-                  <div className="h-4 w-px bg-border/60 mx-3 rotate-15" />
-                  <div className="flex items-center text-muted-foreground">
-                    {breadcrumbs.length === 0 ? (
-                      <span className="text-foreground font-medium">Dashboard</span>
-                    ) : (
-                      breadcrumbs.map((crumb, index) => (
-                        <React.Fragment key={crumb}>
-                          {index > 0 && <ChevronRight className="h-3.5 w-3.5 mx-1.5 opacity-40" />}
-                          <span className={cn(
-                            "transition-colors",
-                            index === breadcrumbs.length - 1
-                              ? "font-medium text-foreground"
-                              : "hover:text-foreground/80"
-                          )}>
-                            {crumb}
-                          </span>
-                        </React.Fragment>
-                      ))
-                    )}
-                  </div>
-                </nav>
-              </div>
-
-              {/* Right Actions */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground hidden sm:flex hover:bg-muted/50">
-                  <Search className="h-4 w-4" />
-                </Button>
-
-                <ThemeToggle />
-
-                {showNewDealButton && (
-                  <Link href="/deal/new">
-                    <Button size="sm" className="h-9 gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95">
-                      <Plus className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline font-medium">New Deal</span>
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </header>
-
-            {/* Page Content */}
-            <main className="p-4 sm:p-8 pb-20 lg:pb-8 max-w-7xl mx-auto w-full">
+          {/* Scrollable Content Area */}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
+            <div className="max-w-7xl mx-auto w-full">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -443,15 +341,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 {children}
               </motion.div>
-            </main>
-          </div>
-        </motion.div>
+            </div>
+          </main>
+        </div>
 
         {/* Mobile Menu Drawer */}
         <AnimatePresence>
           {mobileMenuOpen && (
             <>
-              {/* Backdrop */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -459,7 +356,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 onClick={() => setMobileMenuOpen(false)}
                 className="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
               />
-              {/* Drawer */}
               <motion.div
                 initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
@@ -467,8 +363,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 className="lg:hidden fixed inset-y-0 left-0 w-[280px] bg-card border-r z-50 flex flex-col"
               >
-                {/* Header */}
-                <div className="h-16 flex items-center justify-between px-6 border-b">
+                <div className="h-16 flex items-center justify-between px-6 border-b shrink-0">
                   <Link href="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
                     <AnimatedLogo size={28} className="text-foreground" />
                     <span className="font-bold text-lg tracking-tight">Proofo</span>
@@ -483,7 +378,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </Button>
                 </div>
 
-                {/* Navigation */}
                 <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto">
                   {navItems.map((item) => {
                     const isActive = pathname === item.href ||
@@ -507,8 +401,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   })}
                 </nav>
 
-                {/* Footer with User & Logout */}
-                <div className="p-3 border-t space-y-3">
+                <div className="p-3 border-t space-y-3 shrink-0">
                   {user ? (
                     <>
                       <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-muted/50">
@@ -545,35 +438,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </>
           )}
         </AnimatePresence>
-
-        {/* Mobile Bottom Nav */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-30 flex items-center justify-around">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileMenuOpen(true)}
-            className="flex flex-col items-center justify-center gap-1 h-full text-muted-foreground hover:text-foreground hover:bg-transparent flex-1"
-          >
-            <Menu className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Menu</span>
-          </Button>
-          {[navItems[0], navItems[1], navItems[2]].map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href} className="flex-1">
-                <div className={cn(
-                  "flex flex-col items-center justify-center h-full py-1 gap-1 text-[10px] font-medium transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
-                )}>
-                  <Icon className={cn("h-5 w-5", isActive && "fill-primary/20")} />
-                  <span>{item.label}</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
       </div>
     </TooltipProvider>
   );

@@ -203,7 +203,7 @@ const StatCard = ({
 );
 
 const MobileCreateAction = () => (
-  <Link href="/deal/new" className="block sm:hidden px-4 sm:px-0">
+  <Link href="/deal/new" className="block sm:hidden">
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -554,14 +554,14 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
-        <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
           <div className="min-w-0 space-y-2">
             <Skeleton className="h-7 w-48" />
             <Skeleton className="h-4 w-32" />
           </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 px-4 sm:px-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="p-4 sm:p-5 rounded-2xl">
               <div className="flex justify-between items-start mb-2">
@@ -572,7 +572,7 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
-        <div className="grid lg:grid-cols-3 gap-6 px-4 sm:px-0">
+        <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card className="h-[424px] rounded-2xl">
               <div className="p-4 border-b border-border/40">
@@ -610,10 +610,10 @@ export default function DashboardPage() {
     <>
       {needsOnboarding && <OnboardingModal onComplete={() => setNeedsOnboarding(false)} />}
 
-      <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
+      <div className="space-y-6">
 
           {/* Header */}
-          <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
+          <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
                 Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
@@ -647,7 +647,7 @@ export default function DashboardPage() {
           <MobileCreateAction />
 
           {/* KPI Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 px-4 sm:px-0">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
               label="Action Required"
               value={stats.inbox}
@@ -691,7 +691,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Main Dashboard Area */}
-          <div className="grid lg:grid-cols-3 gap-6 px-4 sm:px-0">
+          <div className="grid lg:grid-cols-3 gap-6">
 
             {/* Left Column (2/3): Priority & Activity */}
             <div className="lg:col-span-2 space-y-6">

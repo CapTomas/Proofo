@@ -217,16 +217,16 @@ function DashboardVerifyContent() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-0 sm:px-4 lg:px-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/40 px-4 sm:px-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/40">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Verify Deal</h1>
           <p className="text-muted-foreground">Check the integrity and status of any deal.</p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8 px-4 sm:px-0">
+      <div className="grid lg:grid-cols-3 gap-8">
         {/* Left Column: Search & Info */}
         <div className="space-y-6">
           <Card className="border shadow-sm">
