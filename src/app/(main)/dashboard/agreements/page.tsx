@@ -1,28 +1,29 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Plus,
   Search,
   Clock,
   CheckCircle2,
   XCircle,
-  MoreHorizontal,
-  Copy,
   RefreshCw,
-  User,
-  Eye,
-  Trash2,
-  Edit3,
-  Calendar,
-  ExternalLink,
-  Mail,
+  Copy,
+  Check,
+  Inbox,
+  Send,
+  ArrowUpRight,
   FileCheck,
+  LayoutGrid,
+  List as ListIcon,
+  Mail,
+  Copy as DuplicateIcon,
+  ShieldCheck,
+  RotateCcw
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,113 +32,410 @@ import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const statusConfig: Record<DealStatus, { label: string; color: "default" | "secondary" | "destructive" | "success" | "warning"; icon: typeof Clock; dotClass: string }> = {
-  pending: { label: "Pending", color: "warning", icon: Clock, dotClass: "bg-amber-500" },
-  sealing: { label: "Sealing", color: "secondary", icon: RefreshCw, dotClass: "bg-blue-500" },
-  confirmed: { label: "Confirmed", color: "success", icon: CheckCircle2, dotClass: "bg-emerald-500" },
-  voided: { label: "Voided", color: "destructive", icon: XCircle, dotClass: "bg-red-500" },
+// --- CONFIG & UTILS ---
+
+const statusConfig: Record<DealStatus, { label: string; color: string; icon: any; bg: string; border: string; badgeVariant: "warning" | "success" | "destructive" | "secondary" }> = {
+  pending: {
+    label: "Pending",
+    color: "text-amber-600",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/20",
+    icon: Clock,
+    badgeVariant: "warning"
+  },
+  sealing: {
+    label: "Sealing",
+    color: "text-blue-600",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    icon: RefreshCw,
+    badgeVariant: "secondary"
+  },
+  confirmed: {
+    label: "Sealed",
+    color: "text-emerald-600",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/20",
+    icon: CheckCircle2,
+    badgeVariant: "success"
+  },
+  voided: {
+    label: "Voided",
+    color: "text-destructive",
+    bg: "bg-destructive/10",
+    border: "border-destructive/20",
+    icon: XCircle,
+    badgeVariant: "destructive"
+  },
+};
+
+// --- MICRO COMPONENTS ---
+
+const CopyableId = ({ id, className }: { id: string, className?: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
+        className
+      )}
+      onClick={handleCopy}
+      title="Click to copy Deal ID"
+    >
+      {id}
+      {copied ? (
+        <Check className="h-3 w-3 text-emerald-500" />
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
+      )}
+    </Badge>
+  );
+};
+
+const StatCard = ({
+  label,
+  value,
+  icon: Icon,
+  isActive,
+  onClick,
+  colorClass = "text-primary",
+  delay = 0
+}: {
+  label: string,
+  value: string | number,
+  icon: any,
+  isActive?: boolean,
+  onClick?: () => void,
+  colorClass?: string,
+  delay?: number
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.4 }}
+    className={cn(
+      "group relative h-full bg-card hover:bg-card/80 border transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer",
+      isActive
+        ? "border-primary/50 shadow-md ring-1 ring-primary/10"
+        : "border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md"
+    )}
+    onClick={onClick}
+  >
+    <div className="flex justify-between items-start mb-2">
+      <div className={cn(
+        "p-2 rounded-xl transition-colors",
+        isActive ? "bg-primary/10 text-primary" : `bg-secondary/50 group-hover:bg-primary/10 ${colorClass.replace('text-', 'group-hover:text-')}`
+      )}>
+        <Icon className={cn(
+          "h-4 w-4 transition-colors",
+          isActive ? "text-primary" : "text-muted-foreground group-hover:text-current"
+        )} />
+      </div>
+    </div>
+    <div>
+      <div className="text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform">
+        {value}
+      </div>
+      <p className="text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate">
+        {label}
+      </p>
+    </div>
+  </motion.div>
+);
+
+const DealCard = ({
+  deal,
+  userId,
+  onNudge,
+  onVoid,
+  onDuplicate,
+  isVoiding,
+  isNudging,
+  nudgeSuccess
+}: {
+  deal: Deal;
+  userId?: string;
+  onNudge: (deal: Deal) => void;
+  onVoid: (id: string) => void;
+  onDuplicate: (deal: Deal) => void;
+  isVoiding: string | null;
+  isNudging: string | null;
+  nudgeSuccess: string | null;
+}) => {
+  const isCreator = deal.creatorId === userId;
+  const config = statusConfig[deal.status];
+  const Icon = config.icon;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="group relative"
+    >
+      <Link href={`/d/${deal.publicId}`}>
+        <Card className={cn(
+          "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card",
+          deal.status === 'voided' && "opacity-60 grayscale-[0.5]"
+        )}>
+          <CardContent className="p-4 flex flex-col h-full">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={cn(
+                  "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+                  config.bg, config.border, config.color
+                )}>
+                  <Icon className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
+                    <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+                      {config.label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
+                    {isCreator ? <Send className="h-3 w-3 shrink-0" /> : <Inbox className="h-3 w-3 shrink-0" />}
+                    <span className="truncate">{isCreator ? `To ${deal.recipientName}` : `From ${deal.creatorName}`}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <ArrowUpRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Terms Preview */}
+            <div className="flex-1 space-y-2 mb-4">
+              <div className="flex flex-wrap gap-1.5">
+                {deal.terms.slice(0, 3).map((term) => (
+                  <Badge
+                    key={term.id}
+                    variant="neutral"
+                    className="font-normal text-[10px] px-2 py-0.5 bg-secondary/50 border-transparent text-muted-foreground"
+                  >
+                    {term.label}: {term.value}
+                  </Badge>
+                ))}
+                {deal.terms.length > 3 && (
+                  <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
+                    +{deal.terms.length - 3}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="pt-3 border-t border-border/40 flex items-center justify-between gap-2 mt-auto">
+              <div className="flex items-center gap-2">
+                <CopyableId id={deal.publicId} className="bg-secondary/30" />
+                <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
+                  {timeAgo(deal.createdAt)}
+                </span>
+              </div>
+
+              <div className="flex gap-1" onClick={(e) => e.preventDefault()}>
+                {/* 1. Nudge (Only if pending & creator) */}
+                {deal.status === 'pending' && isCreator && (
+                  <Button
+                    size="sm"
+                    variant={nudgeSuccess === deal.id ? "default" : "secondary"}
+                    className={cn(
+                      "h-7 text-[10px] px-2.5 transition-all shadow-sm",
+                      nudgeSuccess === deal.id && "bg-emerald-500 hover:bg-emerald-600 text-white"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNudge(deal);
+                    }}
+                    disabled={isNudging === deal.id}
+                  >
+                    {isNudging === deal.id ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : nudgeSuccess === deal.id ? (
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                    ) : (
+                      <Mail className="h-3 w-3 mr-1" />
+                    )}
+                    {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
+                  </Button>
+                )}
+
+                {/* 2. Duplicate (Always available) */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate(deal);
+                  }}
+                  title="Duplicate Deal"
+                >
+                  <DuplicateIcon className="h-3.5 w-3.5" />
+                </Button>
+
+                {/* 3. Void (Only if pending & creator) */}
+                {deal.status === 'pending' && isCreator && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onVoid(deal.id);
+                    }}
+                    disabled={isVoiding === deal.id}
+                    title="Void Deal"
+                  >
+                    {isVoiding === deal.id ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+
+                {/* Sealed/Verify Button (Only if confirmed) */}
+                {deal.status === 'confirmed' && (
+                  <Link href={`/dashboard/verify?id=${deal.publicId}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
+                    >
+                      <ShieldCheck className="h-3 w-3" /> Verify
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    </motion.div>
+  );
 };
 
 export default function AgreementsPage() {
   const router = useRouter();
-  const {
-    deals: storeDeals,
-    user,
-    voidDeal: storeVoidDeal,
-    setDeals,
-  } = useAppStore();
+  const { deals: storeDeals, user, voidDeal: storeVoidDeal, setDeals } = useAppStore();
+
+  // State
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<DealStatus | "all">("all");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [expandedDealId, setExpandedDealId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"active" | "history">("active");
+  const [filterType, setFilterType] = useState<"all" | "active" | "completed" | "voided">("active");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
 
-  // Fetch deals from database
-  const refreshDeals = useCallback(async () => {
+  // Sync Data
+  const refreshDeals = async () => {
     if (!isSupabaseConfigured()) return;
+    setIsRefreshing(true);
+    const { deals } = await getUserDealsAction();
+    if (deals) setDeals(deals);
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
-    const { deals, error } = await getUserDealsAction();
-    if (!error) {
-      setDeals(deals || []);
-    }
-  }, [setDeals]);
-
-  // Refresh deals on mount (only once)
   useEffect(() => {
     if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
-      refreshDeals().catch((err) => {
-        console.error("Failed to refresh deals on mount:", err);
-      });
+      refreshDeals();
     }
-  }, [user, refreshDeals]);
+  }, [user]);
 
-  // Filter deals created by user
-  const userDeals = useMemo(() => {
-    return storeDeals.filter(deal => deal.creatorId === user?.id);
-  }, [storeDeals, user?.id]);
-
+  // Filtering
   const filteredDeals = useMemo(() => {
-    return userDeals.filter((deal) => {
-      const matchesSearch =
-        deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.recipientName?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || deal.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [userDeals, searchQuery, statusFilter]);
+    let deals = storeDeals.filter(deal =>
+      deal.creatorId === user?.id || deal.recipientEmail === user?.email
+    );
 
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      deals = deals.filter(d =>
+        d.title.toLowerCase().includes(q) ||
+        d.recipientName?.toLowerCase().includes(q) ||
+        d.creatorName?.toLowerCase().includes(q) ||
+        d.publicId.toLowerCase().includes(q)
+      );
+    }
+
+    // Apply Filter Type
+    if (filterType === 'active') {
+      deals = deals.filter(d => d.status === 'pending' || d.status === 'sealing');
+    } else if (filterType === 'completed') {
+      deals = deals.filter(d => d.status === 'confirmed');
+    } else if (filterType === 'voided') {
+      deals = deals.filter(d => d.status === 'voided');
+    } else if (filterType === 'all') {
+      deals = deals.filter(d => d.status === 'confirmed' || d.status === 'voided');
+    }
+
+    return deals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [storeDeals, user, searchQuery, filterType]);
+
+  // Stats
   const stats = useMemo(() => {
-    const total = userDeals.length;
-    const pending = userDeals.filter((d) => d.status === "pending").length;
-    const confirmed = userDeals.filter((d) => d.status === "confirmed").length;
-    const voided = userDeals.filter((d) => d.status === "voided").length;
-    return { total, pending, confirmed, voided };
-  }, [userDeals]);
+    const active = storeDeals.filter(d => d.status === 'pending' || d.status === 'sealing').length;
+    const completed = storeDeals.filter(d => d.status === 'confirmed').length;
+    const voided = storeDeals.filter(d => d.status === 'voided').length;
+    const totalHistory = completed + voided;
+    return { active, completed, voided, totalHistory };
+  }, [storeDeals]);
 
-  const copyToClipboard = async (dealId: string, publicId: string) => {
-    const link = `${typeof window !== "undefined" ? window.location.origin : ""}/d/${publicId}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopiedId(dealId);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      const textArea = document.createElement("textarea");
-      textArea.value = link;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      setCopiedId(dealId);
-      setTimeout(() => setCopiedId(null), 2000);
+  // Handlers
+  const handleStatClick = (type: "active" | "completed" | "voided" | "all") => {
+    setFilterType(type);
+    if (type === 'active') {
+      setActiveTab('active');
+    } else {
+      setActiveTab('history');
     }
   };
 
-  const handleVoidDeal = async (dealId: string) => {
-    if (!confirm("Are you sure you want to void this deal? This action cannot be undone.")) {
-      return;
+  const handleTabChange = (tab: "active" | "history") => {
+    setActiveTab(tab);
+    // Sync filter type with tab
+    if (tab === 'active') {
+      setFilterType('active');
+    } else {
+      setFilterType('all');
     }
+  };
 
+  const handleVoid = async (dealId: string) => {
+    if (!confirm("Void this deal? This cannot be undone.")) return;
     setIsVoiding(dealId);
 
     if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
-      const { error } = await voidDealAction(dealId);
-      if (!error) {
-        await refreshDeals();
-      }
+      await voidDealAction(dealId);
+      await refreshDeals();
     } else {
       storeVoidDeal(dealId);
     }
-
     setIsVoiding(null);
-  };
-
-  const handleDuplicate = (dealId: string) => {
-    router.push(`/deal/new?source=${dealId}`);
   };
 
   const handleNudge = async (deal: Deal) => {
@@ -148,302 +446,193 @@ export default function AgreementsPage() {
         recipientEmail: deal.recipientEmail,
       });
       setIsNudging(null);
-
       if (success) {
         setNudgeSuccess(deal.id);
         setTimeout(() => setNudgeSuccess(null), 3000);
-      } else {
-        copyToClipboard(deal.id, deal.publicId);
       }
     } else {
-      copyToClipboard(deal.id, deal.publicId);
+      navigator.clipboard.writeText(`${window.location.origin}/d/${deal.publicId}`);
+      setNudgeSuccess(deal.id);
+      setTimeout(() => setNudgeSuccess(null), 2000);
     }
+  };
+
+  const handleDuplicate = (deal: Deal) => {
+    router.push(`/deal/new?source=${deal.id}`);
   };
 
   return (
     <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">Your Agreements</h2>
-            <p className="text-sm text-muted-foreground">
-              Deals you&apos;ve created ({stats.total} total)
-            </p>
-          </div>
-          <Link href="/deal/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Deal
-            </Button>
-          </Link>
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Agreements</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">Manage and track your digital handshakes</p>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <FileCheck className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-2xl font-semibold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total Agreements</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                {stats.pending > 0 && <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />}
-              </div>
-              <p className="text-2xl font-semibold">{stats.pending}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                <div className="h-2 w-2 rounded-full bg-emerald-500" />
-              </div>
-              <p className="text-2xl font-semibold">{stats.confirmed}</p>
-              <p className="text-xs text-muted-foreground">Completed</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <XCircle className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <p className="text-2xl font-semibold">{stats.voided}</p>
-              <p className="text-xs text-muted-foreground">Voided</p>
-            </CardContent>
-          </Card>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refreshDeals}
+            disabled={isRefreshing}
+            className="text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3 rounded-xl"
+          >
+            <RefreshCw className={cn("h-4 w-4 sm:mr-1.5", isRefreshing && "animate-spin")} />
+            <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
+          </Button>
         </div>
-
-        {/* Deals List */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <CardTitle className="text-base font-medium">All Agreements</CardTitle>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 h-8 w-full sm:w-48 text-sm"
-                  />
-                </div>
-                <div className="flex gap-1 p-0.5 bg-muted rounded-md">
-                  {(["all", "pending", "confirmed", "voided"] as const).map((status) => (
-                    <Button
-                      key={status}
-                      variant={statusFilter === status ? "secondary" : "ghost"}
-                      size="sm"
-                      onClick={() => setStatusFilter(status)}
-                      className={`h-7 text-xs px-2 ${statusFilter === status ? "bg-background shadow-sm" : ""}`}
-                    >
-                      {status === "all" ? "All" : statusConfig[status].label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
-              <AnimatePresence mode="popLayout">
-                {filteredDeals.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-12"
-                  >
-                    <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mx-auto mb-3">
-                      <FileCheck className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="font-medium mb-1">No agreements found</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {searchQuery || statusFilter !== "all"
-                        ? "Try adjusting your search"
-                        : "Create Your First Proof"}
-                    </p>
-                    <Link href="/deal/new">
-                      <Button size="sm">
-                        <Plus className="h-4 w-4 mr-1.5" />
-                        New Deal
-                      </Button>
-                    </Link>
-                  </motion.div>
-                ) : (
-                  filteredDeals.map((deal, index) => {
-                    const StatusIcon = statusConfig[deal.status].icon;
-                    return (
-                      <motion.div
-                        key={deal.id}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2, delay: index * 0.03 }}
-                      >
-                        <div
-                          className={`group relative p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors ${
-                            deal.status === "voided" ? "opacity-60" : ""
-                          }`}
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-medium text-sm truncate">{deal.title}</h3>
-                                <Badge
-                                  variant="outline"
-                                  className="shrink-0 gap-1 text-xs h-5"
-                                >
-                                  <StatusIcon className="h-3 w-3" />
-                                  {statusConfig[deal.status].label}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  {deal.recipientName}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {timeAgo(deal.createdAt)}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                {(expandedDealId === deal.id ? deal.terms : deal.terms.slice(0, 2)).map((term) => (
-                                  <Badge key={term.id} variant="secondary" className="font-normal text-xs h-5">
-                                    {term.label}: {term.value}
-                                  </Badge>
-                                ))}
-                                {deal.terms.length > 2 && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="font-normal text-xs h-5 cursor-pointer hover:bg-secondary/80 transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setExpandedDealId(expandedDealId === deal.id ? null : deal.id);
-                                    }}
-                                  >
-                                    {expandedDealId === deal.id ? "Show less" : `+${deal.terms.length - 2} more`}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {deal.status === "pending" && (
-                                <>
-                                  <Button
-                                    variant={copiedId === deal.id ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => copyToClipboard(deal.id, deal.publicId)}
-                                    className="h-7 text-xs gap-1"
-                                  >
-                                    {copiedId === deal.id ? (
-                                      <>
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        <span className="hidden sm:inline">Copied!</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Copy className="h-3 w-3" />
-                                        <span className="hidden sm:inline">Copy</span>
-                                      </>
-                                    )}
-                                  </Button>
-                                  <Button
-                                    variant={nudgeSuccess === deal.id ? "default" : "outline"}
-                                    size="sm"
-                                    className="h-7 text-xs gap-1"
-                                    onClick={() => handleNudge(deal)}
-                                    disabled={isNudging === deal.id}
-                                  >
-                                    {isNudging === deal.id ? (
-                                      <>
-                                        <RefreshCw className="h-3 w-3 animate-spin" />
-                                        <span className="hidden sm:inline">Sending...</span>
-                                      </>
-                                    ) : nudgeSuccess === deal.id ? (
-                                      <>
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        <span className="hidden sm:inline">Sent!</span>
-                                      </>
-                                    ) : deal.recipientEmail ? (
-                                      <>
-                                        <Mail className="h-3 w-3" />
-                                        <span className="hidden sm:inline">Nudge</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <RefreshCw className="h-3 w-3" />
-                                        <span className="hidden sm:inline">Nudge</span>
-                                      </>
-                                    )}
-                                  </Button>
-                                </>
-                              )}
-                              <Link href={`/d/${deal.publicId}`}>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                              </Link>
-                              <div className="relative group/menu">
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                  <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                                <div className="hidden group-hover/menu:block absolute right-0 top-full mt-1 w-36 p-1 bg-popover border rounded-lg shadow-lg z-10">
-                                  <Link href={`/d/${deal.publicId}`}>
-                                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs">
-                                      <ExternalLink className="h-3 w-3" />
-                                      View
-                                    </Button>
-                                  </Link>
-                                  {deal.status === "pending" && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="w-full justify-start gap-2 h-8 text-xs"
-                                      onClick={() => handleDuplicate(deal.id)}
-                                    >
-                                      <Edit3 className="h-3 w-3" />
-                                      Duplicate
-                                    </Button>
-                                  )}
-                                  {deal.status !== "voided" && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive"
-                                      onClick={() => handleVoidDeal(deal.id)}
-                                      disabled={isVoiding === deal.id}
-                                    >
-                                      {isVoiding === deal.id ? (
-                                        <RefreshCw className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Trash2 className="h-3 w-3" />
-                                      )}
-                                      {isVoiding === deal.id ? "Voiding..." : "Void"}
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })
-                )}
-              </AnimatePresence>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Interactive Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatCard
+          label="Active Deals"
+          value={stats.active}
+          icon={Clock}
+          colorClass="text-amber-500"
+          isActive={activeTab === 'active'}
+          onClick={() => handleStatClick('active')}
+          delay={0}
+        />
+        <StatCard
+          label="Completed"
+          value={stats.completed}
+          icon={CheckCircle2}
+          colorClass="text-emerald-500"
+          isActive={activeTab === 'history' && filterType === 'completed'}
+          onClick={() => handleStatClick('completed')}
+          delay={0.1}
+        />
+        <StatCard
+          label="Voided"
+          value={stats.voided}
+          icon={XCircle}
+          colorClass="text-destructive"
+          isActive={activeTab === 'history' && filterType === 'voided'}
+          onClick={() => handleStatClick('voided')}
+          delay={0.2}
+        />
+        <StatCard
+          label="Total History"
+          value={stats.totalHistory}
+          icon={FileCheck}
+          colorClass="text-primary"
+          isActive={activeTab === 'history' && filterType === 'all'}
+          onClick={() => handleStatClick('all')}
+          delay={0.3}
+        />
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by title, name, or ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
+          {/* Active / History Toggle */}
+          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+            <button
+              onClick={() => handleTabChange("active")}
+              className={cn(
+                "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
+                activeTab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => handleTabChange("history")}
+              className={cn(
+                "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
+                activeTab === "history" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              History
+            </button>
+          </div>
+
+          <div className="w-px h-6 bg-border/50 hidden sm:block" />
+
+          {/* Layout Toggle */}
+          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <ListIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <AnimatePresence mode="popLayout">
+        {filteredDeals.length > 0 ? (
+          <motion.div
+            layout
+            className={cn(
+              "grid gap-4",
+              viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+            )}
+          >
+            {filteredDeals.map((deal) => (
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                userId={user?.id}
+                onNudge={handleNudge}
+                onVoid={handleVoid}
+                onDuplicate={handleDuplicate}
+                isVoiding={isVoiding}
+                isNudging={isNudging}
+                nudgeSuccess={nudgeSuccess}
+              />
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border/60 rounded-3xl bg-muted/10"
+          >
+            <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+              <FileCheck className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <h3 className="text-lg font-semibold">No agreements found</h3>
+            <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1 mb-6">
+              {searchQuery ? "Try adjusting your search terms." :
+               activeTab === 'active' ? "You have no active deals." : "You have no deal history."}
+            </p>
+            {!searchQuery && activeTab === 'active' && (
+              <Link href="/deal/new">
+                <Button>
+                  Create New Deal
+                </Button>
+              </Link>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

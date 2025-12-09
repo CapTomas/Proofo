@@ -52,7 +52,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
   const showNewDeal = !pathname.startsWith("/deal/new");
 
   return (
-    <header className="h-16 flex-none border-b border-border/40 bg-background/80 backdrop-blur-xl z-30 sticky top-0 w-full supports-[backdrop-filter]:bg-background/60">
+    <header className="h-16 flex-none border-b border-border/40 bg-background/80 backdrop-blur-xl z-30 sticky top-0 w-full supports-backdrop-filter:bg-background/60">
       <div className="h-full px-4 sm:px-6 flex items-center justify-between gap-4">
         {/* Left: Navigation & Breadcrumbs */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">

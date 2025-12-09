@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card"; // Removed Header/Title imports to use custom layouts
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,18 +30,19 @@ import {
   Check,
   Zap,
   BarChart3,
-  Edit3,
   Fingerprint,
-  MoreHorizontal
+  PenLine,
+  Mail
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Deal } from "@/types";
+import { Deal, DealStatus } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo, formatDate } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { OnboardingModal } from "@/components/onboarding-modal";
+import { cn } from "@/lib/utils";
 
 // --- CONFIG ---
 
@@ -52,6 +53,41 @@ const PRO_TIPS = [
   "Verification made easy: Verify any receipt by scanning the QR code or entering the Deal ID.",
   "Stay organized: Add a 'Due Date' field to templates to populate your Upcoming Deadlines widget."
 ];
+
+const statusConfig: Record<DealStatus, { label: string; color: string; icon: any; bg: string; border: string; badgeVariant: "warning" | "success" | "destructive" | "secondary" }> = {
+  pending: {
+    label: "Pending",
+    color: "text-amber-600",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/20",
+    icon: Clock,
+    badgeVariant: "warning"
+  },
+  sealing: {
+    label: "Sealing",
+    color: "text-blue-600",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    icon: RefreshCw,
+    badgeVariant: "secondary"
+  },
+  confirmed: {
+    label: "Sealed",
+    color: "text-emerald-600",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/20",
+    icon: CheckCircle2,
+    badgeVariant: "success"
+  },
+  voided: {
+    label: "Voided",
+    color: "text-destructive",
+    bg: "bg-destructive/10",
+    border: "border-destructive/20",
+    icon: XCircle,
+    badgeVariant: "destructive"
+  },
+};
 
 // --- UTILS ---
 
@@ -137,7 +173,10 @@ const CopyableId = ({ id, className }: { id: string, className?: string }) => {
   return (
     <Badge
       variant="outline"
-      className={`font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 ${className}`}
+      className={cn(
+        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
+        className
+      )}
       onClick={handleCopy}
       title="Click to copy Deal ID"
     >
@@ -175,17 +214,21 @@ const StatCard = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="group relative h-full bg-card hover:bg-card/80 border border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl p-5 flex flex-col justify-between"
+      className="group relative h-full bg-card hover:bg-card/80 border border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between"
     >
-      <div className="flex justify-between items-start mb-3">
-        <div className={`p-2.5 rounded-xl bg-secondary/50 group-hover:bg-primary/10 transition-colors ${colorClass.replace('text-', 'group-hover:text-')}`}>
-          <Icon className="h-5 w-5 text-muted-foreground group-hover:text-current transition-colors" />
+      <div className="flex justify-between items-start mb-2">
+        <div className={cn(
+          "p-2 rounded-xl bg-secondary/50 group-hover:bg-primary/10 transition-colors",
+          colorClass.replace('text-', 'group-hover:text-')
+        )}>
+          <Icon className="h-4 w-4 text-muted-foreground group-hover:text-current transition-colors" />
         </div>
         {trend && (
-          <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-medium border-0 ${
+          <Badge variant="secondary" className={cn(
+            "text-[10px] h-5 px-1.5 font-medium border-0",
             trendDirection === "up" ? "bg-emerald-500/10 text-emerald-600" :
             trendDirection === "down" ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"
-          }`}>
+          )}>
             {trend}
           </Badge>
         )}
@@ -194,7 +237,7 @@ const StatCard = ({
         <div className="text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform">
           {value}
         </div>
-        <p className="text-xs text-muted-foreground font-medium mt-1 group-hover:text-foreground/80 transition-colors truncate">
+        <p className="text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate">
           {label}
         </p>
       </div>
@@ -225,18 +268,23 @@ const MobileCreateAction = () => (
   </Link>
 );
 
-const DealRow = ({ deal, userId, type, onAction }: { deal: Deal, userId?: string, type: "inbox" | "pending" | "recent", onAction?: (deal: Deal) => void }) => {
+const DealRow = ({
+  deal,
+  userId,
+  type,
+  onAction,
+  isActionLoading
+}: {
+  deal: Deal,
+  userId?: string,
+  type: "inbox" | "pending" | "recent",
+  onAction?: (deal: Deal) => void,
+  isActionLoading?: boolean
+}) => {
   const isCreator = deal.creatorId === userId;
   const isInbox = !isCreator;
-
-  const statusConfig = {
-    pending: { label: "Pending", bg: "bg-amber-500/10", text: "text-amber-600", icon: Clock, border: "border-amber-500/20" },
-    sealing: { label: "Sealing", bg: "bg-blue-500/10", text: "text-blue-600", icon: RefreshCw, border: "border-blue-500/20" },
-    confirmed: { label: "Sealed", bg: "bg-emerald-500/10", text: "text-emerald-600", icon: CheckCircle2, border: "border-emerald-500/20" },
-    voided: { label: "Voided", bg: "bg-destructive/10", text: "text-destructive", icon: XCircle, border: "border-destructive/20" },
-  }[deal.status];
-
-  const StatusIcon = statusConfig.icon;
+  const config = statusConfig[deal.status];
+  const StatusIcon = config.icon;
 
   return (
     <motion.div
@@ -246,16 +294,18 @@ const DealRow = ({ deal, userId, type, onAction }: { deal: Deal, userId?: string
       className="group flex items-center justify-between p-3 rounded-xl hover:bg-muted/40 border border-transparent hover:border-border/50 transition-all cursor-pointer"
     >
       <Link href={`/d/${deal.publicId}`} className="flex-1 flex items-center gap-4 min-w-0">
-        <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border}`}>
-          <StatusIcon className="h-5 w-5" />
+        <div className={cn(
+          "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm transition-colors",
+          config.bg, config.border, config.color
+        )}>
+          <StatusIcon className="h-4.5 w-4.5" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap mb-0.5">
             <p className="font-semibold text-sm truncate max-w-[120px] sm:max-w-[200px] text-foreground">{deal.title}</p>
 
-            {/* Status Label */}
-            <Badge variant="outline" className={`h-5 px-1.5 text-[10px] font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
-              {statusConfig.label}
+            <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+              {config.label}
             </Badge>
 
             {isInbox && deal.status === 'pending' && (
@@ -282,7 +332,7 @@ const DealRow = ({ deal, userId, type, onAction }: { deal: Deal, userId?: string
 
       <div className="flex items-center gap-2 px-2">
         {/* ID Badge */}
-        <CopyableId id={deal.publicId} className="h-6 text-[10px] px-2 hidden sm:flex bg-background" />
+        <CopyableId id={deal.publicId} className="bg-background hidden sm:flex" />
 
         {/* Actions */}
         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -290,18 +340,30 @@ const DealRow = ({ deal, userId, type, onAction }: { deal: Deal, userId?: string
             <Button
               size="sm"
               variant="secondary"
-              className="h-7 px-2 text-xs shadow-sm"
+              className={cn(
+                "h-7 px-2.5 text-[10px] font-medium shadow-sm gap-1.5 transition-all duration-200",
+                "hover:shadow-md hover:bg-secondary/80 active:scale-95",
+                isActionLoading && "opacity-70 cursor-not-allowed"
+              )}
               onClick={(e) => {
                 e.stopPropagation();
-                onAction(deal);
+                if (!isActionLoading) onAction(deal);
               }}
+              disabled={isActionLoading}
             >
-              {type === 'pending' ? 'Nudge' : type === 'recent' ? 'Duplicate' : 'Action'}
+              {isActionLoading ? (
+                <RefreshCw className="h-3 w-3 animate-spin" />
+              ) : type === 'pending' ? (
+                <Mail className="h-3 w-3" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              {isActionLoading ? "Sending..." : type === 'pending' ? 'Nudge' : 'Duplicate'}
             </Button>
           )}
           <Link href={`/d/${deal.publicId}`} className="hidden sm:block">
-            <Button size="icon" variant="ghost" className="h-7 w-7">
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -396,7 +458,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
-      refreshDeals();
+      refreshDeals(true);
     }
     const interval = setInterval(() => refreshDeals(false), 30000);
     return () => clearInterval(interval);
@@ -698,13 +760,14 @@ export default function DashboardPage() {
 
               {/* Main List Card */}
               <Card className="h-auto lg:h-[424px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                <div className="px-6 py-4  flex items-center justify-between">
+                <div className="px-6 py-4 flex items-center justify-between">
                   <div className="flex gap-6">
                     <button
                       onClick={() => setActiveTab("priority")}
-                      className={`text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+                      className={cn(
+                        "text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer",
                         activeTab === "priority" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      )}
                     >
                       Priority Queue
                       {stats.inbox > 0 && (
@@ -713,9 +776,10 @@ export default function DashboardPage() {
                     </button>
                     <button
                       onClick={() => setActiveTab("recent")}
-                      className={`text-sm font-medium transition-colors cursor-pointer ${
+                      className={cn(
+                        "text-sm font-medium transition-colors cursor-pointer",
                         activeTab === "recent" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-                      }`}
+                      )}
                     >
                       Recent Deals
                     </button>
@@ -744,6 +808,7 @@ export default function DashboardPage() {
                               userId={user.id}
                               type={deal.queueType as "inbox" | "pending"}
                               onAction={deal.queueType === "pending" ? () => handleNudge(deal) : undefined}
+                              isActionLoading={nudgeLoading === deal.id}
                             />
                           ))
                         ) : (
@@ -788,7 +853,7 @@ export default function DashboardPage() {
               {/* Deadlines Widget */}
               {upcomingDeadlines.length > 0 && (
                 <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                  <div className="px-5 py-3 ">
+                  <div className="px-5 py-3">
                     <h3 className="text-sm font-medium flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-primary" />
                       Upcoming Deadlines
@@ -827,12 +892,12 @@ export default function DashboardPage() {
 
               {/* Latest Snapshot - Mini Receipt Style */}
               <Card className="h-[200px] overflow-hidden border border-border/50 shadow-card rounded-2xl flex flex-col bg-background">
-                <div className="px-5 py-3  flex items-center justify-between">
+                <div className="px-5 py-3 flex items-center justify-between">
                   <h3 className="text-sm font-medium flex items-center gap-2">
                     <FileClock className="h-4 w-4 text-primary" />
                     Latest Activity
                   </h3>
-                  {latestDeal && <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">{latestDeal.publicId}</Badge>}
+                  {latestDeal && <CopyableId id={latestDeal.publicId} className="bg-secondary/30" />}
                 </div>
                 <CardContent className="p-4 flex-1 flex flex-col justify-between">
                   {latestDeal ? (
@@ -844,13 +909,9 @@ export default function DashboardPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between mb-0.5">
                             <p className="font-bold text-sm truncate pr-2">{latestDeal.title}</p>
-                            {latestDeal.status === 'confirmed' ? (
-                              <Badge variant="success" className="text-[10px] h-4 px-1">Sealed</Badge>
-                            ) : latestDeal.status === 'voided' ? (
-                              <Badge variant="destructive" className="text-[10px] h-4 px-1">Voided</Badge>
-                            ) : (
-                              <Badge variant="warning" className="text-[10px] h-4 px-1">Pending</Badge>
-                            )}
+                            <Badge variant={statusConfig[latestDeal.status].badgeVariant} className="text-[10px] h-4 px-1">
+                              {statusConfig[latestDeal.status].label}
+                            </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">
                             {latestDeal.status === 'confirmed' ? 'Signed by' : 'Sent to'} {latestDeal.recipientName}
@@ -892,7 +953,7 @@ export default function DashboardPage() {
 
               {/* Analytics Graph */}
               <Card className="h-[200px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                <div className="px-5 py-3  flex items-center justify-between">
+                <div className="px-5 py-3 flex items-center justify-between">
                   <h3 className="text-sm font-medium flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-primary" />
                     Volume
@@ -910,7 +971,7 @@ export default function DashboardPage() {
 
               {/* Quick Verify */}
               <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 ">
+                <div className="px-5 py-3">
                   <h3 className="text-sm font-medium flex items-center gap-2">
                     <Shield className="h-4 w-4 text-primary" />
                     Quick Verify
@@ -927,7 +988,15 @@ export default function DashboardPage() {
                         onChange={(e) => setVerifyId(e.target.value)}
                       />
                     </div>
-                    <Button type="submit" size="sm" className="w-full h-9 text-xs font-medium rounded-lg shadow-sm">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className={cn(
+                        "w-full h-9 text-xs font-medium rounded-lg shadow-sm transition-all duration-200",
+                        verifyId.trim() ? "hover:shadow-md active:scale-95" : "opacity-50 cursor-not-allowed"
+                      )}
+                      disabled={!verifyId.trim()}
+                    >
                       Verify Authenticity
                     </Button>
                   </form>
