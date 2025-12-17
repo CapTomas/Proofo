@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -152,8 +153,10 @@ const StatCard = ({
 
 const InboxCard = ({
   deal,
+  onNavigate,
 }: {
   deal: Deal;
+  onNavigate: (dealId: string) => void;
 }) => {
   const config = statusConfig[deal.status];
   const Icon = config.icon;
@@ -165,105 +168,105 @@ const InboxCard = ({
       layout
       className="group relative"
     >
-      <Link href={`/d/${deal.publicId}`}>
-        <Card className={cn(
+      <Card 
+        className={cn(
           dashboardStyles.cardBase,
           deal.status === 'voided' && "opacity-60 grayscale-[0.5]",
           isPending && "ring-1 ring-amber-500/20 border-amber-500/20"
-        )}>
-          <CardContent className={dashboardStyles.cardContent}>
-            {/* Header */}
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={cn(
-                  "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
-                  config.bg, config.border, config.color
-                )}>
-                  <Icon className="h-4.5 w-4.5" />
+        )}
+        onClick={() => onNavigate(deal.publicId)}
+      >
+        <CardContent className={dashboardStyles.cardContent}>
+          {/* Header */}
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={cn(
+                "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+                config.bg, config.border, config.color
+              )}>
+                <Icon className="h-4.5 w-4.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
+                  <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+                    {config.label}
+                  </Badge>
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
-                    <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
-                      {config.label}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
-                    <User className="h-3 w-3 shrink-0" />
-                    <span className="truncate">From {deal.creatorName}</span>
-                  </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span className="truncate">From {deal.creatorName}</span>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-                  <ArrowUpRight className="h-4 w-4" />
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Terms Preview */}
+          <div className="flex-1 space-y-2 mb-4">
+            <div className="flex flex-wrap gap-1.5">
+              {deal.terms.slice(0, 3).map((term) => (
+                <Badge
+                  key={term.id}
+                  variant="neutral"
+                  className="font-normal text-[10px] px-2 py-0.5 bg-secondary/50 border-transparent text-muted-foreground"
+                >
+                  {term.label}: {term.value}
+                </Badge>
+              ))}
+              {deal.terms.length > 3 && (
+                <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
+                  +{deal.terms.length - 3}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className={dashboardStyles.cardFooter}>
+            <div className="flex items-center gap-2">
+              <CopyableId id={deal.publicId} className="bg-background/50" />
+              <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
+                {timeAgo(deal.createdAt)}
+              </span>
+            </div>
+
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+              {isPending ? (
+                <Button
+                  size="sm"
+                  className="h-7 px-3 text-[10px] bg-amber-500 hover:bg-amber-600 text-white shadow-sm gap-1.5"
+                  onClick={() => onNavigate(deal.publicId)}
+                >
+                  <FileSignature className={dashboardStyles.iconSm} />
+                  Sign Now
                 </Button>
-              </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-3 text-[10px] gap-1.5"
+                  onClick={() => onNavigate(deal.publicId)}
+                >
+                  <ExternalLink className={dashboardStyles.iconSm} />
+                  View
+                </Button>
+              )}
             </div>
-
-            {/* Terms Preview */}
-            <div className="flex-1 space-y-2 mb-4">
-              <div className="flex flex-wrap gap-1.5">
-                {deal.terms.slice(0, 3).map((term) => (
-                  <Badge
-                    key={term.id}
-                    variant="neutral"
-                    className="font-normal text-[10px] px-2 py-0.5 bg-secondary/50 border-transparent text-muted-foreground"
-                  >
-                    {term.label}: {term.value}
-                  </Badge>
-                ))}
-                {deal.terms.length > 3 && (
-                  <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
-                    +{deal.terms.length - 3}
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className={dashboardStyles.cardFooter}>
-              <div className="flex items-center gap-2">
-                <CopyableId id={deal.publicId} className="bg-secondary/30" />
-                <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
-                  {timeAgo(deal.createdAt)}
-                </span>
-              </div>
-
-              <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
-                {isPending ? (
-                  <Link href={`/d/${deal.publicId}`}>
-                    <Button
-                      size="sm"
-                      className="h-7 px-3 text-[10px] bg-amber-500 hover:bg-amber-600 text-white shadow-sm gap-1.5"
-                    >
-                      <FileSignature className={dashboardStyles.iconSm} />
-                      Sign Now
-                    </Button>
-                  </Link>
-                ) : (
-                  <Link href={`/d/${deal.publicId}`}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-3 text-[10px] gap-1.5"
-                    >
-                      <ExternalLink className={dashboardStyles.iconSm} />
-                      View
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </Link>
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
 
 export default function InboxPage() {
+  const router = useRouter();
   const { user, deals: storeDeals, setDeals } = useAppStore();
 
   // State
@@ -273,6 +276,11 @@ export default function InboxPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const hasInitializedRef = useRef(false);
+
+  // Navigate to deal
+  const handleNavigate = (dealId: string) => {
+    router.push(`/d/${dealId}`);
+  };
 
   // Sync Data
   const refreshDeals = async () => {
@@ -482,6 +490,7 @@ export default function InboxPage() {
               <InboxCard
                 key={deal.id}
                 deal={deal}
+                onNavigate={handleNavigate}
               />
             ))}
           </motion.div>

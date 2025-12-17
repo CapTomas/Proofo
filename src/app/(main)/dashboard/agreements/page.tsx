@@ -158,6 +158,8 @@ const DealCard = ({
   onNudge,
   onVoid,
   onDuplicate,
+  onNavigate,
+  onVerify,
   isVoiding,
   isNudging,
   nudgeSuccess
@@ -167,6 +169,8 @@ const DealCard = ({
   onNudge: (deal: Deal) => void;
   onVoid: (id: string) => void;
   onDuplicate: (deal: Deal) => void;
+  onNavigate: (dealId: string) => void;
+  onVerify: (dealId: string) => void;
   isVoiding: string | null;
   isNudging: string | null;
   nudgeSuccess: string | null;
@@ -181,12 +185,14 @@ const DealCard = ({
       layout
       className="group relative"
     >
-      <Link href={`/d/${deal.publicId}`}>
-        <Card className={cn(
+      <Card 
+        className={cn(
           dashboardStyles.cardBase,
           deal.status === 'voided' && "opacity-60 grayscale-[0.5]"
-        )}>
-          <CardContent className={dashboardStyles.cardContent}>
+        )}
+        onClick={() => onNavigate(deal.publicId)}
+      >
+        <CardContent className={dashboardStyles.cardContent}>
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -240,13 +246,13 @@ const DealCard = ({
             {/* Footer Actions */}
             <div className={dashboardStyles.cardFooter}>
               <div className="flex items-center gap-2">
-                <CopyableId id={deal.publicId} className="bg-secondary/30" />
+                <CopyableId id={deal.publicId} className="bg-background/50" />
                 <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
                   {timeAgo(deal.createdAt)}
                 </span>
               </div>
 
-              <div className="flex gap-1" onClick={(e) => e.preventDefault()}>
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {/* 1. Nudge (Only if pending & creator) */}
                 {deal.status === 'pending' && isCreator && (
                   <Button
@@ -310,21 +316,22 @@ const DealCard = ({
 
                 {/* Sealed/Verify Button (Only if confirmed) */}
                 {deal.status === 'confirmed' && (
-                  <Link href={`/dashboard/verify?id=${deal.publicId}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
-                    >
-                      <ShieldCheck className="h-3 w-3" /> Verify
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onVerify(deal.publicId);
+                    }}
+                  >
+                    <ShieldCheck className="h-3 w-3" /> Verify
+                  </Button>
                 )}
               </div>
             </div>
           </CardContent>
         </Card>
-      </Link>
     </motion.div>
   );
 };
@@ -343,6 +350,16 @@ export default function AgreementsPage() {
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
+
+  // Navigate to deal
+  const handleNavigate = (dealId: string) => {
+    router.push(`/d/${dealId}`);
+  };
+
+  // Navigate to verify
+  const handleVerify = (dealId: string) => {
+    router.push(`/dashboard/verify?id=${dealId}`);
+  };
 
   // Sync Data
   const refreshDeals = async () => {
@@ -585,6 +602,8 @@ export default function AgreementsPage() {
                 onNudge={handleNudge}
                 onVoid={handleVoid}
                 onDuplicate={handleDuplicate}
+                onNavigate={handleNavigate}
+                onVerify={handleVerify}
                 isVoiding={isVoiding}
                 isNudging={isNudging}
                 nudgeSuccess={nudgeSuccess}

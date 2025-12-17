@@ -26,22 +26,23 @@ export const containerVariants: Variants = {
 
 /**
  * Standard item animation variants for cards and list items
+ * Uses scale/opacity animation (not bottom-up slide)
  */
 export const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, scale: 0.95 },
   show: { 
     opacity: 1, 
-    y: 0, 
+    scale: 1, 
     transition: { 
       type: "spring", 
-      stiffness: 300, 
-      damping: 24 
+      stiffness: 400, 
+      damping: 25 
     } 
   },
   exit: { 
     opacity: 0, 
     scale: 0.95, 
-    transition: { duration: 0.2 } 
+    transition: { duration: 0.15 } 
   }
 };
 
@@ -100,9 +101,9 @@ export const dashboardStyles = {
   gridCols1: "grid-cols-1",
   
   // Card styling
-  cardBase: "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card rounded-2xl",
+  cardBase: "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card rounded-2xl cursor-pointer",
   cardContent: "p-4 flex flex-col h-full",
-  cardFooter: "pt-3 border-t border-border/40 flex items-center justify-between gap-2 mt-auto",
+  cardFooter: "mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2 bg-secondary/30",
   
   // Empty state container
   emptyState: "flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/10",

@@ -342,10 +342,10 @@ const ContactCard = ({
             </div>
 
             {/* Footer Action Bar */}
-            <div className="mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2 bg-background/50">
+            <div className="mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2 bg-secondary/30">
               <button
                 onClick={() => onAction("deal", contact)}
-                className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+                className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer"
               >
                 Start Deal
               </button>
@@ -369,7 +369,7 @@ const ContactCard = ({
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(contact.id); }}
                     title="Hide Contact"
                   >
-                    <EyeOff className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 )}
 
