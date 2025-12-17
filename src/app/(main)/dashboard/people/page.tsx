@@ -16,6 +16,7 @@ import {
   Eye,
   UserPlus,
   X,
+  XCircle,
   Copy,
   Check,
   Mail,
@@ -42,6 +43,7 @@ import { timeAgo, formatDate } from "@/lib/crypto";
 import { cn, getUserInitials } from "@/lib/utils";
 import { Deal } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
+import { HighlightText } from "@/components/dashboard/shared-components";
 
 // --- TYPES & CONFIG ---
 
@@ -59,23 +61,7 @@ interface Contact {
 type SortOption = "recent" | "name_asc" | "name_desc" | "deals_count";
 type ViewMode = "grid" | "list";
 
-// --- HELPER COMPONENTS ---
-
-const HighlightText = ({ text, query }: { text: string; query: string }) => {
-  if (!query) return <span>{text}</span>;
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
-  return (
-    <span>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <span key={i} className="bg-primary/20 text-foreground rounded-xs px-0.5 font-medium">{part}</span>
-        ) : (
-          part
-        )
-      )}
-    </span>
-  );
-};
+// HighlightText imported from shared-components
 
 const CopyableText = ({ text, className }: { text: string; className?: string }) => {
   const [copied, setCopied] = useState(false);
@@ -342,7 +328,7 @@ const ContactCard = ({
             </div>
 
             {/* Footer Action Bar */}
-            <div className="mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2 bg-secondary/30">
+            <div className={dashboardStyles.cardFooter}>
               <button
                 onClick={() => onAction("deal", contact)}
                 className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer"
@@ -350,7 +336,7 @@ const ContactCard = ({
                 Start Deal
               </button>
 
-              <div className="flex items-center gap-1">
+              <div className={dashboardStyles.cardFooterActions}>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -369,7 +355,7 @@ const ContactCard = ({
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(contact.id); }}
                     title="Hide Contact"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <XCircle className="h-3.5 w-3.5" />
                   </Button>
                 )}
 

@@ -32,6 +32,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, containerVariants, itemVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
+import { CopyableId, StatCard } from "@/components/dashboard/shared-components";
 
 // --- CONFIG & UTILS ---
 
@@ -70,86 +71,9 @@ const statusConfig: Record<DealStatus, { label: string; color: string; icon: any
   },
 };
 
-// --- MICRO COMPONENTS ---
+// CopyableId and StatCard imported from shared-components
 
-const CopyableId = ({ id, className }: { id: string, className?: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
-        className
-      )}
-      onClick={handleCopy}
-      title="Click to copy Deal ID"
-    >
-      {id}
-      {copied ? (
-        <Check className="h-3 w-3 text-emerald-500" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
-      )}
-    </Badge>
-  );
-};
-
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  isActive,
-  onClick,
-  colorClass = "text-primary",
-  delay = 0
-}: {
-  label: string,
-  value: string | number,
-  icon: any,
-  isActive?: boolean,
-  onClick?: () => void,
-  colorClass?: string,
-  delay?: number
-}) => (
-  <motion.div
-    variants={itemVariants}
-    initial="hidden"
-    animate="show"
-    transition={{ delay }}
-    className={getStatCardClass(isActive ?? false)}
-    onClick={onClick}
-  >
-    <div className="flex justify-between items-start mb-2">
-      <div className={cn(
-        dashboardStyles.statCardIcon,
-        isActive ? "bg-primary/10 text-primary" : `bg-secondary/50 group-hover:bg-primary/10 ${colorClass.replace('text-', 'group-hover:text-')}`
-      )}>
-        <Icon className={cn(
-          dashboardStyles.iconMd,
-          "transition-colors",
-          isActive ? "text-primary" : "text-muted-foreground group-hover:text-current"
-        )} />
-      </div>
-    </div>
-    <div>
-      <div className={dashboardStyles.statCardValue}>
-        {value}
-      </div>
-      <p className={dashboardStyles.statCardLabel}>
-        {label}
-      </p>
-    </div>
-  </motion.div>
-);
+// StatCard imported from shared-components
 
 const InboxCard = ({
   deal,
@@ -168,7 +92,7 @@ const InboxCard = ({
       layout
       className="group relative"
     >
-      <Card 
+      <Card
         className={cn(
           dashboardStyles.cardBase,
           deal.status === 'voided' && "opacity-60 grayscale-[0.5]",
@@ -176,58 +100,60 @@ const InboxCard = ({
         )}
         onClick={() => onNavigate(deal.publicId)}
       >
-        <CardContent className={dashboardStyles.cardContent}>
-          {/* Header */}
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={cn(
-                "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
-                config.bg, config.border, config.color
-              )}>
-                <Icon className="h-4.5 w-4.5" />
+        <div className="flex flex-col h-full">
+          <CardContent className="flex-1 p-4 pb-0 flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={cn(
+                  "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+                  config.bg, config.border, config.color
+                )}>
+                  <Icon className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
+                    <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+                      {config.label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
+                    <User className="h-3 w-3 shrink-0" />
+                    <span className="truncate">From {deal.creatorName}</span>
+                  </div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
-                  <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
-                    {config.label}
+
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <ArrowUpRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Terms Preview */}
+            <div className="flex-1 space-y-2 mb-4">
+              <div className="flex flex-wrap gap-1.5">
+                {deal.terms.slice(0, 3).map((term) => (
+                  <Badge
+                    key={term.id}
+                    variant="neutral"
+                    className="font-normal text-[10px] px-2 py-0.5 bg-secondary/50 border-transparent text-muted-foreground"
+                  >
+                    {term.label}: {term.value}
                   </Badge>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
-                  <User className="h-3 w-3 shrink-0" />
-                  <span className="truncate">From {deal.creatorName}</span>
-                </div>
+                ))}
+                {deal.terms.length > 3 && (
+                  <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
+                    +{deal.terms.length - 3}
+                  </Badge>
+                )}
               </div>
             </div>
+          </CardContent>
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-                <ArrowUpRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Terms Preview */}
-          <div className="flex-1 space-y-2 mb-4">
-            <div className="flex flex-wrap gap-1.5">
-              {deal.terms.slice(0, 3).map((term) => (
-                <Badge
-                  key={term.id}
-                  variant="neutral"
-                  className="font-normal text-[10px] px-2 py-0.5 bg-secondary/50 border-transparent text-muted-foreground"
-                >
-                  {term.label}: {term.value}
-                </Badge>
-              ))}
-              {deal.terms.length > 3 && (
-                <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
-                  +{deal.terms.length - 3}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Footer Actions */}
+          {/* Footer Action Bar */}
           <div className={dashboardStyles.cardFooter}>
             <div className="flex items-center gap-2">
               <CopyableId id={deal.publicId} className="bg-background/50" />
@@ -236,7 +162,7 @@ const InboxCard = ({
               </span>
             </div>
 
-            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className={dashboardStyles.cardFooterActions} onClick={(e) => e.stopPropagation()}>
               {isPending ? (
                 <Button
                   size="sm"
@@ -259,7 +185,7 @@ const InboxCard = ({
               )}
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </motion.div>
   );

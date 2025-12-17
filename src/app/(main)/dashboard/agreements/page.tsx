@@ -33,6 +33,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, containerVariants, itemVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
+import { CopyableId, StatCard } from "@/components/dashboard/shared-components";
 
 // --- CONFIG & UTILS ---
 
@@ -71,86 +72,9 @@ const statusConfig: Record<DealStatus, { label: string; color: string; icon: any
   },
 };
 
-// --- MICRO COMPONENTS ---
+// CopyableId and StatCard imported from shared-components
 
-const CopyableId = ({ id, className }: { id: string, className?: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
-        className
-      )}
-      onClick={handleCopy}
-      title="Click to copy Deal ID"
-    >
-      {id}
-      {copied ? (
-        <Check className="h-3 w-3 text-emerald-500" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
-      )}
-    </Badge>
-  );
-};
-
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  isActive,
-  onClick,
-  colorClass = "text-primary",
-  delay = 0
-}: {
-  label: string,
-  value: string | number,
-  icon: any,
-  isActive?: boolean,
-  onClick?: () => void,
-  colorClass?: string,
-  delay?: number
-}) => (
-  <motion.div
-    variants={itemVariants}
-    initial="hidden"
-    animate="show"
-    transition={{ delay }}
-    className={getStatCardClass(isActive ?? false)}
-    onClick={onClick}
-  >
-    <div className="flex justify-between items-start mb-2">
-      <div className={cn(
-        dashboardStyles.statCardIcon,
-        isActive ? "bg-primary/10 text-primary" : `bg-secondary/50 group-hover:bg-primary/10 ${colorClass.replace('text-', 'group-hover:text-')}`
-      )}>
-        <Icon className={cn(
-          dashboardStyles.iconMd,
-          "transition-colors",
-          isActive ? "text-primary" : "text-muted-foreground group-hover:text-current"
-        )} />
-      </div>
-    </div>
-    <div>
-      <div className={dashboardStyles.statCardValue}>
-        {value}
-      </div>
-      <p className={dashboardStyles.statCardLabel}>
-        {label}
-      </p>
-    </div>
-  </motion.div>
-);
+// StatCard imported from shared-components
 
 const DealCard = ({
   deal,
@@ -185,14 +109,15 @@ const DealCard = ({
       layout
       className="group relative"
     >
-      <Card 
+      <Card
         className={cn(
           dashboardStyles.cardBase,
           deal.status === 'voided' && "opacity-60 grayscale-[0.5]"
         )}
         onClick={() => onNavigate(deal.publicId)}
       >
-        <CardContent className={dashboardStyles.cardContent}>
+        <div className="flex flex-col h-full">
+          <CardContent className="flex-1 p-4 pb-0 flex flex-col">
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -242,96 +167,97 @@ const DealCard = ({
                 )}
               </div>
             </div>
+          </CardContent>
 
-            {/* Footer Actions */}
-            <div className={dashboardStyles.cardFooter}>
-              <div className="flex items-center gap-2">
-                <CopyableId id={deal.publicId} className="bg-background/50" />
-                <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
-                  {timeAgo(deal.createdAt)}
-                </span>
-              </div>
+          {/* Footer Action Bar */}
+          <div className={dashboardStyles.cardFooter}>
+            <div className="flex items-center gap-2">
+              <CopyableId id={deal.publicId} className="bg-background/50" />
+              <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
+                {timeAgo(deal.createdAt)}
+              </span>
+            </div>
 
-              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                {/* 1. Nudge (Only if pending & creator) */}
-                {deal.status === 'pending' && isCreator && (
-                  <Button
-                    size="sm"
-                    variant={nudgeSuccess === deal.id ? "default" : "secondary"}
-                    className={cn(
-                      "h-7 text-[10px] px-2.5 transition-all shadow-sm",
-                      nudgeSuccess === deal.id && "bg-emerald-500 hover:bg-emerald-600 text-white"
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNudge(deal);
-                    }}
-                    disabled={isNudging === deal.id}
-                  >
-                    {isNudging === deal.id ? (
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                    ) : nudgeSuccess === deal.id ? (
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Mail className="h-3 w-3 mr-1" />
-                    )}
-                    {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
-                  </Button>
-                )}
+            <div className={dashboardStyles.cardFooterActions} onClick={(e) => e.stopPropagation()}>
+              {/* 1. Nudge (Only if pending & creator) */}
+              {deal.status === 'pending' && isCreator && (
+                <Button
+                  size="sm"
+                  variant={nudgeSuccess === deal.id ? "default" : "secondary"}
+                  className={cn(
+                    "h-7 text-[10px] px-2.5 transition-all shadow-sm",
+                    nudgeSuccess === deal.id && "bg-emerald-500 hover:bg-emerald-600 text-white"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNudge(deal);
+                  }}
+                  disabled={isNudging === deal.id}
+                >
+                  {isNudging === deal.id ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : nudgeSuccess === deal.id ? (
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Mail className="h-3 w-3 mr-1" />
+                  )}
+                  {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
+                </Button>
+              )}
 
-                {/* 2. Duplicate (Always available) */}
+              {/* 2. Duplicate (Always available) */}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate(deal);
+                }}
+                title="Duplicate Deal"
+              >
+                <DuplicateIcon className="h-3.5 w-3.5" />
+              </Button>
+
+              {/* 3. Void (Only if pending & creator) */}
+              {deal.status === 'pending' && isCreator && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDuplicate(deal);
+                    onVoid(deal.id);
                   }}
-                  title="Duplicate Deal"
+                  disabled={isVoiding === deal.id}
+                  title="Void Deal"
                 >
-                  <DuplicateIcon className="h-3.5 w-3.5" />
+                  {isVoiding === deal.id ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
                 </Button>
+              )}
 
-                {/* 3. Void (Only if pending & creator) */}
-                {deal.status === 'pending' && isCreator && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onVoid(deal.id);
-                    }}
-                    disabled={isVoiding === deal.id}
-                    title="Void Deal"
-                  >
-                    {isVoiding === deal.id ? (
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <XCircle className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
-
-                {/* Sealed/Verify Button (Only if confirmed) */}
-                {deal.status === 'confirmed' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onVerify(deal.publicId);
-                    }}
-                  >
-                    <ShieldCheck className="h-3 w-3" /> Verify
-                  </Button>
-                )}
-              </div>
+              {/* Sealed/Verify Button (Only if confirmed) */}
+              {deal.status === 'confirmed' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onVerify(deal.publicId);
+                  }}
+                >
+                  <ShieldCheck className="h-3 w-3" /> Verify
+                </Button>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </Card>
     </motion.div>
   );
 };

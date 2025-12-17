@@ -34,6 +34,7 @@ import { dealTemplates } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 import { DealTemplate } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
+import { HighlightText } from "@/components/dashboard/shared-components";
 
 // --- CONFIGURATION ---
 
@@ -63,24 +64,7 @@ const templateMetadata: Record<string, { category: string }> = {
   "custom": { category: "General" },
 };
 
-// --- HELPERS ---
-
-const HighlightText = ({ text, query, className }: { text: string; query: string; className?: string }) => {
-  if (!query) return <span className={className}>{text}</span>;
-
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
-  return (
-    <span className={className}>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <span key={i} className="bg-primary/20 text-foreground rounded-xs px-0.5 font-medium">{part}</span>
-        ) : (
-          part
-        )
-      )}
-    </span>
-  );
-};
+// HighlightText imported from shared-components
 
 // --- COMPONENTS ---
 
@@ -257,12 +241,12 @@ const TemplateCard = ({
             </Link>
 
             {/* Footer Action Bar */}
-            <div className="mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
+            <div className={dashboardStyles.cardFooter}>
               <Link href={linkHref} className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
                 Use Template
               </Link>
 
-              <div className="flex items-center gap-1">
+              <div className={dashboardStyles.cardFooterActions}>
                 <Button
                   variant="ghost"
                   size="icon"

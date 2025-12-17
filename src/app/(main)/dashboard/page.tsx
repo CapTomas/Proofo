@@ -43,6 +43,8 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
+import { dashboardStyles } from "@/lib/dashboard-ui";
+import { CopyableId, StatCard } from "@/components/dashboard/shared-components";
 
 // --- CONFIG ---
 
@@ -159,91 +161,9 @@ const ScrambleText = ({ text, className }: { text: string; className?: string })
   return <span className={className}>{displayText}</span>;
 };
 
-const CopyableId = ({ id, className }: { id: string, className?: string }) => {
-  const [copied, setCopied] = useState(false);
+// CopyableId imported from shared-components
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
-        className
-      )}
-      onClick={handleCopy}
-      title="Click to copy Deal ID"
-    >
-      {id}
-      {copied ? (
-        <Check className="h-3 w-3 text-emerald-500" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
-      )}
-    </Badge>
-  );
-};
-
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  trend,
-  trendDirection = "up",
-  href,
-  delay = 0,
-  colorClass = "text-primary"
-}: {
-  label: string,
-  value: string | number,
-  icon: any,
-  trend?: string,
-  trendDirection?: "up" | "down" | "neutral",
-  href: string,
-  delay?: number,
-  colorClass?: string
-}) => (
-  <Link href={href} className="block h-full">
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="group relative h-full bg-card hover:bg-card/80 border border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between"
-    >
-      <div className="flex justify-between items-start mb-2">
-        <div className={cn(
-          "p-2 rounded-xl bg-secondary/50 group-hover:bg-primary/10 transition-colors",
-          colorClass.replace('text-', 'group-hover:text-')
-        )}>
-          <Icon className="h-4 w-4 text-muted-foreground group-hover:text-current transition-colors" />
-        </div>
-        {trend && (
-          <Badge variant="secondary" className={cn(
-            "text-[10px] h-5 px-1.5 font-medium border-0",
-            trendDirection === "up" ? "bg-emerald-500/10 text-emerald-600" :
-            trendDirection === "down" ? "bg-amber-500/10 text-amber-600" : "bg-muted text-muted-foreground"
-          )}>
-            {trend}
-          </Badge>
-        )}
-      </div>
-      <div>
-        <div className="text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform">
-          {value}
-        </div>
-        <p className="text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate">
-          {label}
-        </p>
-      </div>
-    </motion.div>
-  </Link>
-);
+// StatCard imported from shared-components
 
 const MobileCreateAction = () => (
   <Link href="/deal/new" className="block sm:hidden">
@@ -672,15 +592,15 @@ export default function DashboardPage() {
     <>
       {needsOnboarding && <OnboardingModal onComplete={() => setNeedsOnboarding(false)} />}
 
-      <div className="space-y-6">
+      <div className={dashboardStyles.pageContainer}>
 
           {/* Header */}
-          <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
+          <div className={dashboardStyles.pageHeader}>
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">
+              <h1 className={dashboardStyles.pageTitle}>
                 Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
               </h1>
-              <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2">
+              <p className={cn(dashboardStyles.pageDescription, "flex items-center gap-2")}>
                 {isMounted && currentDate ? (
                   <>
                     {currentDate}
@@ -696,11 +616,11 @@ export default function DashboardPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3 rounded-xl"
+                className={dashboardStyles.syncButton}
                 onClick={() => refreshDeals(true)}
                 disabled={isRefreshing}
               >
-                <RefreshCw className={`h-4 w-4 sm:mr-1.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                <RefreshCw className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")} />
                 <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
               </Button>
             </div>
