@@ -30,6 +30,7 @@ import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
+import { dashboardStyles, containerVariants, itemVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
 
 // --- CONFIG & UTILS ---
 
@@ -119,33 +120,30 @@ const StatCard = ({
   delay?: number
 }) => (
   <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.4 }}
-    className={cn(
-      "group relative h-full bg-card hover:bg-card/80 border transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer",
-      isActive
-        ? "border-primary/50 shadow-md ring-1 ring-primary/10"
-        : "border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md"
-    )}
+    variants={itemVariants}
+    initial="hidden"
+    animate="show"
+    transition={{ delay }}
+    className={getStatCardClass(isActive ?? false)}
     onClick={onClick}
   >
     <div className="flex justify-between items-start mb-2">
       <div className={cn(
-        "p-2 rounded-xl transition-colors",
+        dashboardStyles.statCardIcon,
         isActive ? "bg-primary/10 text-primary" : `bg-secondary/50 group-hover:bg-primary/10 ${colorClass.replace('text-', 'group-hover:text-')}`
       )}>
         <Icon className={cn(
-          "h-4 w-4 transition-colors",
+          dashboardStyles.iconMd,
+          "transition-colors",
           isActive ? "text-primary" : "text-muted-foreground group-hover:text-current"
         )} />
       </div>
     </div>
     <div>
-      <div className="text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform">
+      <div className={dashboardStyles.statCardValue}>
         {value}
       </div>
-      <p className="text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate">
+      <p className={dashboardStyles.statCardLabel}>
         {label}
       </p>
     </div>
@@ -163,19 +161,17 @@ const InboxCard = ({
 
   return (
     <motion.div
+      variants={itemVariants}
       layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
       className="group relative"
     >
       <Link href={`/d/${deal.publicId}`}>
         <Card className={cn(
-          "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card",
+          dashboardStyles.cardBase,
           deal.status === 'voided' && "opacity-60 grayscale-[0.5]",
           isPending && "ring-1 ring-amber-500/20 border-amber-500/20"
         )}>
-          <CardContent className="p-4 flex flex-col h-full">
+          <CardContent className={dashboardStyles.cardContent}>
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -227,7 +223,7 @@ const InboxCard = ({
             </div>
 
             {/* Footer Actions */}
-            <div className="pt-3 border-t border-border/40 flex items-center justify-between gap-2 mt-auto">
+            <div className={dashboardStyles.cardFooter}>
               <div className="flex items-center gap-2">
                 <CopyableId id={deal.publicId} className="bg-secondary/30" />
                 <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
@@ -242,7 +238,7 @@ const InboxCard = ({
                       size="sm"
                       className="h-7 px-3 text-[10px] bg-amber-500 hover:bg-amber-600 text-white shadow-sm gap-1.5"
                     >
-                      <FileSignature className="h-3 w-3" />
+                      <FileSignature className={dashboardStyles.iconSm} />
                       Sign Now
                     </Button>
                   </Link>
@@ -253,7 +249,7 @@ const InboxCard = ({
                       variant="outline"
                       className="h-7 px-3 text-[10px] gap-1.5"
                     >
-                      <ExternalLink className="h-3 w-3" />
+                      <ExternalLink className={dashboardStyles.iconSm} />
                       View
                     </Button>
                   </Link>
@@ -361,13 +357,13 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={dashboardStyles.pageContainer}>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
+      <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Inbox</h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">Deals waiting for your signature</p>
+          <h1 className={dashboardStyles.pageTitle}>Inbox</h1>
+          <p className={dashboardStyles.pageDescription}>Deals waiting for your signature</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
@@ -375,9 +371,9 @@ export default function InboxPage() {
             size="sm"
             onClick={refreshDeals}
             disabled={isRefreshing}
-            className="text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3 rounded-xl"
+            className={dashboardStyles.syncButton}
           >
-            <RefreshCw className={cn("h-4 w-4 sm:mr-1.5", isRefreshing && "animate-spin")} />
+            <RefreshCw className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")} />
             <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
           </Button>
         </div>
@@ -424,61 +420,49 @@ export default function InboxPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className={dashboardStyles.filterBar}>
+        <div className={dashboardStyles.searchInputContainer}>
+          <Search className={dashboardStyles.searchIcon} />
           <Input
             placeholder="Search by title, sender, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl"
+            className={dashboardStyles.searchInput}
           />
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
           {/* To Sign / History Toggle */}
-          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+          <div className={dashboardStyles.toggleGroup}>
             <button
               onClick={() => handleTabChange("to_sign")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
-                activeTab === "to_sign" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getTabButtonClass(activeTab === "to_sign")}
             >
               To Sign
             </button>
             <button
               onClick={() => handleTabChange("history")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
-                activeTab === "history" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getTabButtonClass(activeTab === "history")}
             >
               History
             </button>
           </div>
 
-          <div className="w-px h-6 bg-border/50 hidden sm:block" />
+          <div className={dashboardStyles.divider} />
 
           {/* Layout Toggle */}
-          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+          <div className={dashboardStyles.toggleGroup}>
             <button
               onClick={() => setViewMode("grid")}
-              className={cn(
-                "p-1.5 rounded-lg transition-all",
-                viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getToggleButtonClass(viewMode === "grid")}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className={dashboardStyles.iconMd} />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={cn(
-                "p-1.5 rounded-lg transition-all",
-                viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getToggleButtonClass(viewMode === "list")}
             >
-              <ListIcon className="h-4 w-4" />
+              <ListIcon className={dashboardStyles.iconMd} />
             </button>
           </div>
         </div>
@@ -488,11 +472,11 @@ export default function InboxPage() {
       <AnimatePresence mode="popLayout">
         {filteredDeals.length > 0 ? (
           <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
             layout
-            className={cn(
-              "grid gap-4",
-              viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-            )}
+            className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
           >
             {filteredDeals.map((deal) => (
               <InboxCard
@@ -505,13 +489,13 @@ export default function InboxPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border/60 rounded-3xl bg-muted/10"
+            className={dashboardStyles.emptyState}
           >
-            <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+            <div className={dashboardStyles.emptyStateIcon}>
               <InboxIcon className="h-8 w-8 text-muted-foreground/50" />
             </div>
-            <h3 className="text-lg font-semibold">No inbox items</h3>
-            <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1">
+            <h3 className={dashboardStyles.emptyStateTitle}>No inbox items</h3>
+            <p className={dashboardStyles.emptyStateDescription}>
               {searchQuery ? "Try adjusting your search terms." :
                activeTab === 'to_sign' ? "You're all caught up! No deals waiting for you." : "No history found."}
             </p>

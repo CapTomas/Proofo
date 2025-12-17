@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ import Link from "next/link";
 import { dealTemplates } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 import { DealTemplate } from "@/types";
+import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
 
 // --- CONFIGURATION ---
 
@@ -60,39 +61,6 @@ const templateMetadata: Record<string, { category: string }> = {
   "payment-promise": { category: "Financial" },
   "service-exchange": { category: "Services" },
   "custom": { category: "General" },
-};
-
-// --- ANIMATION VARIANTS ---
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 30, scale: 0.95 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 100,
-      damping: 15,
-      mass: 1
-    }
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.9,
-    transition: { duration: 0.2 }
-  }
 };
 
 // --- HELPERS ---
@@ -224,7 +192,7 @@ const TemplateCard = ({
             rotateY: isFlipped ? 180 : 0,
             opacity: isFlipped ? 0 : 1
           }}
-          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }} // Smoother cubic-bezier
+          transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
         >
           <div className="flex flex-col h-full">
@@ -339,7 +307,7 @@ const TemplateCard = ({
             rotateY: isFlipped ? 0 : -180,
             opacity: isFlipped ? 1 : 0
           }}
-          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }} // Smoother cubic-bezier
+          transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
         >
           <CardContent className="p-5 flex flex-col h-full bg-secondary/5">
@@ -422,72 +390,61 @@ export default function TemplatesPage() {
   }, [searchQuery, selectedCategory]);
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={dashboardStyles.pageContainer}>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
+      <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Templates</h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">Jumpstart your agreements with battle-tested patterns</p>
+          <h1 className={dashboardStyles.pageTitle}>Templates</h1>
+          <p className={dashboardStyles.pageDescription}>Jumpstart your agreements with battle-tested patterns</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 flex flex-col sm:flex-row gap-2 sticky top-0 z-20 backdrop-blur-xl">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+      <div className={dashboardStyles.filterBar}>
+        <div className={dashboardStyles.searchInputContainer}>
+          <Search className={dashboardStyles.searchIcon} />
           <Input
             ref={searchInputRef}
             placeholder="Search templates... (Press '/')"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl"
+            className={dashboardStyles.searchInput}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center pointer-events-none">
-            <kbd className="h-5 px-1.5 bg-background border border-border/50 rounded text-[10px] font-mono text-muted-foreground flex items-center">
+            <kbd className={dashboardStyles.keyboardHint}>
               <Command className="h-2.5 w-2.5 mr-1" />/
             </kbd>
           </div>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
-          <div className="flex items-center p-1 bg-secondary/50 rounded-xl shrink-0">
+          <div className={cn(dashboardStyles.toggleGroup, "items-center")}>
             {CATEGORIES.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all whitespace-nowrap",
-                  selectedCategory === category
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
+                className={getFilterPillClass(selectedCategory === category)}
               >
                 {category}
               </button>
             ))}
           </div>
 
-          <div className="w-px h-6 bg-border/50 hidden sm:block" />
+          <div className={dashboardStyles.divider} />
 
-          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+          <div className={dashboardStyles.toggleGroup}>
             <button
               onClick={() => setViewMode("grid")}
-              className={cn(
-                "p-1.5 rounded-lg transition-all",
-                viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getToggleButtonClass(viewMode === "grid")}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className={dashboardStyles.iconMd} />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={cn(
-                "p-1.5 rounded-lg transition-all",
-                viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getToggleButtonClass(viewMode === "list")}
             >
-              <ListIcon className="h-4 w-4" />
+              <ListIcon className={dashboardStyles.iconMd} />
             </button>
           </div>
         </div>
@@ -498,10 +455,7 @@ export default function TemplatesPage() {
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className={cn(
-          "grid gap-4 sm:gap-6",
-          viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
-        )}
+        className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
       >
         <AnimatePresence mode="popLayout">
           {filteredTemplates.length > 0 ? (
@@ -522,13 +476,13 @@ export default function TemplatesPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="col-span-full flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border/60 rounded-3xl bg-muted/5"
+              className={cn(dashboardStyles.emptyState, "col-span-full")}
             >
-              <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+              <div className={dashboardStyles.emptyStateIcon}>
                 <Filter className="h-8 w-8 text-muted-foreground/50" />
               </div>
-              <h3 className="text-lg font-semibold">No templates found</h3>
-              <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1 mb-6">
+              <h3 className={dashboardStyles.emptyStateTitle}>No templates found</h3>
+              <p className={dashboardStyles.emptyStateDescription}>
                 Try adjusting your search or category filter.
               </p>
               <Button
