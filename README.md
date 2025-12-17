@@ -1,288 +1,192 @@
-# Proofo
+<div align="center">
+  <h1>🔏 Proofo</h1>
+  <p><strong>Friction-free digital agreements that hold up.</strong></p>
 
-A friction-free digital platform for enforceable agreements.
+  <p>
+    <a href="#features"><img src="https://img.shields.io/badge/Status-Beta-blue?style=flat-square" alt="Status"></a>
+    <a href="#tech-stack"><img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js"></a>
+    <a href="#tech-stack"><img src="https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript" alt="TypeScript"></a>
+    <a href="#tech-stack"><img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase" alt="Supabase"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License"></a>
+  </p>
+</div>
 
-## Overview
+---
 
-Proofo enables anyone to create verifiable, immutable proof of peer-to-peer deals without requiring both parties to register. Our core differentiator is **asymmetric registration** — only the deal creator needs an account, while recipients simply scan, sign, and agree.
+## 📋 Overview
 
-> "Evidence that holds up."
+**Proofo** is a modern web platform for creating verifiable, cryptographically-sealed peer-to-peer agreements. Our key innovation is **asymmetric registration** — only the deal creator needs an account, while recipients simply scan a QR code, review terms, and sign.
 
-## Features (MVP)
+Perfect for:
+- 🛒 **Marketplace transactions** — Buying/selling items with proof of agreement
+- 🔧 **Service agreements** — Freelance work, repairs, rentals
+- 🤝 **Personal deals** — Loans between friends, roommate agreements
+- 📝 **Any handshake deal** that needs documentation
 
-- 🤝 **Asymmetric Registration** - Creator registers, recipient just scans
-- ✍️ **Visual Signatures** - Draw-to-sign for psychological trust
-- 🔐 **Cryptographic Sealing** - SHA-256 hash for verification
-- 📱 **Mobile-First PWA** - Works beautifully on any device
-- 📄 **Instant PDF Receipts** - Professional documentation
-- 🎨 **Beautiful UI** - Modern, responsive design with animations
-- 🔍 **Deal Verification** - Verify any deal's authenticity
-- 📊 **Audit Trail** - Complete timeline of deal events
+---
 
-## Tech Stack
+## ✨ Features
 
-- **Frontend**: Next.js 16, TypeScript, Tailwind CSS v4, Radix UI
-- **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Animation**: Framer Motion
-- **State**: Zustand
-- **Signatures**: react-signature-canvas
-- **QR Codes**: qrcode.react
+| Feature | Description |
+|---------|-------------|
+| **🤝 Asymmetric Registration** | Only creators need accounts — recipients just scan & sign |
+| **✍️ Visual Signatures** | Draw-to-sign experience for psychological trust |
+| **🔐 Cryptographic Sealing** | SHA-256 hash creates tamper-proof verification |
+| **📱 Mobile-First PWA** | Installable progressive web app for any device |
+| **📄 PDF Receipts** | Auto-generated professional documentation |
+| **🔍 Deal Verification** | Anyone can verify authenticity via QR code or Deal ID |
+| **📊 Audit Trail** | Complete immutable timeline of all deal events |
+| **🎨 Modern UI** | Beautiful animations with dark/light mode support |
+| **📧 Email Notifications** | Automated deal invitations via Resend |
+| **📁 Templates** | Pre-built and custom deal templates |
 
-## Quick Start (Demo Mode)
+---
 
-The application can run in demo mode without any backend configuration:
+## 🛠 Tech Stack
 
-```bash
-# Install dependencies
-npm install
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 16 (App Router) |
+| **Language** | TypeScript |
+| **Styling** | Tailwind CSS v4 |
+| **UI Components** | Radix UI Primitives |
+| **Animation** | Framer Motion |
+| **State Management** | Zustand |
+| **Database** | Supabase (PostgreSQL) |
+| **Authentication** | Supabase Auth (Magic Links, OAuth) |
+| **Email** | Resend |
+| **PDF Generation** | jsPDF |
+| **Signatures** | react-signature-canvas |
+| **QR Codes** | qrcode.react |
+| **PWA** | Serwist |
 
-# Run development server
-npm run dev
+---
 
-# Build for production
-npm run build
-
-# Run linting
-npm run lint
-```
-
-In demo mode, all data is stored locally in the browser using Zustand with localStorage persistence.
-
-## Full Setup with Supabase
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- npm or pnpm
-- A [Supabase](https://supabase.com) account (free tier works)
+- pnpm (recommended) or npm
 
-### 1. Create a Supabase Project
+### Installation
 
-1. Go to [supabase.com](https://supabase.com) and sign up/login
-2. Click "New Project" and fill in:
-   - **Organization**: Select or create one
-   - **Project name**: `proofo` (or your preferred name)
-   - **Database Password**: Generate a strong password (save this!)
-   - **Region**: Choose closest to your users
-3. Wait for the project to be provisioned (takes ~2 minutes)
+```bash
+# Clone the repository
+git clone https://github.com/your-org/proofo.git
+cd proofo
 
-### 2. Set Up the Database Schema
+# Install dependencies
+pnpm install
 
-1. In your Supabase dashboard, go to **SQL Editor**
-2. Click "New Query"
-3. Copy the entire contents of [`supabase/schema.sql`](./supabase/schema.sql) and paste it
-4. Click "Run" to execute the schema
-5. You should see "Success. No rows returned" - this is correct!
+# Start development server
+pnpm dev
+```
 
-### 3. Configure Authentication
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-1. In Supabase dashboard, go to **Authentication** > **Providers**
-2. **Email**: Enabled by default. For magic links:
-   - Go to **Authentication** > **Email Templates**
-   - Customize the "Magic Link" template if desired
-3. **Google OAuth** (optional):
-   - Go to **Authentication** > **Providers** > **Google**
-   - Toggle "Enable Sign in with Google"
-   - Follow the setup instructions to get Google OAuth credentials
-   - Add your Google Client ID and Secret
+### Demo Mode
 
-4. **Site URL Configuration**:
-   - Go to **Authentication** > **URL Configuration**
-   - Set **Site URL**: `http://localhost:3000` (for development)
-   - Add **Redirect URLs**:
-     - `http://localhost:3000/auth/callback`
-     - Your production URL (e.g., `https://yourapp.com/auth/callback`)
+The app runs in **demo mode** without any backend configuration. All data is stored locally in the browser using Zustand with localStorage persistence.
 
-### 4. Get Your API Keys
+---
 
-1. Go to **Settings** > **API** in your Supabase dashboard
-2. Note these values:
-   - **Project URL** (looks like `https://xxxxx.supabase.co`)
-   - **anon public** key (long string starting with `eyJ...`)
+## ⚙️ Production Setup
 
-### 5. Configure Environment Variables
+### Environment Variables
 
 Create a `.env.local` file in the project root:
 
-```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
-# Optional: For production deployment
-# NEXT_PUBLIC_APP_URL=https://yourapp.com
+# Email (Resend)
+RESEND_API_KEY=re_xxxxxxxxxxxx
 
-# Optional: Email Service (Resend)
-# Required for sending deal receipts via email
-# Sign up at https://resend.com and get your API key
-# RESEND_API_KEY=re_xxxxxxxxxx
-# RESEND_FROM_EMAIL=Proofo <noreply@yourdomain.com>
+# App
+NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
 
-### 6. Configure Email Service (Optional)
+### Supabase Setup
 
-To enable email functionality (sending deal receipts with PDF attachments):
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run the schema in `supabase/schema.sql` via SQL Editor
+3. Configure Authentication:
+   - Enable Email provider (magic links)
+   - Set Site URL and Redirect URLs
+   - Optionally enable Google OAuth
+4. Copy your Project URL and Anon Key to `.env.local`
 
-1. Sign up for [Resend](https://resend.com) (free tier includes 3,000 emails/month)
-2. Create an API key in the Resend dashboard
-3. Add your domain and verify it (or use the sandbox for testing)
-4. Add these environment variables:
+For detailed setup instructions, see [SUPABASE_OTP_SETUP.md](SUPABASE_OTP_SETUP.md).
 
-```bash
-RESEND_API_KEY=re_xxxxxxxxxx
-RESEND_FROM_EMAIL=Proofo <noreply@yourdomain.com>
-```
+---
 
-**Note:** Without these variables, the app will show "Email service not configured" when trying to send receipts. PDF downloads will still work without email configuration.
-
-### 7. Run the Application
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-## Testing the Full Flow
-
-### 1. Creator Flow (Sign Up & Create Deal)
-
-1. Click "Get Started" or go to `/login`
-2. Sign in with Google or enter your email for a magic link
-3. Complete the onboarding (enter your name)
-4. Click "New Deal" to create your first proof
-5. Select a template (e.g., "Lend Item")
-6. Fill in the recipient's name and deal details
-7. Review and click "Create Deal"
-8. Copy the share link or scan the QR code
-
-### 2. Recipient Flow (Sign Deal)
-
-1. Open the deal link in a new browser/incognito window
-2. Review the deal terms
-3. Click "Sign to Accept"
-4. Draw your signature on the pad
-5. Click "Agree & Seal"
-6. (Optional) Enter your email to receive a receipt
-7. See the confirmation with deal seal hash
-
-### 3. Verification Flow
-
-1. Go to `/verify`
-2. Enter a deal ID (the short code from the URL)
-3. View the verification status and audit trail
-
-### 4. Dashboard Features
-
-- **View all deals**: See pending, confirmed, and voided deals
-- **Nudge**: Re-copy link for pending deals
-- **Void**: Cancel a deal (creates a voided status)
-- **Filter**: Filter by status
-- **Search**: Search by title or recipient name
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── page.tsx           # Landing page
-│   ├── dashboard/         # User dashboard
-│   ├── deal/new/          # Deal creation wizard
-│   ├── d/[id]/            # Recipient confirmation page
-│   ├── demo/              # Interactive demo
-│   ├── login/             # Authentication
-│   ├── auth/callback/     # Auth callback handler
-│   ├── settings/          # User settings
-│   ├── templates/         # Deal templates browser
-│   └── verify/            # Deal verification
-├── components/
-│   ├── ui/                # Reusable UI components (shadcn/ui style)
-│   ├── signature-pad.tsx  # Signature canvas component
-│   ├── onboarding-modal.tsx
-│   └── providers/         # React context providers
-├── lib/
-│   ├── utils.ts           # Utility functions
-│   ├── templates.ts       # Deal templates
-│   ├── crypto.ts          # Cryptographic functions
-│   └── supabase/          # Supabase client and services
-│       ├── client.ts      # Supabase client
-│       ├── auth.ts        # Auth functions
-│       ├── deals.ts       # Deal CRUD operations
-│       └── types.ts       # Database types
-├── store/                 # Zustand state management
-├── types/                 # TypeScript types
-└── supabase/
-    └── schema.sql         # Database schema
+├── app/                    # Next.js App Router
+│   ├── (main)/            # Protected dashboard routes
+│   │   └── dashboard/     # Dashboard, agreements, settings, etc.
+│   ├── actions/           # Server actions
+│   ├── auth/              # Auth callback handling
+│   ├── d/[id]/            # Public deal view/signing
+│   ├── deal/new/          # Deal creation flow
+│   └── login/             # Authentication page
+├── components/            # React components
+│   ├── ui/               # Reusable UI primitives
+│   └── providers/        # Context providers
+├── lib/                   # Utilities
+│   ├── supabase/         # Supabase client & helpers
+│   ├── crypto.ts         # Cryptographic hashing
+│   ├── pdf.ts            # PDF generation
+│   └── email.ts          # Email sending
+├── store/                # Zustand state management
+└── types/                # TypeScript definitions
 ```
 
-## User Journey
+---
 
-1. **Creator** opens Proofo and creates a deal using templates
-2. **Creator** generates QR code/shareable link
-3. **Recipient** scans QR or opens link (no signup required)
-4. **Recipient** reviews deal, signs on screen, clicks "Agree"
-5. **System** seals deal with cryptographic hash
-6. **Both parties** can view the confirmed deal and verification
+## 📜 Scripts
 
-## Development
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start development server |
+| `pnpm build` | Build for production |
+| `pnpm start` | Start production server |
+| `pnpm lint` | Run ESLint |
 
-### Commands
+---
 
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-```
+## 🔒 Security
 
-### Key Files to Understand
+- **Cryptographic Sealing**: Every confirmed deal is sealed with a SHA-256 hash of its contents
+- **Access Tokens**: Secure, expiring tokens for recipient access
+- **Row Level Security**: Supabase RLS policies protect data at the database level
+- **Audit Logging**: Append-only event log for complete traceability
 
-- `src/store/index.ts` - Zustand store with all app state
-- `src/lib/supabase/` - Supabase integration
-- `src/app/d/[id]/page.tsx` - Recipient confirmation flow
-- `src/app/deal/new/page.tsx` - Deal creation wizard
+---
 
-## Environment Variables Reference
+## 🤝 Contributing
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | For auth | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | For auth | Your Supabase anon/public key |
-| `NEXT_PUBLIC_APP_URL` | For production | Your production app URL |
-| `RESEND_API_KEY` | For email | Your Resend API key for sending emails |
-| `RESEND_FROM_EMAIL` | For email | Sender email address (e.g., `Proofo <noreply@yourdomain.com>`) |
+Contributions are welcome! Please read our contributing guidelines before submitting a PR.
 
-## Troubleshooting
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### "Supabase is not configured" message
+---
 
-This means the app is running in demo mode. Add your Supabase environment variables to enable full functionality.
+## 📄 License
 
-### "Email service not configured" message
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-This means the email service (Resend) is not set up. Add `RESEND_API_KEY` to your environment variables to enable email receipts. See the [Email Service Setup](#6-configure-email-service-optional) section.
+---
 
-### Magic link not arriving
-
-1. Check your spam folder
-2. Verify the email in Supabase Auth dashboard
-3. Check Supabase logs for any delivery errors
-
-### Google OAuth not working
-
-1. Ensure you've added `http://localhost:3000/auth/callback` to authorized redirect URIs in Google Cloud Console
-2. Verify the Client ID and Secret are correct in Supabase
-
-### Database errors
-
-1. Make sure you ran the entire `schema.sql` file
-2. Check the Supabase Logs for specific error messages
-3. Verify RLS policies are enabled
-
-## License
-
-MIT
+<div align="center">
+  <p><strong>Proofo</strong> — Evidence that holds up. 🔏</p>
+</div>

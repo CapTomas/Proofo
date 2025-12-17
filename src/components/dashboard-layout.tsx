@@ -42,10 +42,10 @@ const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/dashboard/agreements", label: "Agreements", icon: FileText },
   { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
-  { href: "/templates", label: "Templates", icon: LayoutTemplate },
+  { href: "/dashboard/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/dashboard/people", label: "People", icon: Users },
   { href: "/dashboard/verify", label: "Verify", icon: Shield },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
