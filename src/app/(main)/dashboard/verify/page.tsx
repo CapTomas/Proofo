@@ -329,12 +329,12 @@ function DashboardVerifyContent() {
                       <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Status</h3>
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border">
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                          searchedDeal.status === 'sealed' ? 'bg-emerald-500/10 text-emerald-600' :
-                          searchedDeal.status === 'active' ? 'bg-blue-500/10 text-blue-600' :
+                          searchedDeal.status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-600' :
+                          (searchedDeal.status === 'pending' || searchedDeal.status === 'sealing') ? 'bg-blue-500/10 text-blue-600' :
                           'bg-secondary text-muted-foreground'
                         }`}>
-                          {searchedDeal.status === 'sealed' ? <CheckCircle2 className="h-4 w-4" /> :
-                           searchedDeal.status === 'active' ? <Clock className="h-4 w-4" /> :
+                          {searchedDeal.status === 'confirmed' ? <CheckCircle2 className="h-4 w-4" /> :
+                           (searchedDeal.status === 'pending' || searchedDeal.status === 'sealing') ? <Clock className="h-4 w-4" /> :
                            <FileCheck className="h-4 w-4" />}
                         </div>
                         <div>
