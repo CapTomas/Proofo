@@ -432,6 +432,7 @@ export default function TemplatesPage() {
 
       {/* Templates Grid/List */}
       <motion.div
+        key={`${selectedCategory}-${searchQuery}-${viewMode}`}
         variants={containerVariants}
         initial="hidden"
         animate="show"

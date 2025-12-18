@@ -383,6 +383,7 @@ export default function InboxPage() {
       <AnimatePresence mode="popLayout">
         {filteredDeals.length > 0 ? (
           <motion.div
+            key={`${activeTab}-${filterType}-${viewMode}`}
             variants={containerVariants}
             initial="hidden"
             animate="show"

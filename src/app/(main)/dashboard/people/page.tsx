@@ -791,6 +791,7 @@ export default function PeoplePage() {
 
       {/* Content */}
       <motion.div
+        key={`${roleFilter}-${showHidden}-${sortOrder}-${viewMode}`}
         variants={containerVariants}
         initial="hidden"
         animate="show"
