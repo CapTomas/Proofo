@@ -158,7 +158,7 @@ export const dashboardStyles = {
   // Card styling
   cardBase: "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card rounded-2xl cursor-pointer",
   cardContent: "p-4 flex flex-col h-full",
-  cardFooter: "mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2 bg-background/50",
+  cardFooter: "mt-auto p-4 pt-3 flex items-center justify-between gap-2 bg-background dark:bg-background/50",
   cardFooterActions: "flex items-center gap-1",
   cardFooterActionButton: "h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors",
   cardFooterPrimaryAction: "h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors",
