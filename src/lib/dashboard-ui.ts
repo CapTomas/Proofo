@@ -54,6 +54,61 @@ export const cardFlipTransition = {
   ease: [0.23, 1, 0.32, 1] as const,
 };
 
+/**
+ * Card hover animation variants for lift effect
+ * Apply to cards with whileHover="hover"
+ */
+export const cardHoverVariants: Variants = {
+  initial: { y: 0 },
+  hover: {
+    y: -4,
+    transition: {
+      duration: 0.2,
+      ease: "easeOut"
+    }
+  },
+};
+
+/**
+ * Smooth stagger container with slower stagger for premium feel
+ */
+export const smoothContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.03,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+/**
+ * Enhanced item variants with subtle slide-up and scale
+ */
+export const enhancedItemVariants: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 8,
+    scale: 0.98
+  },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 24
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.96,
+    transition: { duration: 0.15 }
+  }
+};
+
 // =============================================================================
 // STYLE CLASSES
 // =============================================================================

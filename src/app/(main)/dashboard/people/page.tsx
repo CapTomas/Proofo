@@ -43,7 +43,7 @@ import { timeAgo, formatDate } from "@/lib/crypto";
 import { cn, getUserInitials } from "@/lib/utils";
 import { Deal } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
-import { HighlightText } from "@/components/dashboard/shared-components";
+import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 
 // --- TYPES & CONFIG ---
 
@@ -351,7 +351,7 @@ const ContactCard = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+                    className={dashboardStyles.cardFooterDestructiveAction}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(contact.id); }}
                     title="Hide Contact"
                   >
@@ -709,16 +709,12 @@ export default function PeoplePage() {
           <Search className={dashboardStyles.searchIcon} />
           <Input
             ref={searchInputRef}
-            placeholder="Search contacts... (Press '/')"
+            placeholder="Search contacts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={cn(dashboardStyles.searchInput, "pr-10")}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center pointer-events-none">
-            <kbd className={dashboardStyles.keyboardHint}>
-              <Command className="h-2 w-2 mr-1" />/
-            </kbd>
-          </div>
+          <KeyboardHint />
         </div>
 
         {/* Right: Controls (Fixed, No Overflow) */}

@@ -9,7 +9,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
  * 2. Protects dashboard routes from unauthenticated access
  * 3. Redirects authenticated users away from login page
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Static files and assets - skip entirely

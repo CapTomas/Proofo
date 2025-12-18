@@ -32,45 +32,10 @@ import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
-import { dashboardStyles, containerVariants, itemVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard } from "@/components/dashboard/shared-components";
+import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
+import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint } from "@/components/dashboard/shared-components";
 
-// --- CONFIG & UTILS ---
-
-const statusConfig: Record<DealStatus, { label: string; color: string; icon: any; bg: string; border: string; badgeVariant: "warning" | "success" | "destructive" | "secondary" }> = {
-  pending: {
-    label: "Pending",
-    color: "text-amber-600",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-    icon: Clock,
-    badgeVariant: "warning"
-  },
-  sealing: {
-    label: "Sealing",
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    icon: RefreshCw,
-    badgeVariant: "secondary"
-  },
-  confirmed: {
-    label: "Sealed",
-    color: "text-emerald-600",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    icon: CheckCircle2,
-    badgeVariant: "success"
-  },
-  voided: {
-    label: "Voided",
-    color: "text-destructive",
-    bg: "bg-destructive/10",
-    border: "border-destructive/20",
-    icon: XCircle,
-    badgeVariant: "destructive"
-  },
-};
+// statusConfig imported from shared-components
 
 // CopyableId and StatCard imported from shared-components
 
@@ -276,6 +241,10 @@ export default function AgreementsPage() {
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  useSearchShortcut(searchInputRef);
 
   // Navigate to deal
   const handleNavigate = (dealId: string) => {
@@ -466,11 +435,13 @@ export default function AgreementsPage() {
         <div className={dashboardStyles.searchInputContainer}>
           <Search className={dashboardStyles.searchIcon} />
           <Input
+            ref={searchInputRef}
             placeholder="Search by title, name, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={dashboardStyles.searchInput}
           />
+          <KeyboardHint />
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">

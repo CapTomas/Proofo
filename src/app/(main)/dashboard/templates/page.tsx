@@ -34,7 +34,7 @@ import { dealTemplates } from "@/lib/templates";
 import { cn } from "@/lib/utils";
 import { DealTemplate } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
-import { HighlightText } from "@/components/dashboard/shared-components";
+import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 
 // --- CONFIGURATION ---
 
@@ -395,11 +395,7 @@ export default function TemplatesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={dashboardStyles.searchInput}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center pointer-events-none">
-            <kbd className={dashboardStyles.keyboardHint}>
-              <Command className="h-2.5 w-2.5 mr-1" />/
-            </kbd>
-          </div>
+          <KeyboardHint />
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">

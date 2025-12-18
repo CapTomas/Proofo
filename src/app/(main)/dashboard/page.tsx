@@ -44,7 +44,7 @@ import { getUserDealsAction, sendDealInvitationAction } from "@/app/actions/deal
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
 import { dashboardStyles } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard } from "@/components/dashboard/shared-components";
+import { CopyableId, StatCard, statusConfig } from "@/components/dashboard/shared-components";
 
 // --- CONFIG ---
 
@@ -56,40 +56,7 @@ const PRO_TIPS = [
   "Stay organized: Add a 'Due Date' field to templates to populate your Upcoming Deadlines widget."
 ];
 
-const statusConfig: Record<DealStatus, { label: string; color: string; icon: any; bg: string; border: string; badgeVariant: "warning" | "success" | "destructive" | "secondary" }> = {
-  pending: {
-    label: "Pending",
-    color: "text-amber-600",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-    icon: Clock,
-    badgeVariant: "warning"
-  },
-  sealing: {
-    label: "Sealing",
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    icon: RefreshCw,
-    badgeVariant: "secondary"
-  },
-  confirmed: {
-    label: "Sealed",
-    color: "text-emerald-600",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    icon: CheckCircle2,
-    badgeVariant: "success"
-  },
-  voided: {
-    label: "Voided",
-    color: "text-destructive",
-    bg: "bg-destructive/10",
-    border: "border-destructive/20",
-    icon: XCircle,
-    badgeVariant: "destructive"
-  },
-};
+// statusConfig imported from shared-components
 
 // --- UTILS ---
 

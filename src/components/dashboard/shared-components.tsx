@@ -1,16 +1,112 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, getStatCardClass } from "@/lib/dashboard-ui";
+import { DealStatus } from "@/types";
+
+// =============================================================================
+// SHARED CONFIGURATION
+// =============================================================================
+
+/**
+ * Unified status configuration for deals
+ * Used across Dashboard Home, Agreements, and Inbox pages
+ */
+export const statusConfig: Record<DealStatus, {
+  label: string;
+  color: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bg: string;
+  border: string;
+  badgeVariant: "warning" | "success" | "destructive" | "secondary";
+}> = {
+  pending: {
+    label: "Pending",
+    color: "text-amber-600",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/20",
+    icon: Clock,
+    badgeVariant: "warning"
+  },
+  sealing: {
+    label: "Sealing",
+    color: "text-blue-600",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    icon: RefreshCw,
+    badgeVariant: "secondary"
+  },
+  confirmed: {
+    label: "Sealed",
+    color: "text-emerald-600",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/20",
+    icon: CheckCircle2,
+    badgeVariant: "success"
+  },
+  voided: {
+    label: "Voided",
+    color: "text-destructive",
+    bg: "bg-destructive/10",
+    border: "border-destructive/20",
+    icon: XCircle,
+    badgeVariant: "destructive"
+  },
+};
+
+// =============================================================================
+// SHARED HOOKS
+// =============================================================================
+
+/**
+ * Hook to focus search input on "/" keypress
+ * Used across all dashboard pages for consistent keyboard navigation
+ */
+export function useSearchShortcut(inputRef: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [inputRef]);
+}
 
 // =============================================================================
 // SHARED DASHBOARD COMPONENTS
 // =============================================================================
+
+/**
+ * KeyboardHint - Shows a keyboard shortcut hint (e.g., ⌘/)
+ * Used in search bars across all dashboard pages
+ */
+export const KeyboardHint = ({
+  shortcut = "/",
+  showCommand = true,
+  className
+}: {
+  shortcut?: string;
+  showCommand?: boolean;
+  className?: string;
+}) => (
+  <div className={cn(
+    "absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center pointer-events-none",
+    className
+  )}>
+    <kbd className={dashboardStyles.keyboardHint}>
+      {showCommand && <span className="text-[15px] mr-1">⌘</span>}
+      {shortcut}
+    </kbd>
+  </div>
+);
 
 /**
  * CopyableId - A badge that copies an ID to clipboard on click
