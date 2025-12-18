@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -16,6 +16,7 @@ import {
   Eye,
   UserPlus,
   X,
+  XCircle,
   Copy,
   Check,
   Mail,
@@ -41,6 +42,8 @@ import { useAppStore } from "@/store";
 import { timeAgo, formatDate } from "@/lib/crypto";
 import { cn, getUserInitials } from "@/lib/utils";
 import { Deal } from "@/types";
+import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
+import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 
 // --- TYPES & CONFIG ---
 
@@ -58,41 +61,7 @@ interface Contact {
 type SortOption = "recent" | "name_asc" | "name_desc" | "deals_count";
 type ViewMode = "grid" | "list";
 
-// --- ANIMATION VARIANTS ---
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-    },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
-  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
-};
-
-// --- HELPER COMPONENTS ---
-
-const HighlightText = ({ text, query }: { text: string; query: string }) => {
-  if (!query) return <span>{text}</span>;
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
-  return (
-    <span>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <span key={i} className="bg-primary/20 text-foreground rounded-xs px-0.5 font-medium">{part}</span>
-        ) : (
-          part
-        )
-      )}
-    </span>
-  );
-};
+// HighlightText imported from shared-components
 
 const CopyableText = ({ text, className }: { text: string; className?: string }) => {
   const [copied, setCopied] = useState(false);
@@ -316,7 +285,7 @@ const ContactCard = ({
             rotateY: isFlipped ? 180 : 0,
             opacity: isFlipped ? 0 : 1
           }}
-          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+          transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
         >
           <div className="flex flex-col h-full">
@@ -359,15 +328,15 @@ const ContactCard = ({
             </div>
 
             {/* Footer Action Bar */}
-            <div className="mt-auto p-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2 bg-background/50">
+            <div className={dashboardStyles.cardFooter}>
               <button
                 onClick={() => onAction("deal", contact)}
-                className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+                className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer"
               >
                 Start Deal
               </button>
 
-              <div className="flex items-center gap-1">
+              <div className={dashboardStyles.cardFooterActions}>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -382,11 +351,11 @@ const ContactCard = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+                    className={dashboardStyles.cardFooterDestructiveAction}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(contact.id); }}
                     title="Hide Contact"
                   >
-                    <EyeOff className="h-3.5 w-3.5" />
+                    <XCircle className="h-3.5 w-3.5" />
                   </Button>
                 )}
 
@@ -429,7 +398,7 @@ const ContactCard = ({
             rotateY: isFlipped ? 0 : -180,
             opacity: isFlipped ? 1 : 0
           }}
-          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+          transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
         >
           <CardContent className="p-5 flex flex-col h-full bg-secondary/5">
@@ -709,13 +678,13 @@ export default function PeoplePage() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={dashboardStyles.pageContainer}>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
+      <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">People</h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">Manage your network and relationships</p>
+          <h1 className={dashboardStyles.pageTitle}>People</h1>
+          <p className={dashboardStyles.pageDescription}>Manage your network and relationships</p>
         </div>
 
         <Button
@@ -724,56 +693,47 @@ export default function PeoplePage() {
           size="sm"
           className="hidden sm:flex gap-1.5 rounded-xl shadow-sm border-border/60 hover:bg-secondary/50"
         >
-          <UserPlus className="h-4 w-4" />
+          <UserPlus className={dashboardStyles.iconMd} />
           Add Contact
         </Button>
         <Button onClick={() => setShowAddModal(true)} size="icon" variant="outline" className="sm:hidden rounded-xl shadow-sm">
-          <UserPlus className="h-4 w-4" />
+          <UserPlus className={dashboardStyles.iconMd} />
         </Button>
       </div>
 
       {/* Filter Toolbar - Sticky & Glassmorphic */}
-      <div className="bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 sticky top-0 z-20 backdrop-blur-xl flex flex-col sm:flex-row gap-2">
+      <div className={dashboardStyles.filterBar}>
 
         {/* Left: Search (Grows) */}
-        <div className="relative flex-1 group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+        <div className={dashboardStyles.searchInputContainer}>
+          <Search className={dashboardStyles.searchIcon} />
           <Input
             ref={searchInputRef}
-            placeholder="Search contacts... (Press '/')"
+            placeholder="Search contacts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-10 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl"
+            className={cn(dashboardStyles.searchInput, "pr-10")}
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center pointer-events-none">
-            <kbd className="h-5 px-1.5 bg-background border border-border/50 rounded text-[10px] font-mono text-muted-foreground flex items-center shadow-sm">
-              <Command className="h-2 w-2 mr-1" />/
-            </kbd>
-          </div>
+          <KeyboardHint />
         </div>
 
         {/* Right: Controls (Fixed, No Overflow) */}
         <div className="flex items-center gap-2 shrink-0">
 
           {/* Middle: Role Filters (Scrollable on small screens) */}
-          <div className="flex items-center p-1 bg-secondary/50 rounded-xl overflow-x-auto no-scrollbar max-w-[200px] sm:max-w-none">
+          <div className={cn(dashboardStyles.toggleGroup, "items-center overflow-x-auto no-scrollbar max-w-[200px] sm:max-w-none")}>
             {["all", "recipient", "creator"].map((role) => (
               <button
                 key={role}
                 onClick={() => setRoleFilter(role as any)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all capitalize whitespace-nowrap",
-                  roleFilter === role
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
+                className={cn(getFilterPillClass(roleFilter === role), "capitalize")}
               >
                 {role === "creator" ? "Senders" : role === "recipient" ? "Recipients" : "All"}
               </button>
             ))}
           </div>
 
-          <div className="w-px h-6 bg-border/50 hidden sm:block shrink-0" />
+          <div className={dashboardStyles.divider} />
 
           {/* Hidden Toggle (Conditional - Placed separately as requested) */}
           {(hasHiddenContacts || showHidden) && (
@@ -791,7 +751,7 @@ export default function PeoplePage() {
                         )}
                         onClick={() => setShowHidden(!showHidden)}
                       >
-                        {showHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        {showHidden ? <Eye className={dashboardStyles.iconMd} /> : <EyeOff className={dashboardStyles.iconMd} />}
                       </button>
                     </div>
                   </TooltipTrigger>
@@ -800,12 +760,12 @@ export default function PeoplePage() {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <div className="w-px h-6 bg-border/50 hidden sm:block shrink-0" />
+              <div className={dashboardStyles.divider} />
             </>
           )}
 
           {/* Right: Fixed Action Group (Sort, View) */}
-          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0 gap-1 h-10 items-center">
+          <div className={cn(dashboardStyles.toggleGroup, "gap-1 h-10 items-center")}>
 
             <SortMenu current={sortOrder} onChange={setSortOrder} />
 
@@ -814,21 +774,15 @@ export default function PeoplePage() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setViewMode("grid")}
-                className={cn(
-                  "p-1.5 rounded-lg transition-all",
-                  viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
+                className={getToggleButtonClass(viewMode === "grid")}
               >
-                <LayoutGrid className="h-3.5 w-3.5" />
+                <LayoutGrid className={dashboardStyles.iconSm} />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={cn(
-                  "p-1.5 rounded-lg transition-all",
-                  viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                )}
+                className={getToggleButtonClass(viewMode === "list")}
               >
-                <ListIcon className="h-3.5 w-3.5" />
+                <ListIcon className={dashboardStyles.iconSm} />
               </button>
             </div>
           </div>
@@ -837,13 +791,11 @@ export default function PeoplePage() {
 
       {/* Content */}
       <motion.div
+        key={`${roleFilter}-${showHidden}-${sortOrder}-${viewMode}`}
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className={cn(
-          "grid gap-4 sm:gap-6",
-          viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
-        )}
+        className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
       >
         <AnimatePresence mode="popLayout">
           {processedContacts.length > 0 ? (
@@ -867,13 +819,13 @@ export default function PeoplePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="col-span-full flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border/60 rounded-3xl bg-muted/5"
+              className={cn(dashboardStyles.emptyState, "col-span-full")}
             >
-              <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+              <div className={dashboardStyles.emptyStateIcon}>
                 {showHidden ? <EyeOff className="h-8 w-8 text-muted-foreground/50" /> : <Users className="h-8 w-8 text-muted-foreground/50" />}
               </div>
-              <h3 className="text-lg font-semibold">{showHidden ? "No hidden contacts" : "No contacts found"}</h3>
-              <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1 mb-6">
+              <h3 className={dashboardStyles.emptyStateTitle}>{showHidden ? "No hidden contacts" : "No contacts found"}</h3>
+              <p className={dashboardStyles.emptyStateDescription}>
                 {searchQuery
                   ? "Try adjusting your search terms."
                   : showHidden
@@ -882,7 +834,7 @@ export default function PeoplePage() {
               </p>
               {!showHidden && (
                 <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
-                  <UserPlus className="h-4 w-4 mr-2" />
+                  <UserPlus className={cn(dashboardStyles.iconMd, "mr-2")} />
                   Add First Contact
                 </Button>
               )}

@@ -23,7 +23,6 @@ import {
   Mail,
   Copy as DuplicateIcon,
   ShieldCheck,
-  RotateCcw
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,128 +32,14 @@ import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
+import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint } from "@/components/dashboard/shared-components";
 
-// --- CONFIG & UTILS ---
+// statusConfig imported from shared-components
 
-const statusConfig: Record<DealStatus, { label: string; color: string; icon: any; bg: string; border: string; badgeVariant: "warning" | "success" | "destructive" | "secondary" }> = {
-  pending: {
-    label: "Pending",
-    color: "text-amber-600",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-    icon: Clock,
-    badgeVariant: "warning"
-  },
-  sealing: {
-    label: "Sealing",
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    icon: RefreshCw,
-    badgeVariant: "secondary"
-  },
-  confirmed: {
-    label: "Sealed",
-    color: "text-emerald-600",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    icon: CheckCircle2,
-    badgeVariant: "success"
-  },
-  voided: {
-    label: "Voided",
-    color: "text-destructive",
-    bg: "bg-destructive/10",
-    border: "border-destructive/20",
-    icon: XCircle,
-    badgeVariant: "destructive"
-  },
-};
+// CopyableId and StatCard imported from shared-components
 
-// --- MICRO COMPONENTS ---
-
-const CopyableId = ({ id, className }: { id: string, className?: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
-        className
-      )}
-      onClick={handleCopy}
-      title="Click to copy Deal ID"
-    >
-      {id}
-      {copied ? (
-        <Check className="h-3 w-3 text-emerald-500" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
-      )}
-    </Badge>
-  );
-};
-
-const StatCard = ({
-  label,
-  value,
-  icon: Icon,
-  isActive,
-  onClick,
-  colorClass = "text-primary",
-  delay = 0
-}: {
-  label: string,
-  value: string | number,
-  icon: any,
-  isActive?: boolean,
-  onClick?: () => void,
-  colorClass?: string,
-  delay?: number
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.4 }}
-    className={cn(
-      "group relative h-full bg-card hover:bg-card/80 border transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer",
-      isActive
-        ? "border-primary/50 shadow-md ring-1 ring-primary/10"
-        : "border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md"
-    )}
-    onClick={onClick}
-  >
-    <div className="flex justify-between items-start mb-2">
-      <div className={cn(
-        "p-2 rounded-xl transition-colors",
-        isActive ? "bg-primary/10 text-primary" : `bg-secondary/50 group-hover:bg-primary/10 ${colorClass.replace('text-', 'group-hover:text-')}`
-      )}>
-        <Icon className={cn(
-          "h-4 w-4 transition-colors",
-          isActive ? "text-primary" : "text-muted-foreground group-hover:text-current"
-        )} />
-      </div>
-    </div>
-    <div>
-      <div className="text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform">
-        {value}
-      </div>
-      <p className="text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate">
-        {label}
-      </p>
-    </div>
-  </motion.div>
-);
+// StatCard imported from shared-components
 
 const DealCard = ({
   deal,
@@ -162,6 +47,8 @@ const DealCard = ({
   onNudge,
   onVoid,
   onDuplicate,
+  onNavigate,
+  onVerify,
   isVoiding,
   isNudging,
   nudgeSuccess
@@ -171,6 +58,8 @@ const DealCard = ({
   onNudge: (deal: Deal) => void;
   onVoid: (id: string) => void;
   onDuplicate: (deal: Deal) => void;
+  onNavigate: (dealId: string) => void;
+  onVerify: (dealId: string) => void;
   isVoiding: string | null;
   isNudging: string | null;
   nudgeSuccess: string | null;
@@ -181,18 +70,19 @@ const DealCard = ({
 
   return (
     <motion.div
+      variants={itemVariants}
       layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
       className="group relative"
     >
-      <Link href={`/d/${deal.publicId}`}>
-        <Card className={cn(
-          "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card",
+      <Card
+        className={cn(
+          dashboardStyles.cardBase,
           deal.status === 'voided' && "opacity-60 grayscale-[0.5]"
-        )}>
-          <CardContent className="p-4 flex flex-col h-full">
+        )}
+        onClick={() => onNavigate(deal.publicId)}
+      >
+        <div className="flex flex-col h-full">
+          <CardContent className="flex-1 p-4 pb-0 flex flex-col">
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -242,95 +132,97 @@ const DealCard = ({
                 )}
               </div>
             </div>
+          </CardContent>
 
-            {/* Footer Actions */}
-            <div className="pt-3 border-t border-border/40 flex items-center justify-between gap-2 mt-auto">
-              <div className="flex items-center gap-2">
-                <CopyableId id={deal.publicId} className="bg-secondary/30" />
-                <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
-                  {timeAgo(deal.createdAt)}
-                </span>
-              </div>
+          {/* Footer Action Bar */}
+          <div className={dashboardStyles.cardFooter}>
+            <div className="flex items-center gap-2">
+              <CopyableId id={deal.publicId} className="bg-background/50" />
+              <span className="text-[10px] text-muted-foreground hidden sm:inline-block">
+                {timeAgo(deal.createdAt)}
+              </span>
+            </div>
 
-              <div className="flex gap-1" onClick={(e) => e.preventDefault()}>
-                {/* 1. Nudge (Only if pending & creator) */}
-                {deal.status === 'pending' && isCreator && (
-                  <Button
-                    size="sm"
-                    variant={nudgeSuccess === deal.id ? "default" : "secondary"}
-                    className={cn(
-                      "h-7 text-[10px] px-2.5 transition-all shadow-sm",
-                      nudgeSuccess === deal.id && "bg-emerald-500 hover:bg-emerald-600 text-white"
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNudge(deal);
-                    }}
-                    disabled={isNudging === deal.id}
-                  >
-                    {isNudging === deal.id ? (
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                    ) : nudgeSuccess === deal.id ? (
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Mail className="h-3 w-3 mr-1" />
-                    )}
-                    {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
-                  </Button>
-                )}
+            <div className={dashboardStyles.cardFooterActions} onClick={(e) => e.stopPropagation()}>
+              {/* 1. Nudge (Only if pending & creator) */}
+              {deal.status === 'pending' && isCreator && (
+                <Button
+                  size="sm"
+                  variant={nudgeSuccess === deal.id ? "default" : "secondary"}
+                  className={cn(
+                    "h-7 text-[10px] px-2.5 transition-all shadow-sm",
+                    nudgeSuccess === deal.id && "bg-emerald-500 hover:bg-emerald-600 text-white"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNudge(deal);
+                  }}
+                  disabled={isNudging === deal.id}
+                >
+                  {isNudging === deal.id ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : nudgeSuccess === deal.id ? (
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Mail className="h-3 w-3 mr-1" />
+                  )}
+                  {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
+                </Button>
+              )}
 
-                {/* 2. Duplicate (Always available) */}
+              {/* 2. Duplicate (Always available) */}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate(deal);
+                }}
+                title="Duplicate Deal"
+              >
+                <DuplicateIcon className="h-3.5 w-3.5" />
+              </Button>
+
+              {/* 3. Void (Only if pending & creator) */}
+              {deal.status === 'pending' && isCreator && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDuplicate(deal);
+                    onVoid(deal.id);
                   }}
-                  title="Duplicate Deal"
+                  disabled={isVoiding === deal.id}
+                  title="Void Deal"
                 >
-                  <DuplicateIcon className="h-3.5 w-3.5" />
+                  {isVoiding === deal.id ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
                 </Button>
+              )}
 
-                {/* 3. Void (Only if pending & creator) */}
-                {deal.status === 'pending' && isCreator && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onVoid(deal.id);
-                    }}
-                    disabled={isVoiding === deal.id}
-                    title="Void Deal"
-                  >
-                    {isVoiding === deal.id ? (
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <XCircle className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
-
-                {/* Sealed/Verify Button (Only if confirmed) */}
-                {deal.status === 'confirmed' && (
-                  <Link href={`/dashboard/verify?id=${deal.publicId}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
-                    >
-                      <ShieldCheck className="h-3 w-3" /> Verify
-                    </Button>
-                  </Link>
-                )}
-              </div>
+              {/* Sealed/Verify Button (Only if confirmed) */}
+              {deal.status === 'confirmed' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onVerify(deal.publicId);
+                  }}
+                >
+                  <ShieldCheck className="h-3 w-3" /> Verify
+                </Button>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </Link>
+          </div>
+        </div>
+      </Card>
     </motion.div>
   );
 };
@@ -349,6 +241,20 @@ export default function AgreementsPage() {
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  useSearchShortcut(searchInputRef);
+
+  // Navigate to deal
+  const handleNavigate = (dealId: string) => {
+    router.push(`/d/${dealId}`);
+  };
+
+  // Navigate to verify
+  const handleVerify = (dealId: string) => {
+    router.push(`/dashboard/verify?id=${dealId}`);
+  };
 
   // Sync Data
   const refreshDeals = async () => {
@@ -462,13 +368,13 @@ export default function AgreementsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={dashboardStyles.pageContainer}>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
+      <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">Agreements</h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">Manage and track your digital handshakes</p>
+          <h1 className={dashboardStyles.pageTitle}>Agreements</h1>
+          <p className={dashboardStyles.pageDescription}>Manage and track your digital handshakes</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
@@ -476,9 +382,9 @@ export default function AgreementsPage() {
             size="sm"
             onClick={refreshDeals}
             disabled={isRefreshing}
-            className="text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3 rounded-xl"
+            className={dashboardStyles.syncButton}
           >
-            <RefreshCw className={cn("h-4 w-4 sm:mr-1.5", isRefreshing && "animate-spin")} />
+            <RefreshCw className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")} />
             <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
           </Button>
         </div>
@@ -525,61 +431,51 @@ export default function AgreementsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className={dashboardStyles.filterBar}>
+        <div className={dashboardStyles.searchInputContainer}>
+          <Search className={dashboardStyles.searchIcon} />
           <Input
+            ref={searchInputRef}
             placeholder="Search by title, name, or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl"
+            className={dashboardStyles.searchInput}
           />
+          <KeyboardHint />
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
           {/* Active / History Toggle */}
-          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+          <div className={dashboardStyles.toggleGroup}>
             <button
               onClick={() => handleTabChange("active")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
-                activeTab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getTabButtonClass(activeTab === "active")}
             >
               Active
             </button>
             <button
               onClick={() => handleTabChange("history")}
-              className={cn(
-                "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
-                activeTab === "history" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getTabButtonClass(activeTab === "history")}
             >
               History
             </button>
           </div>
 
-          <div className="w-px h-6 bg-border/50 hidden sm:block" />
+          <div className={dashboardStyles.divider} />
 
           {/* Layout Toggle */}
-          <div className="flex bg-secondary/50 p-1 rounded-xl shrink-0">
+          <div className={dashboardStyles.toggleGroup}>
             <button
               onClick={() => setViewMode("grid")}
-              className={cn(
-                "p-1.5 rounded-lg transition-all",
-                viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getToggleButtonClass(viewMode === "grid")}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className={dashboardStyles.iconMd} />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={cn(
-                "p-1.5 rounded-lg transition-all",
-                viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
+              className={getToggleButtonClass(viewMode === "list")}
             >
-              <ListIcon className="h-4 w-4" />
+              <ListIcon className={dashboardStyles.iconMd} />
             </button>
           </div>
         </div>
@@ -589,11 +485,12 @@ export default function AgreementsPage() {
       <AnimatePresence mode="popLayout">
         {filteredDeals.length > 0 ? (
           <motion.div
+            key={`${activeTab}-${filterType}-${viewMode}`}
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
             layout
-            className={cn(
-              "grid gap-4",
-              viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-            )}
+            className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
           >
             {filteredDeals.map((deal) => (
               <DealCard
@@ -603,6 +500,8 @@ export default function AgreementsPage() {
                 onNudge={handleNudge}
                 onVoid={handleVoid}
                 onDuplicate={handleDuplicate}
+                onNavigate={handleNavigate}
+                onVerify={handleVerify}
                 isVoiding={isVoiding}
                 isNudging={isNudging}
                 nudgeSuccess={nudgeSuccess}
@@ -613,13 +512,13 @@ export default function AgreementsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border/60 rounded-3xl bg-muted/10"
+            className={dashboardStyles.emptyState}
           >
-            <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+            <div className={dashboardStyles.emptyStateIcon}>
               <FileCheck className="h-8 w-8 text-muted-foreground/50" />
             </div>
-            <h3 className="text-lg font-semibold">No agreements found</h3>
-            <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1 mb-6">
+            <h3 className={dashboardStyles.emptyStateTitle}>No agreements found</h3>
+            <p className={dashboardStyles.emptyStateDescription}>
               {searchQuery ? "Try adjusting your search terms." :
                activeTab === 'active' ? "You have no active deals." : "You have no deal history."}
             </p>

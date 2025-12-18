@@ -1,6 +1,5 @@
 <div align="center">
-  <h1>🔏 Proofo</h1>
-  <p><strong>Friction-free digital agreements that hold up.</strong></p>
+  <img src="public/git-banner.png"/>
 
   <p>
     <a href="#features"><img src="https://img.shields.io/badge/Status-Beta-blue?style=flat-square" alt="Status"></a>

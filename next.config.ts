@@ -9,7 +9,10 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   // Empty turbopack config to satisfy Next.js 16 when using webpack plugins like @serwist/next
-  turbopack: {},
+  turbopack: {
+    // Use absolute path for turbopack root to silence workspace root inference warning
+    root: "/Users/Tomas.Cap/Documents/Git/Proofonew",
+  },
 };
 
 export default withSerwist(nextConfig);
