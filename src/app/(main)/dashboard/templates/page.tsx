@@ -431,14 +431,15 @@ export default function TemplatesPage() {
       </div>
 
       {/* Templates Grid/List */}
-      <motion.div
-        key={`${selectedCategory}-${searchQuery}-${viewMode}`}
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
-      >
-        <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={`${selectedCategory}-${searchQuery}-${viewMode}`}
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          layout
+          className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
+        >
           {filteredTemplates.length > 0 ? (
             filteredTemplates.map((template, index) => (
               <TemplateCard
@@ -474,8 +475,8 @@ export default function TemplatesPage() {
               </Button>
             </motion.div>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </motion.div>
+      </AnimatePresence>
 
       {/* Create Custom Template Section */}
       <motion.div

@@ -790,14 +790,15 @@ export default function PeoplePage() {
       </div>
 
       {/* Content */}
-      <motion.div
-        key={`${roleFilter}-${showHidden}-${sortOrder}-${viewMode}`}
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
-      >
-        <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={`${roleFilter}-${showHidden}-${sortOrder}-${viewMode}`}
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          layout
+          className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
+        >
           {processedContacts.length > 0 ? (
             processedContacts.map((contact) => (
               <ContactCard
@@ -840,8 +841,8 @@ export default function PeoplePage() {
               )}
             </motion.div>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </motion.div>
+      </AnimatePresence>
 
       {/* Add Contact Dialog */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
