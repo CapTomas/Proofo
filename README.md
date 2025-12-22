@@ -12,36 +12,36 @@
 
 ---
 
-## 📋 Overview
+## Overview
 
 **Proofo** is a modern web platform for creating verifiable, cryptographically-sealed peer-to-peer agreements. Our key innovation is **asymmetric registration** — only the deal creator needs an account, while recipients simply scan a QR code, review terms, and sign.
 
 Perfect for:
-- 🛒 **Marketplace transactions** — Buying/selling items with proof of agreement
-- 🔧 **Service agreements** — Freelance work, repairs, rentals
-- 🤝 **Personal deals** — Loans between friends, roommate agreements
-- 📝 **Any handshake deal** that needs documentation
+- **Marketplace transactions** — Buying/selling items with proof of agreement
+- **Service agreements** — Freelance work, repairs, rentals
+- **Personal deals** — Loans between friends, roommate agreements
+- **Any handshake deal** that needs documentation
 
 ---
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
-| **🤝 Asymmetric Registration** | Only creators need accounts — recipients just scan & sign |
-| **✍️ Visual Signatures** | Draw-to-sign experience for psychological trust |
-| **🔐 Cryptographic Sealing** | SHA-256 hash creates tamper-proof verification |
-| **📱 Mobile-First PWA** | Installable progressive web app for any device |
-| **📄 PDF Receipts** | Auto-generated professional documentation |
-| **🔍 Deal Verification** | Anyone can verify authenticity via QR code or Deal ID |
-| **📊 Audit Trail** | Complete immutable timeline of all deal events |
-| **🎨 Modern UI** | Beautiful animations with dark/light mode support |
-| **📧 Email Notifications** | Automated deal invitations via Resend |
-| **📁 Templates** | Pre-built and custom deal templates |
+| **Asymmetric Registration** | Only creators need accounts — recipients just scan & sign |
+| **Visual Signatures** | Draw-to-sign experience for psychological trust |
+| **Cryptographic Sealing** | SHA-256 hash creates tamper-proof verification |
+| **Mobile-First PWA** | Installable progressive web app for any device |
+| **PDF Receipts** | Auto-generated professional documentation |
+| **Deal Verification** | Anyone can verify authenticity via QR code or Deal ID |
+| **Audit Trail** | Complete immutable timeline of all deal events |
+| **Modern UI** | Beautiful animations with dark/light mode support |
+| **Email Notifications** | Automated deal invitations via Resend |
+| **Templates** | Pre-built and custom deal templates |
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -61,7 +61,7 @@ Perfect for:
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -90,7 +90,7 @@ The app runs in **demo mode** without any backend configuration. All data is sto
 
 ---
 
-## ⚙️ Production Setup
+## Production Setup
 
 ### Environment Variables
 
@@ -122,7 +122,7 @@ For detailed setup instructions, see [SUPABASE_OTP_SETUP.md](SUPABASE_OTP_SETUP.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
@@ -148,7 +148,7 @@ src/
 
 ---
 
-## 📜 Scripts
+## Scripts
 
 | Command | Description |
 |---------|-------------|
@@ -159,7 +159,7 @@ src/
 
 ---
 
-## 🔒 Security
+## Security
 
 - **Cryptographic Sealing**: Every confirmed deal is sealed with a SHA-256 hash of its contents
 - **Access Tokens**: Secure, expiring tokens for recipient access
@@ -168,7 +168,7 @@ src/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting a PR.
 
@@ -180,7 +180,7 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
