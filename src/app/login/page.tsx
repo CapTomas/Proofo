@@ -72,7 +72,6 @@ function LoginContent() {
 
         // No valid session - clear any stale client state
         if (user) {
-          console.log("Clearing stale user state");
           setUser(null);
           if (typeof window !== "undefined") {
             localStorage.removeItem("proofo-storage");

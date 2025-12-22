@@ -77,19 +77,22 @@ export async function signOut(): Promise<{ error: Error | null }> {
   }
 }
 
-// Get current session
+// Get current session (uses getUser for security - validates JWT server-side)
 export async function getSession() {
   if (!isSupabaseConfigured()) {
     return { session: null, user: null };
   }
 
-  const { data: { session }, error } = await supabase.auth.getSession();
+  // SECURITY: Use getUser() instead of getSession() because getSession()
+  // only reads cookies without validating the JWT server-side
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (error || !session) {
+  if (error || !user) {
     return { session: null, user: null };
   }
 
-  return { session, user: session.user };
+  // Return user in a session-like structure for backward compatibility
+  return { session: { user }, user };
 }
 
 // Get current user profile from database

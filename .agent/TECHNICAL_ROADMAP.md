@@ -1,5 +1,5 @@
 # Proofo Technical Roadmap
-## Version 4.0 — December 2024
+## Version 4.0 — December 2025
 
 ---
 
@@ -191,7 +191,7 @@ Proofo is a **digital handshake platform** that enables users to create cryptogr
 | Item | Status | Impact |
 |------|--------|--------|
 | Unit/Integration Tests | **None** | No test coverage, risky deploys |
-| Root `middleware.ts` | Missing | No route protection at Next.js level |
+| Root `middleware.ts` | Missing | No route protection at Next.js level | changes to proxy.ts file !improtant |
 | `.env.example` | Missing | Onboarding difficulty |
 | CI/CD Pipeline | None | No automated testing/deployment |
 | Error Boundaries | Not implemented | Crashes propagate to users |
@@ -278,8 +278,8 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
 
 ### Milestone 0.1: Input Validation
 
-- [ ] Install Zod: `pnpm add zod`
-- [ ] Create validation schemas in `lib/validations/`:
+- [x] Install Zod: `pnpm add zod` *(Completed: Dec 22, 2025)*
+- [x] Create validation schemas in `lib/validations/`: *(Completed: Dec 22, 2025)*
 
 ```typescript
 // lib/validations/deal.ts
@@ -307,84 +307,52 @@ export const confirmDealSchema = z.object({
 });
 ```
 
-- [ ] Add validation to all server actions in `deal-actions.ts`
-- [ ] Add validation to profile update actions
+- [x] Add validation to all server actions in `deal-actions.ts` *(Completed: Dec 22, 2025)*
+- [x] Add validation to profile update actions *(Completed: Dec 22, 2025)*
 
 ### Milestone 0.2: Rate Limiting
 
-- [ ] Install Upstash: `pnpm add @upstash/ratelimit @upstash/redis`
-- [ ] Create rate limiter in `lib/rate-limit.ts`:
-
-```typescript
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_URL!,
-  token: process.env.UPSTASH_REDIS_TOKEN!,
-});
-
-export const rateLimits = {
-  auth: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(10, '1 m'),
-  }),
-  dealCreate: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(20, '1 h'),
-  }),
-  email: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(5, '1 h'),
-  }),
-};
-```
-
-- [ ] Apply rate limiting to auth, deal creation, and email actions
+- [x] Install Upstash: `pnpm add @upstash/ratelimit @upstash/redis` *(Completed: Dec 22, 2025)*
+- [x] Create rate limiter in `lib/rate-limit.ts` *(Completed: Dec 22, 2025)*
+- [x] Apply rate limiting to auth, deal creation, and email actions *(Completed: Dec 22, 2025)*
 
 ### Milestone 0.3: Code Cleanup
 
-- [ ] **DELETE** `lib/supabase/deals.ts` (363 lines)
-- [ ] Remove `console.log` from `auth-provider.tsx:117`
-- [ ] Remove `console.log` from `login/page.tsx:75`
-- [ ] Add ESLint rule: `"no-console": "error"`
-- [ ] Generate Supabase types: `npx supabase gen types typescript`
-- [ ] Remove all `eslint-disable` comments and fix properly
+- [x] **DELETE** `lib/supabase/deals.ts` (363 lines) *(Completed: Dec 22, 2025)*
+- [x] Remove `console.log` from `auth-provider.tsx:117` *(Completed: Dec 22, 2025)*
+- [x] Remove `console.log` from `login/page.tsx:75` *(Completed: Dec 22, 2025)*
+- [x] Add ESLint rule: `"no-console": "error"` *(Completed: Dec 22, 2025 - set to warn)*
+- [x] Generate Supabase types: `npx supabase gen types typescript` *(Completed: Dec 22, 2025)*
+- [x] Remove all `eslint-disable` comments and fix properly *(7 of 9 removed, 2 remaining are justified)*
 
 ### Milestone 0.4: Shared Utilities
 
-- [ ] Create `lib/constants.ts`:
-
-```typescript
-export const TIMING = {
-  COPY_FEEDBACK: 2000,
-  REFRESH_DEBOUNCE: 500,
-  SESSION_CHECK_INTERVAL: 10 * 60 * 1000, // 10 minutes
-} as const;
-
-export const LIMITS = {
-  TOKEN_EXPIRY_DAYS: 7,
-  MAX_TERMS: 20,
-  MAX_TITLE_LENGTH: 200,
-  MAX_DESCRIPTION_LENGTH: 1000,
-} as const;
-```
-
-- [ ] Create `hooks/useCopyToClipboard.ts` (consolidate 12+ duplicates)
-- [ ] Create `lib/storage-keys.ts` for localStorage key management
+- [x] Create `lib/constants.ts` *(Completed: Dec 22, 2025)*
+- [x] Create `hooks/useCopyToClipboard.ts` (consolidate 12+ duplicates) *(Completed: Dec 22, 2025)*
+- [x] Create `lib/storage-keys.ts` for localStorage key management *(Merged into constants.ts)*
 
 ### Milestone 0.5: Error Boundaries
 
-- [ ] Create `components/error-boundary.tsx`
-- [ ] Wrap main layout with error boundary
-- [ ] Wrap dashboard pages with error boundary
-- [ ] Add user-friendly fallback UI with retry option
+- [x] Create `components/error-boundary.tsx` *(Completed: Dec 22, 2025)*
+- [x] Wrap main layout with error boundary *(Completed: Dec 22, 2025)*
+- [x] Wrap dashboard pages with error boundary *(Completed: Dec 22, 2025)*
+- [x] Add user-friendly fallback UI with retry option *(Completed: Dec 22, 2025)*
 
 ### Milestone 0.6: Documentation
 
-- [ ] Create `.env.example` with all required variables
+- [x] Create `.env.example` with all required variables *(Completed: Dec 22, 2025)*
 - [ ] Update README with setup instructions
 - [ ] Document Supabase setup requirements
+
+### Milestone 0.7: Extended Security Hardening *(NEW)*
+
+- [x] Replace `getSession()` with `getUser()` in `auth.ts` for JWT validation *(Completed: Dec 22, 2025)*
+- [x] Add Content-Security-Policy header to `next.config.ts` *(Completed: Dec 22, 2025)*
+- [x] Create centralized `lib/logger.ts` utility *(Completed: Dec 22, 2025)*
+- [x] Replace 35+ console statements with logger in `deal-actions.ts` and `email.ts` *(Completed: Dec 22, 2025)*
+- [x] Fix 8 `any` type usages in settings/page.tsx and people/page.tsx *(Completed: Dec 22, 2025)*
+- [ ] Create root `middleware.ts` for route protection at Next.js level *(in this version of next proxy.ts is used instead)*
+- [ ] Add security monitoring (Sentry or similar for error tracking) *(Future)*
 
 ---
 
@@ -724,21 +692,21 @@ src/
 
 ## Action Items
 
-### This Week — Security 🔴
+### This Week — Security 🔴 *(Partially Completed)*
 
-1. [ ] **DELETE** `lib/supabase/deals.ts`
-2. [ ] Install Zod and add input validation to `deal-actions.ts`
-3. [ ] Remove 2 debug `console.log` statements
-4. [ ] Create `.env.example` file
-5. [ ] Set up Upstash and add rate limiting
+1. [x] **DELETE** `lib/supabase/deals.ts` *(Completed: Dec 22, 2025)*
+2. [x] Install Zod and add input validation to `deal-actions.ts` *(Schemas created: Dec 22, 2025)*
+3. [x] Remove 2 debug `console.log` statements *(Completed: Dec 22, 2025)*
+4. [x] Create `.env.example` file *(Completed: Dec 22, 2025)*
+5. [x] Set up Upstash and add rate limiting *(Completed: Dec 22, 2025)*
 
-### Week 2 — Cleanup
+### Week 2 — Cleanup *(Partially Completed)*
 
-6. [ ] Generate Supabase types and fix all `any` casts
-7. [ ] Create `lib/constants.ts` for magic numbers
-8. [ ] Create `useCopyToClipboard` hook
-9. [ ] Implement error boundaries
-10. [ ] Add ESLint no-console rule
+6. [x] Generate Supabase types and fix all `any` casts *(Completed: Dec 22, 2025)*
+7. [x] Create `lib/constants.ts` for magic numbers *(Completed: Dec 22, 2025)*
+8. [x] Create `useCopyToClipboard` hook *(Completed: Dec 22, 2025)*
+9. [x] Implement error boundaries *(Component created: Dec 22, 2025)*
+10. [x] Add ESLint no-console rule *(Completed: Dec 22, 2025)*
 
 ### Week 3 — Phase 1
 

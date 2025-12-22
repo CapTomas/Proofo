@@ -17,18 +17,8 @@ export {
 // should be imported directly from "@/lib/supabase/server" in server components
 // to avoid bundling server-only code in client components.
 
-// Deals exports
-export {
-  getUserDeals,
-  getDealByPublicId,
-  createDeal,
-  confirmDeal,
-  voidDeal,
-  markDealViewed,
-  addAuditLog,
-  getAuditLogs,
-  validateAccessToken,
-} from "./deals";
+// Note: Deal operations (create, confirm, void, etc.) are now handled by
+// server actions in "@/app/actions/deal-actions" for better security.
 
 // Middleware exports
 export { createSupabaseMiddlewareClient } from "./middleware";

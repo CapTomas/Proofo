@@ -3,6 +3,7 @@
 import { Resend } from "resend";
 import { Deal } from "@/types";
 import { formatDateTime } from "./crypto";
+import { logger } from "./logger";
 
 // Initialize Resend client
 // Note: RESEND_API_KEY should be set in environment variables
@@ -31,7 +32,7 @@ function generateReceiptEmailHTML(deal: Deal): string {
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
-          
+
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 30px 40px; border-radius: 12px 12px 0 0;">
@@ -39,11 +40,11 @@ function generateReceiptEmailHTML(deal: Deal): string {
               <p style="margin: 8px 0 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.8);">Evidence that holds up</p>
             </td>
           </tr>
-          
+
           <!-- Content -->
           <tr>
             <td style="background-color: #ffffff; padding: 40px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-              
+
               <!-- Success Badge -->
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
                 <tr>
@@ -54,20 +55,20 @@ function generateReceiptEmailHTML(deal: Deal): string {
                   </td>
                 </tr>
               </table>
-              
+
               <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #1f2937;">
                 Your agreement has been sealed!
               </h2>
               <p style="margin: 0 0 24px 0; font-size: 16px; color: #6b7280; line-height: 1.6;">
                 The agreement "${escapeHtml(deal.title)}" with ${escapeHtml(deal.creatorName)} has been cryptographically sealed and is now enforceable.
               </p>
-              
+
               <!-- Deal Summary Card -->
               <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f9fafb; border-radius: 8px; margin-bottom: 24px;">
                 <tr>
                   <td style="padding: 20px;">
                     <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">Agreement Details</h3>
-                    
+
                     <table role="presentation" style="width: 100%; border-collapse: collapse;">
                       <tr>
                         <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
@@ -105,7 +106,7 @@ function generateReceiptEmailHTML(deal: Deal): string {
                   </td>
                 </tr>
               </table>
-              
+
               <!-- Terms Section -->
               ${deal.terms.length > 0 ? `
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
@@ -122,7 +123,7 @@ function generateReceiptEmailHTML(deal: Deal): string {
                 </tr>
               </table>
               ` : ""}
-              
+
               <!-- SHA-256 Hash -->
               ${deal.dealSeal ? `
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
@@ -134,7 +135,7 @@ function generateReceiptEmailHTML(deal: Deal): string {
                 </tr>
               </table>
               ` : ""}
-              
+
               <!-- CTA Buttons -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
@@ -152,10 +153,10 @@ function generateReceiptEmailHTML(deal: Deal): string {
                   </td>
                 </tr>
               </table>
-              
+
             </td>
           </tr>
-          
+
           <!-- Footer -->
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 40px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
@@ -167,7 +168,7 @@ function generateReceiptEmailHTML(deal: Deal): string {
               </p>
             </td>
           </tr>
-          
+
         </table>
       </td>
     </tr>
@@ -237,7 +238,7 @@ export async function sendDealReceiptEmail(params: {
 
   // Check if Resend is configured
   if (!resend) {
-    console.warn("Resend API key not configured. Email not sent.");
+    logger.warn("Resend API key not configured. Email not sent.");
     return {
       success: false,
       error: "Email service not configured. Please set RESEND_API_KEY environment variable.",
@@ -280,7 +281,7 @@ export async function sendDealReceiptEmail(params: {
     const { data, error } = await resend.emails.send(emailOptions);
 
     if (error) {
-      console.error("Resend error:", error);
+      logger.error("Resend error", error);
       return { success: false, error: error.message };
     }
 
@@ -290,7 +291,7 @@ export async function sendDealReceiptEmail(params: {
       emailId: data?.id,
     };
   } catch (error) {
-    console.error("Email send error:", error);
+    logger.error("Email send error", error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send email",
@@ -310,7 +311,7 @@ export async function sendDealInvitationEmail(params: {
 
   // Check if Resend is configured
   if (!resend) {
-    console.warn("Resend API key not configured. Email not sent.");
+    logger.warn("Resend API key not configured. Email not sent.");
     return {
       success: false,
       error: "Email service not configured. Please set RESEND_API_KEY environment variable.",
@@ -340,7 +341,7 @@ export async function sendDealInvitationEmail(params: {
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
-          
+
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 30px 40px; border-radius: 12px 12px 0 0;">
@@ -348,18 +349,18 @@ export async function sendDealInvitationEmail(params: {
               <p style="margin: 8px 0 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.8);">Evidence that holds up</p>
             </td>
           </tr>
-          
+
           <!-- Content -->
           <tr>
             <td style="background-color: #ffffff; padding: 40px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-              
+
               <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; color: #1f2937;">
                 You've been sent an agreement
               </h2>
               <p style="margin: 0 0 24px 0; font-size: 16px; color: #6b7280; line-height: 1.6;">
                 ${escapeHtml(deal.creatorName)} has sent you an agreement to sign on Proofo.
               </p>
-              
+
               <!-- Deal Summary Card -->
               <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f9fafb; border-radius: 8px; margin-bottom: 24px;">
                 <tr>
@@ -369,7 +370,7 @@ export async function sendDealInvitationEmail(params: {
                   </td>
                 </tr>
               </table>
-              
+
               <!-- CTA Button -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
@@ -380,14 +381,14 @@ export async function sendDealInvitationEmail(params: {
                   </td>
                 </tr>
               </table>
-              
+
               <p style="margin: 24px 0 0 0; font-size: 13px; color: #9ca3af; text-align: center;">
                 No account needed - just click the button to review and sign.
               </p>
-              
+
             </td>
           </tr>
-          
+
           <!-- Footer -->
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 40px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
@@ -399,7 +400,7 @@ export async function sendDealInvitationEmail(params: {
               </p>
             </td>
           </tr>
-          
+
         </table>
       </td>
     </tr>
@@ -425,7 +426,7 @@ This is an automated message from Proofo.
     });
 
     if (error) {
-      console.error("Resend error:", error);
+      logger.error("Resend error", error);
       return { success: false, error: error.message };
     }
 
@@ -435,7 +436,7 @@ This is an automated message from Proofo.
       emailId: data?.id,
     };
   } catch (error) {
-    console.error("Email send error:", error);
+    logger.error("Email send error", error as Error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to send email",

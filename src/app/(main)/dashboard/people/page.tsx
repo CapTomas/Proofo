@@ -28,6 +28,7 @@ import {
   Sparkles,
   ChevronDown,
   Command,
+  LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,7 @@ const SortMenu = ({ current, onChange }: { current: SortOption, onChange: (o: So
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const options: { id: SortOption; label: string; icon: any }[] = [
+  const options: { id: SortOption; label: string; icon: LucideIcon }[] = [
     { id: "recent", label: "Recently Active", icon: Clock },
     { id: "deals_count", label: "Most Deals", icon: Sparkles },
     { id: "name_asc", label: "Name (A-Z)", icon: ArrowDownAZ },
@@ -725,7 +726,7 @@ export default function PeoplePage() {
             {["all", "recipient", "creator"].map((role) => (
               <button
                 key={role}
-                onClick={() => setRoleFilter(role as any)}
+                onClick={() => setRoleFilter(role as "all" | "recipient" | "creator")}
                 className={cn(getFilterPillClass(roleFilter === role), "capitalize")}
               >
                 {role === "creator" ? "Senders" : role === "recipient" ? "Recipients" : "All"}

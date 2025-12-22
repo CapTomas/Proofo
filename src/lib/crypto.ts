@@ -31,8 +31,7 @@ export function generateAccessToken(): string {
  * Deterministically stringify an object by sorting keys
  * This ensures {a:1, b:2} and {b:2, a:1} produce the same string
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function deterministicStringify(obj: any): string {
+export function deterministicStringify(obj: unknown): string {
   // 1. Handle primitives
   if (obj === null || typeof obj !== "object") {
     return JSON.stringify(obj);
@@ -44,9 +43,10 @@ export function deterministicStringify(obj: any): string {
   }
 
   // 3. Handle Objects (sort keys alphabetically)
-  const sortedKeys = Object.keys(obj).sort();
+  const objRecord = obj as Record<string, unknown>;
+  const sortedKeys = Object.keys(objRecord).sort();
   const parts = sortedKeys.map((key) => {
-    return `${JSON.stringify(key)}:${deterministicStringify(obj[key])}`;
+    return `${JSON.stringify(key)}:${deterministicStringify(objRecord[key])}`;
   });
 
   return "{" + parts.join(",") + "}";

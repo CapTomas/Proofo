@@ -6,7 +6,10 @@ import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
 import { deterministicStringify } from "@/lib/crypto";
-
+import { createDealSchema, confirmDealSchema, voidDealSchema } from "@/lib/validations";
+import { updateProfileSchema } from "@/lib/validations/user";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 // Helper to create Supabase server client
 async function createServerSupabaseClient() {
   const cookieStore = await cookies();
@@ -115,11 +118,24 @@ export async function createDealAction(data: {
   terms: Array<{ label: string; value: string; type: string }>;
 }): Promise<{ deal: Deal | null; shareUrl: string | null; accessToken: string | null; error: string | null }> {
   try {
+    // Validate input with Zod
+    const validation = createDealSchema.safeParse(data);
+    if (!validation.success) {
+      return { deal: null, shareUrl: null, accessToken: null, error: validation.error.issues[0]?.message || "Invalid input" };
+    }
+    const validatedData = validation.data;
+
     const supabase = await createServerSupabaseClient();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { deal: null, shareUrl: null, accessToken: null, error: "Not authenticated" };
+    }
+
+    // Check rate limit (20 deals per hour per user)
+    const rateLimitResult = await checkRateLimit("dealCreate", user.id);
+    if (!rateLimitResult.success) {
+      return { deal: null, shareUrl: null, accessToken: null, error: "Rate limit exceeded. Please try again later." };
     }
 
     // Generate secure IDs on the server
@@ -131,12 +147,12 @@ export async function createDealAction(data: {
       .insert({
         public_id: publicId,
         creator_id: user.id,
-        title: data.title,
-        description: data.description,
-        template_id: data.templateId,
-        recipient_name: data.recipientName,
-        recipient_email: data.recipientEmail || null,
-        terms: data.terms.map((t, i) => ({
+        title: validatedData.title,
+        description: validatedData.description,
+        template_id: validatedData.templateId,
+        recipient_name: validatedData.recipientName,
+        recipient_email: validatedData.recipientEmail || null,
+        terms: validatedData.terms.map((t, i) => ({
           id: `term-${i}`,
           label: t.label,
           value: t.value,
@@ -148,7 +164,7 @@ export async function createDealAction(data: {
       .single();
 
     if (dealError || !deal) {
-      console.error("Error creating deal:", dealError);
+      logger.error("Error creating deal", dealError);
       return { deal: null, shareUrl: null, accessToken: null, error: dealError?.message || "Failed to create deal" };
     }
 
@@ -165,7 +181,7 @@ export async function createDealAction(data: {
       });
 
     if (tokenError) {
-      console.error("Error creating access token:", tokenError);
+      logger.error("Error creating access token", tokenError);
       // Continue anyway, deal was created
     }
 
@@ -178,8 +194,8 @@ export async function createDealAction(data: {
         actor_id: user.id,
         actor_type: "creator",
         metadata: {
-          templateId: data.templateId,
-          recipientName: data.recipientName,
+          templateId: validatedData.templateId,
+          recipientName: validatedData.recipientName,
         },
       });
 
@@ -203,7 +219,7 @@ export async function createDealAction(data: {
       error: null,
     };
   } catch (error) {
-    console.error("Server error creating deal:", error);
+    logger.error("Server error creating deal", error);
     return { deal: null, shareUrl: null, accessToken: null, error: "Server error" };
   }
 }
@@ -228,7 +244,7 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
       error: null,
     };
   } catch (error) {
-    console.error("Error fetching deal:", error);
+    logger.error("Error fetching deal", error);
     return { deal: null, error: "Server error" };
   }
 }
@@ -237,7 +253,7 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
 export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | null; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
-    
+
     // Verify user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -267,7 +283,7 @@ export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | 
       error: null,
     };
   } catch (error) {
-    console.error("Error fetching deal by ID:", error);
+    logger.error("Error fetching deal by ID", error);
     return { deal: null, error: "Server error" };
   }
 }
@@ -282,13 +298,13 @@ export async function getAccessTokenAction(dealId: string): Promise<{ token: str
       .rpc("get_access_token_for_deal", { p_deal_id: dealId });
 
     if (error || !data) {
-      console.error("Error fetching access token:", error);
+      logger.error("Error fetching access token", error);
       return { token: null, error: error?.message || "No valid token found" };
     }
 
     return { token: data as string, error: null };
   } catch (error) {
-    console.error("Error fetching access token:", error);
+    logger.error("Error fetching access token", error);
     return { token: null, error: "Server error" };
   }
 }
@@ -314,10 +330,10 @@ export async function getTokenStatusAction(dealId: string): Promise<{
       // to allow the deal flow to continue. This handles the case where
       // the user hasn't run the updated schema.sql yet.
       if (error.code === "PGRST202") {
-        console.warn("get_token_status_for_deal function not found in database. Please run the updated schema.sql. Falling back to valid status.");
+        logger.warn("get_token_status_for_deal function not found in database. Please run the updated schema.sql. Falling back to valid status.");
         return { status: "valid", expiresAt: null, error: null };
       }
-      console.error("Error fetching token status:", error);
+      logger.error("Error fetching token status", error);
       return { status: "not_found", expiresAt: null, error: error.message };
     }
 
@@ -332,7 +348,7 @@ export async function getTokenStatusAction(dealId: string): Promise<{
       error: null
     };
   } catch (error) {
-    console.error("Error fetching token status:", error);
+    logger.error("Error fetching token status", error);
     return { status: "not_found", expiresAt: null, error: "Server error" };
   }
 }
@@ -364,7 +380,7 @@ export async function uploadSignatureAction(
     if (uploadError) {
       // No base64 fallback - storage must be properly configured
       // Base64 storage in database causes performance issues and is bad practice
-      console.error("Error uploading signature:", uploadError);
+      logger.error("Error uploading signature", uploadError);
       return { signatureUrl: null, error: `Failed to upload signature: ${uploadError.message}` };
     }
 
@@ -375,7 +391,7 @@ export async function uploadSignatureAction(
 
     return { signatureUrl: urlData.publicUrl, error: null };
   } catch (error) {
-    console.error("Error in uploadSignatureAction:", error);
+    logger.error("Error in uploadSignatureAction", error);
     return { signatureUrl: null, error: "Failed to upload signature. Please try again." };
   }
 }
@@ -401,7 +417,7 @@ export async function confirmDealAction(data: {
     );
 
     if (uploadError || !signatureUrl) {
-      console.error("Signature upload failed:", uploadError);
+      logger.error("Signature upload failed", new Error(uploadError || "Unknown upload error"));
       return { deal: null, error: "Failed to upload signature. Please try again." };
     }
 
@@ -415,7 +431,7 @@ export async function confirmDealAction(data: {
       .rpc("get_deal_by_public_id", { p_public_id: data.publicId });
 
     if (fetchError || !dealData) {
-      console.error("Error fetching deal terms for sealing:", fetchError);
+      logger.error("Error fetching deal terms for sealing", fetchError);
       return { deal: null, error: "Failed to fetch deal data for sealing" };
     }
 
@@ -447,7 +463,7 @@ export async function confirmDealAction(data: {
       });
 
     if (confirmError) {
-      console.error("Error confirming deal:", confirmError);
+      logger.error("Error confirming deal", confirmError);
       return { deal: null, error: confirmError.message };
     }
 
@@ -470,7 +486,7 @@ export async function confirmDealAction(data: {
       error: null,
     };
   } catch (error) {
-    console.error("Server error confirming deal:", error);
+    logger.error("Server error confirming deal", error);
     return { deal: null, error: "Server error" };
   }
 }
@@ -510,7 +526,7 @@ export async function voidDealAction(dealId: string): Promise<{ error: string | 
 
     return { error: null };
   } catch (error) {
-    console.error("Error voiding deal:", error);
+    logger.error("Error voiding deal", error);
     return { error: "Server error" };
   }
 }
@@ -554,7 +570,7 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
         },
       });
   } catch (error) {
-    console.error("Error marking deal viewed:", error);
+    logger.error("Error marking deal viewed", error);
   }
 }
 
@@ -611,7 +627,7 @@ export async function ensureProfileExistsAction(): Promise<{
       .single();
 
     if (insertError) {
-      console.error("Error creating profile:", insertError);
+      logger.error("Error creating profile", insertError);
       return { profile: null, error: insertError.message };
     }
 
@@ -626,7 +642,7 @@ export async function ensureProfileExistsAction(): Promise<{
       error: null,
     };
   } catch (error) {
-    console.error("Error ensuring profile exists:", error);
+    logger.error("Error ensuring profile exists", error);
     return { profile: null, error: "Server error" };
   }
 }
@@ -637,6 +653,13 @@ export async function updateProfileAction(updates: {
   avatarUrl?: string;
 }): Promise<{ error: string | null }> {
   try {
+    // Validate input with Zod
+    const validation = updateProfileSchema.safeParse(updates);
+    if (!validation.success) {
+      return { error: validation.error.issues[0]?.message || "Invalid input" };
+    }
+    const validatedUpdates = validation.data;
+
     const supabase = await createServerSupabaseClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -653,8 +676,8 @@ export async function updateProfileAction(updates: {
     const { error } = await supabase
       .from("profiles")
       .update({
-        name: updates.name,
-        avatar_url: updates.avatarUrl,
+        name: validatedUpdates.name,
+        avatar_url: validatedUpdates.avatarUrl,
       })
       .eq("id", user.id);
 
@@ -664,7 +687,7 @@ export async function updateProfileAction(updates: {
 
     return { error: null };
   } catch (error) {
-    console.error("Error updating profile:", error);
+    logger.error("Error updating profile", error);
     return { error: "Server error" };
   }
 }
@@ -714,7 +737,7 @@ export async function uploadAvatarAction(
 
     return { avatarUrl: urlData.publicUrl, error: null };
   } catch (error) {
-    console.error("Error uploading avatar:", error);
+    logger.error("Error uploading avatar", error);
     return { avatarUrl: null, error: "Server error" };
   }
 }
@@ -749,7 +772,7 @@ export async function getUserDealsAction(): Promise<{ deals: Deal[]; error: stri
 
     return { deals, error: null };
   } catch (error) {
-    console.error("Error fetching deals:", error);
+    logger.error("Error fetching deals", error);
     return { deals: [], error: "Server error" };
   }
 }
@@ -792,7 +815,7 @@ export async function getAuditLogsAction(dealId: string): Promise<{
 
     return { logs, error: null };
   } catch (error) {
-    console.error("Error fetching audit logs:", error);
+    logger.error("Error fetching audit logs", error);
     return { logs: [], error: "Server error" };
   }
 }
@@ -838,7 +861,7 @@ export async function sendDealReceiptAction(data: {
     });
 
     if (!success) {
-      console.error("Email send failed:", emailError);
+      logger.error("Email send failed", new Error(emailError || "Unknown email error"));
       return { success: false, error: emailError || "Failed to send email" };
     }
 
@@ -858,7 +881,7 @@ export async function sendDealReceiptAction(data: {
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Error sending receipt email:", error);
+    logger.error("Error sending receipt email", error);
     return { success: false, error: "Server error" };
   }
 }
@@ -909,7 +932,7 @@ export async function sendDealInvitationAction(data: {
     });
 
     if (!success) {
-      console.error("Invitation email send failed:", emailError);
+      logger.error("Invitation email send failed", new Error(emailError || "Unknown email error"));
       return { success: false, error: emailError || "Failed to send email" };
     }
 
@@ -928,7 +951,7 @@ export async function sendDealInvitationAction(data: {
 
     return { success: true, error: null };
   } catch (error) {
-    console.error("Error sending invitation email:", error);
+    logger.error("Error sending invitation email", error);
     return { success: false, error: "Server error" };
   }
 }

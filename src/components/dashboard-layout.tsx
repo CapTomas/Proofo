@@ -33,6 +33,7 @@ import { useAppStore } from "@/store";
 import { signOut, isSupabaseConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { DashboardHeader } from "./dashboard-header";
+import { ErrorBoundary } from "./error-boundary";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -334,13 +335,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Scrollable Content Area */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
             <div className="max-w-7xl mx-auto w-full">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-              >
-                {children}
-              </motion.div>
+              <ErrorBoundary showHomeButton>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  {children}
+                </motion.div>
+              </ErrorBoundary>
             </div>
           </main>
         </div>

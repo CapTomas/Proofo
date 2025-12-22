@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
+import { LucideIcon } from "lucide-react";
 import {
   User,
   Shield,
@@ -66,6 +67,10 @@ import { cn, getUserInitials } from "@/lib/utils";
 import { updateProfileAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { CopyableId } from "@/components/dashboard/shared-components";
+import { User as UserType } from "@/types";
+
+// Type for settings user (extends User with optional fields that may be locally modified)
+type SettingsUser = UserType | null;
 
 // --- CONFIGURATION ---
 
@@ -115,7 +120,7 @@ const SettingCard = ({
   variant = "default",
   onClick
 }: {
-  icon?: any,
+  icon?: LucideIcon,
   title: string,
   description?: string,
   children?: React.ReactNode,
@@ -162,7 +167,7 @@ const SettingCard = ({
 
 // --- TAB CONTENTS ---
 
-const ProfileTab = ({ user, setUser }: { user: any, setUser: any }) => {
+const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: SettingsUser) => void }) => {
   const [name, setName] = useState(user?.name || "");
   const [jobTitle, setJobTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -180,7 +185,9 @@ const ProfileTab = ({ user, setUser }: { user: any, setUser: any }) => {
       await updateProfileAction({ name });
     }
 
-    setUser({ ...user, name });
+    if (user) {
+      setUser({ ...user, name });
+    }
     setIsSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -370,7 +377,7 @@ const ProfileTab = ({ user, setUser }: { user: any, setUser: any }) => {
   );
 };
 
-const AccountTab = ({ user }: { user: any }) => {
+const AccountTab = ({ user }: { user: SettingsUser }) => {
   const sessions = [
     { id: 1, device: "MacBook Pro", browser: "Chrome", location: "Prague, CZ", current: true, icon: Monitor },
     { id: 2, device: "iPhone 15", browser: "Safari", location: "Prague, CZ", current: false, icon: Smartphone },
@@ -493,7 +500,7 @@ const AppearanceTab = () => {
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
-    setStoreTheme(newTheme as any);
+    setStoreTheme(newTheme as "light" | "dark" | "system");
   };
 
   if (!mounted) return null;
@@ -630,7 +637,7 @@ const VisualCreditCard = ({ isPro }: { isPro: boolean }) => (
   </div>
 );
 
-const BillingTab = ({ user }: { user: any }) => {
+const BillingTab = ({ user }: { user: SettingsUser }) => {
   const isPro = user?.isPro || false;
 
   return (

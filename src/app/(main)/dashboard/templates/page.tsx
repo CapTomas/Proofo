@@ -31,8 +31,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { dealTemplates } from "@/lib/templates";
+import { DealTemplate, TemplateField } from "@/types";
 import { cn } from "@/lib/utils";
-import { DealTemplate } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
 import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 
@@ -122,8 +122,7 @@ const TemplateCard = ({
             </div>
 
             <div className="hidden sm:flex items-center gap-2 mr-4">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {(isExpanded ? template.fields : template.fields.slice(0, 3)).map((field: any) => {
+              {(isExpanded ? template.fields : template.fields.slice(0, 3)).map((field: TemplateField) => {
                 const FieldIcon = fieldTypeIcons[field.type] || Type;
                 return (
                   <div key={field.id} className="flex items-center gap-1 text-[10px] text-muted-foreground bg-secondary/30 px-2 py-1.5 rounded-md border border-transparent group-hover:border-border/50 transition-colors h-7">
@@ -206,8 +205,7 @@ const TemplateCard = ({
 
               {/* Field Tags (Clickable +1) */}
               <div className="flex flex-wrap gap-1.5 mb-6 content-start flex-1 items-start">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {(isExpanded ? template.fields : template.fields.slice(0, 3)).map((field: any) => {
+                {(isExpanded ? template.fields : template.fields.slice(0, 3)).map((field: TemplateField) => {
                   const FieldIcon = fieldTypeIcons[field.type] || Type;
                   return (
                     <motion.div
@@ -311,8 +309,7 @@ const TemplateCard = ({
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar -mr-2 pr-2 space-y-2">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {template.fields.map((field: any) => {
+              {template.fields.map((field: TemplateField) => {
                 const FieldIcon = fieldTypeIcons[field.type] || Type;
                 return (
                   <div key={field.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border border-border/50 shadow-sm">

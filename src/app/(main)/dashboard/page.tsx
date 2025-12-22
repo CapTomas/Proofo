@@ -46,6 +46,13 @@ import { cn } from "@/lib/utils";
 import { dashboardStyles } from "@/lib/dashboard-ui";
 import { CopyableId, StatCard, statusConfig } from "@/components/dashboard/shared-components";
 
+// Deadline item type for upcoming deadlines widget
+interface DeadlineItem {
+  deal: Deal;
+  date: string;
+  label: string;
+}
+
 // --- CONFIG ---
 
 const PRO_TIPS = [
@@ -447,9 +454,8 @@ export default function DashboardPage() {
         const dateTerm = d.terms.find(t => t.type === "date" || t.label.toLowerCase().includes("date") || t.label.toLowerCase().includes("deadline"));
         return dateTerm ? { deal: d, date: dateTerm.value, label: dateTerm.label } : null;
       })
-      .filter(Boolean)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .filter((item): item is DeadlineItem => item !== null)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 3);
 
     return dealsWithDates;
@@ -748,8 +754,7 @@ export default function DashboardPage() {
                   </div>
                   <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-0 pr-2 pl-2">
                     <div>
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      {upcomingDeadlines.map((item: any) => (
+                      {upcomingDeadlines.map((item: DeadlineItem) => (
                         <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
                           <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
                             <div className="flex items-center gap-3">

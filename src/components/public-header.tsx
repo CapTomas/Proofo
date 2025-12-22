@@ -111,7 +111,7 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
 
   const menuItemVariants = {
     hidden: { opacity: 0, x: 20 },
-    visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+    visible: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
   };
 
   // Handle swipe to close
@@ -310,8 +310,20 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
 }
 
 // Helper component for mobile nav items
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function MobileNavLink({ href, icon: Icon, children, onClick, active, variants, description }: any) {
+interface MobileNavLinkProps {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
+  variants?: {
+    hidden: { opacity: number; x: number };
+    visible: { opacity: number; x: number; transition: { type: "spring"; stiffness: number; damping: number } };
+  };
+  description?: string;
+}
+
+function MobileNavLink({ href, icon: Icon, children, onClick, active, variants, description }: MobileNavLinkProps) {
   return (
     <motion.div variants={variants}>
       <Link href={href} onClick={onClick}>
