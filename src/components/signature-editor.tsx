@@ -180,7 +180,7 @@ export function SignatureEditor({
   }, [isOpen, setupCanvas]);
 
   // Event handlers
-  const getPoint = (e: React.PointerEvent) => {
+  const getPoint = (e: React.PointerEvent | PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0, time: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -207,7 +207,11 @@ export function SignatureEditor({
     e.preventDefault();
     e.stopPropagation();
 
-    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    // Access getCoalescedEvents from nativeEvent
+    const events = (e.nativeEvent as PointerEvent).getCoalescedEvents
+        ? (e.nativeEvent as PointerEvent).getCoalescedEvents()
+        : [e.nativeEvent as PointerEvent];
+
     events.forEach(event => {
         pointsRef.current.push(getPoint(event));
     });
