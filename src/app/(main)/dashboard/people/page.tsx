@@ -56,6 +56,7 @@ import { Deal } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
 import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 import { getContactsAction, createContactAction, updateContactAction, deleteContactAction } from "@/app/actions/contact-actions";
+import { EmptyState } from "@/components/dashboard/empty-state";
 import { toast } from "sonner";
 
 // --- TYPES & CONFIG ---
@@ -890,30 +891,22 @@ export default function PeoplePage() {
               />
             ))
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={cn(dashboardStyles.emptyState, "col-span-full")}
-            >
-              <div className={dashboardStyles.emptyStateIcon}>
-                {showHidden ? <EyeOff className="h-8 w-8 text-muted-foreground/50" /> : <Users className="h-8 w-8 text-muted-foreground/50" />}
-              </div>
-              <h3 className={dashboardStyles.emptyStateTitle}>{showHidden ? "No hidden contacts" : "No contacts found"}</h3>
-              <p className={dashboardStyles.emptyStateDescription}>
-                {searchQuery
-                  ? "Try adjusting your search terms."
-                  : showHidden
-                    ? "You haven't hidden any contacts."
-                    : "Add people or create deals to see them here."}
-              </p>
-              {!showHidden && (
+            <EmptyState
+              icon={showHidden ? EyeOff : Users}
+              title={showHidden ? "No hidden contacts" : "No contacts found"}
+              description={searchQuery
+                ? "Try adjusting your search terms."
+                : showHidden
+                  ? "You haven't hidden any contacts."
+                  : "Add people or create deals to see them here."}
+              action={!showHidden && (
                 <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
                   <UserPlus className={cn(dashboardStyles.iconMd, "mr-2")} />
                   Add First Contact
                 </Button>
               )}
-            </motion.div>
+              className="col-span-full"
+            />
           )}
         </motion.div>
       </AnimatePresence>

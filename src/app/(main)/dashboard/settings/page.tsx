@@ -74,7 +74,8 @@ import {
   getDoNotDisturbStatusAction,
   toggleDoNotDisturbAction,
   NotificationPreferences,
-  DoNotDisturbStatus
+  DoNotDisturbStatus,
+  downloadUserDataAction
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { CopyableId } from "@/components/dashboard/shared-components";
@@ -250,24 +251,35 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
   // Load persisted profile data on mount
   useEffect(() => {
     const loadProfile = async () => {
-      if (!isSupabaseConfigured() || !user || user.id.startsWith("demo-")) {
+      // 1. Supabase Mode
+      if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
+        const { profile, error } = await getUserProfileAction();
+        if (error) {
+          toast.error("Failed to load profile data");
+        } else if (profile) {
+          setName(profile.name || user?.name || "");
+          setJobTitle(profile.jobTitle || "");
+          setLocation(profile.location || "");
+          setCurrency(profile.currency || "USD");
+          setSignatureUrl(profile.signatureUrl || null);
+        }
         setIsLoading(false);
         return;
       }
 
-      const { profile, error } = await getUserProfileAction();
-      if (error) {
-        toast.error("Failed to load profile data");
-        setIsLoading(false);
-        return;
-      }
-
-      if (profile) {
-        setName(profile.name || user?.name || "");
-        setJobTitle(profile.jobTitle || "");
-        setLocation(profile.location || "");
-        setCurrency(profile.currency || "USD");
-        setSignatureUrl(profile.signatureUrl || null);
+      // 2. Demo Mode (LocalStorage)
+      const saved = localStorage.getItem("proofo-demo-profile");
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data.name) setName(data.name);
+          if (data.jobTitle) setJobTitle(data.jobTitle);
+          if (data.location) setLocation(data.location);
+          if (data.currency) setCurrency(data.currency);
+          if (data.signatureUrl) setSignatureUrl(data.signatureUrl);
+        } catch (e) {
+          console.error("Failed to parse demo profile", e);
+        }
       }
       setIsLoading(false);
     };
@@ -311,6 +323,17 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
 
       if (user) {
         setUser({ ...user, name: name.trim() });
+
+        // Save to LocalStorage if demo mode
+        if (!isSupabaseConfigured() || user.id.startsWith("demo-")) {
+           localStorage.setItem("proofo-demo-profile", JSON.stringify({
+              name: name.trim(),
+              jobTitle: jobTitle.trim(),
+              location: location.trim(),
+              currency,
+              signatureUrl
+           }));
+        }
       }
       toast.success("Profile saved successfully");
     } catch {
@@ -547,6 +570,45 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleExportData = async () => {
+    setIsDownloading(true);
+    try {
+      if (!isSupabaseConfigured() || (user && user.id.startsWith("demo-"))) {
+        toast.info("Export is only available in production mode");
+        setIsDownloading(false);
+        return;
+      }
+
+      const { data, error } = await downloadUserDataAction();
+
+      if (error) {
+        toast.error("Failed to export data", { description: error });
+        setIsDownloading(false);
+        return;
+      }
+
+      if (data) {
+        // Create blob and download
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `proofo-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success("Data export started");
+      }
+    } catch {
+      toast.error("An error occurred during export");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== "DELETE") return;
@@ -664,9 +726,15 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
           description="Download a copy of all your data in JSON format."
           action={
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
-              <Button variant="outline" size="sm" className="h-8 text-xs" disabled>
-                Export
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-2"
+                onClick={handleExportData}
+                disabled={isDownloading}
+              >
+                {isDownloading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                Export Data
               </Button>
             </div>
           }

@@ -35,6 +35,7 @@ import { DealTemplate, TemplateField } from "@/types";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
 import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
+import { EmptyState } from "@/components/dashboard/empty-state";
 
 // --- CONFIGURATION ---
 
@@ -451,26 +452,20 @@ export default function TemplatesPage() {
               />
             ))
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={cn(dashboardStyles.emptyState, "col-span-full")}
-            >
-              <div className={dashboardStyles.emptyStateIcon}>
-                <Filter className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-              <h3 className={dashboardStyles.emptyStateTitle}>No templates found</h3>
-              <p className={dashboardStyles.emptyStateDescription}>
-                Try adjusting your search or category filter.
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => { setSearchQuery(""); setSelectedCategory("All"); }}
-              >
-                Clear Filters
-              </Button>
-            </motion.div>
+            <EmptyState
+              icon={Filter}
+              title="No templates found"
+              description="Try adjusting your search or category filter."
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => { setSearchQuery(""); setSelectedCategory("All"); }}
+                >
+                  Clear Filters
+                </Button>
+              }
+              className="col-span-full"
+            />
           )}
         </motion.div>
       </AnimatePresence>

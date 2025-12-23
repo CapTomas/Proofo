@@ -13,15 +13,40 @@ import { formatDateTime } from "./crypto";
  * - Timestamp and metadata
  */
 
-// Proofo brand colors
-const COLORS = {
-  primary: "#6366f1", // Indigo-500
-  primaryDark: "#4f46e5", // Indigo-600
-  text: "#1f2937", // Gray-800
-  textLight: "#6b7280", // Gray-500
-  border: "#e5e7eb", // Gray-200
-  success: "#10b981", // Emerald-500
-  background: "#f9fafb", // Gray-50
+type ThemeType = "light" | "dark";
+
+interface ThemeColors {
+  background: string;
+  card: string;
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+  border: string;
+  primary: string;
+  success: string;
+}
+
+const THEMES: Record<ThemeType, ThemeColors> = {
+  light: {
+    background: "#f9f9f9",
+    card: "#ffffff",
+    text: "#111111",
+    textSecondary: "#444444",
+    textMuted: "#888888",
+    border: "#e1e1e1",
+    primary: "#111111",
+    success: "#10b981",
+  },
+  dark: {
+    background: "#0a0a0a",
+    card: "#121212",
+    text: "#ededed",
+    textSecondary: "#bcbcbc",
+    textMuted: "#666666",
+    border: "#262626",
+    primary: "#ededed", // In dark mode, primary text is white/light
+    success: "#059669",
+  },
 };
 
 // PDF dimensions and margins (A4 in mm)
@@ -32,11 +57,40 @@ const PAGE = {
   contentWidth: 170, // 210 - 2 * 20
 };
 
+// Typography constants
+const FONTS = {
+  header: {
+    size: 24,
+    style: "bold",
+  },
+  title: {
+    size: 16,
+    style: "bold",
+  },
+  subtitle: {
+    size: 10,
+    style: "normal",
+  },
+  body: {
+    size: 10,
+    style: "normal",
+  },
+  bodyBold: {
+    size: 10,
+    style: "bold",
+  },
+  small: {
+    size: 8,
+    style: "normal",
+  },
+};
+
 interface GeneratePDFOptions {
   deal: Deal;
   signatureDataUrl?: string;
   isPro?: boolean;
   verificationUrl?: string;
+  theme?: ThemeType;
 }
 
 /**
@@ -48,7 +102,15 @@ export async function generateDealPDF(options: GeneratePDFOptions): Promise<{
   pdfBlob: Blob;
   pdfBase64: string;
 }> {
-  const { deal, signatureDataUrl, isPro = false, verificationUrl } = options;
+  const {
+    deal,
+    signatureDataUrl,
+    isPro = false,
+    verificationUrl,
+    theme = "light",
+  } = options;
+
+  const colors = THEMES[theme];
 
   // Create new PDF document
   const doc = new jsPDF({
@@ -57,36 +119,48 @@ export async function generateDealPDF(options: GeneratePDFOptions): Promise<{
     format: "a4",
   });
 
+  // Set background color
+  doc.setFillColor(colors.background);
+  doc.rect(0, 0, PAGE.width, PAGE.height, "F");
+
   let yPosition = PAGE.margin;
 
   // === HEADER SECTION ===
-  yPosition = drawHeader(doc, yPosition, isPro);
+  yPosition = drawHeader(doc, yPosition, isPro, colors);
 
-  // === DEAL TITLE SECTION ===
-  yPosition = drawDealTitle(doc, yPosition, deal);
+  // === DEAL CARD ===
+  yPosition = drawDealCard(doc, yPosition, deal, colors);
 
-  // === PARTIES SECTION ===
-  yPosition = drawPartiesSection(doc, yPosition, deal);
+  // === TERMS CARD ===
+  // Check if we need a new page for terms
+  if (yPosition > PAGE.height - 100) {
+    doc.addPage();
+    doc.setFillColor(colors.background);
+    doc.rect(0, 0, PAGE.width, PAGE.height, "F");
+    yPosition = PAGE.margin;
+  }
+  yPosition = drawTermsCard(doc, yPosition, deal, colors);
 
-  // === TERMS SECTION ===
-  yPosition = drawTermsSection(doc, yPosition, deal);
-
-  // === SIGNATURE SECTION ===
+  // === SIGNATURE CARD ===
   if (signatureDataUrl || deal.signatureUrl) {
-    yPosition = await drawSignatureSection(
+    // Check page break
+    if (yPosition > PAGE.height - 60) {
+      doc.addPage();
+      doc.setFillColor(colors.background);
+      doc.rect(0, 0, PAGE.width, PAGE.height, "F");
+      yPosition = PAGE.margin;
+    }
+
+    yPosition = await drawSignatureCard(
       doc,
       yPosition,
-      signatureDataUrl || deal.signatureUrl || ""
+      signatureDataUrl || deal.signatureUrl || "",
+      colors
     );
   }
 
-  // === SEAL & VERIFICATION SECTION ===
-  // Note: yPosition is updated but not used after this; this is intentional
-  // as the footer uses fixed positioning
-  void drawSealSection(doc, yPosition, deal, verificationUrl);
-
-  // === FOOTER SECTION ===
-  drawFooter(doc, deal, isPro);
+  // === SEAL & FOOTER ===
+  drawSealAndFooter(doc, deal, verificationUrl, isPro, colors);
 
   // Generate outputs
   const pdfBlob = doc.output("blob");
@@ -96,357 +170,346 @@ export async function generateDealPDF(options: GeneratePDFOptions): Promise<{
 }
 
 /**
- * Draw the header with Proofo branding
+ * Draw the minimal header
  */
-function drawHeader(doc: jsPDF, y: number, isPro: boolean): number {
-  // Draw header background
-  doc.setFillColor(COLORS.primary);
-  doc.rect(0, 0, PAGE.width, 40, "F");
-
-  // Proofo Logo (text-based for simplicity)
-  doc.setTextColor("#ffffff");
-  doc.setFontSize(28);
-  doc.setFont("helvetica", "bold");
-  doc.text("Proofo", PAGE.margin, 22);
-
-  // Tagline
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Evidence that holds up", PAGE.margin, 30);
-
-  // Document type label
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("SEALED AGREEMENT", PAGE.width - PAGE.margin, 22, { align: "right" });
-
-  // Pro badge or watermark notice
-  if (isPro) {
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text("PRO", PAGE.width - PAGE.margin, 30, { align: "right" });
-  }
-
-  return 50; // Return new Y position after header
-}
-
-/**
- * Draw the deal title section
- */
-function drawDealTitle(doc: jsPDF, y: number, deal: Deal): number {
-  doc.setTextColor(COLORS.text);
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text(deal.title, PAGE.margin, y);
-  y += 8;
-
-  if (deal.description) {
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(COLORS.textLight);
-    const descLines = doc.splitTextToSize(deal.description, PAGE.contentWidth);
-    doc.text(descLines, PAGE.margin, y);
-    y += descLines.length * 5 + 5;
-  }
-
-  // Deal ID badge
-  doc.setFontSize(9);
-  doc.setTextColor(COLORS.textLight);
-  doc.text(`Deal ID: ${deal.publicId}`, PAGE.margin, y);
-  y += 10;
-
-  // Horizontal line
-  doc.setDrawColor(COLORS.border);
-  doc.setLineWidth(0.5);
-  doc.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
-  y += 10;
-
-  return y;
-}
-
-/**
- * Draw the parties section
- */
-function drawPartiesSection(doc: jsPDF, y: number, deal: Deal): number {
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(COLORS.text);
-  doc.text("Parties Involved", PAGE.margin, y);
-  y += 8;
-
-  // Creator info
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(COLORS.textLight);
-  doc.text("Creator:", PAGE.margin, y);
-  doc.setTextColor(COLORS.text);
-  doc.setFont("helvetica", "bold");
-  doc.text(deal.creatorName, PAGE.margin + 25, y);
-  y += 6;
-
-  // Recipient info
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(COLORS.textLight);
-  doc.text("Recipient:", PAGE.margin, y);
-  doc.setTextColor(COLORS.text);
-  doc.setFont("helvetica", "bold");
-  doc.text(deal.recipientName || "Recipient", PAGE.margin + 25, y);
-  y += 10;
-
-  // Horizontal line
-  doc.setDrawColor(COLORS.border);
-  doc.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
-  y += 10;
-
-  return y;
-}
-
-/**
- * Draw the terms section
- */
-function drawTermsSection(doc: jsPDF, y: number, deal: Deal): number {
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(COLORS.text);
-  doc.text("Agreement Terms", PAGE.margin, y);
-  y += 10;
-
-  // Draw terms in a table-like format
-  const termStartX = PAGE.margin;
-  const valueStartX = PAGE.margin + 60;
-  const maxValueWidth = PAGE.contentWidth - 60;
-
-  deal.terms.forEach((term, index) => {
-    // Check if we need a new page
-    if (y > PAGE.height - 60) {
-      doc.addPage();
-      y = PAGE.margin;
-    }
-
-    // Alternating background for better readability
-    if (index % 2 === 0) {
-      doc.setFillColor(COLORS.background);
-      doc.rect(PAGE.margin - 2, y - 4, PAGE.contentWidth + 4, 10, "F");
-    }
-
-    // Term label
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(COLORS.textLight);
-    doc.text(term.label + ":", termStartX, y);
-
-    // Term value
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(COLORS.text);
-    const valueLines = doc.splitTextToSize(term.value, maxValueWidth);
-    doc.text(valueLines, valueStartX, y);
-    y += Math.max(valueLines.length * 5, 8) + 2;
-  });
-
-  y += 5;
-
-  // Horizontal line
-  doc.setDrawColor(COLORS.border);
-  doc.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
-  y += 10;
-
-  return y;
-}
-
-/**
- * Draw the signature section with embedded image
- */
-async function drawSignatureSection(
+function drawHeader(
   doc: jsPDF,
   y: number,
-  signatureUrl: string
-): Promise<number> {
-  doc.setFontSize(12);
+  isPro: boolean,
+  colors: ThemeColors
+): number {
+  // Logo / Brand Name
+  doc.setTextColor(colors.primary);
+  doc.setFontSize(FONTS.header.size);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(COLORS.text);
-  doc.text("Recipient Signature", PAGE.margin, y);
-  y += 8;
+  doc.text("Proofo.", PAGE.margin, y + 8);
 
-  // Draw signature box
-  const boxWidth = 80;
-  const boxHeight = 30;
-  const boxX = PAGE.margin;
+  // Document Label
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.textMuted);
+  doc.text("SEALED AGREEMENT", PAGE.width - PAGE.margin, y + 8, {
+    align: "right",
+  });
 
-  doc.setDrawColor(COLORS.border);
-  doc.setLineWidth(1);
-  doc.rect(boxX, y, boxWidth, boxHeight);
-
-  // Try to embed signature image
-  try {
-    let imageData = signatureUrl;
-
-    // If it's a URL (not base64), we need to handle it differently
-    // For server-side storage URLs, we'll display a placeholder
-    if (signatureUrl.startsWith("http")) {
-      // For remote URLs, show a text placeholder
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(COLORS.textLight);
-      doc.text("Signature on file", boxX + boxWidth / 2, y + boxHeight / 2, {
-        align: "center",
-      });
-    } else if (signatureUrl.startsWith("data:image")) {
-      // Base64 image - embed directly
-      imageData = signatureUrl;
-      doc.addImage(imageData, "PNG", boxX + 2, y + 2, boxWidth - 4, boxHeight - 4);
-    }
-  } catch (error) {
-    // Fallback: show placeholder text
-    console.warn("Could not embed signature image:", error);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(COLORS.textLight);
-    doc.text("Signature on file", boxX + boxWidth / 2, y + boxHeight / 2, {
-      align: "center",
-    });
-  }
-
-  y += boxHeight + 10;
-
-  // Horizontal line
-  doc.setDrawColor(COLORS.border);
-  doc.setLineWidth(0.5);
-  doc.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
-  y += 10;
-
-  return y;
+  return y + 25;
 }
 
 /**
- * Draw the cryptographic seal and verification section
+ * Draw the Deal Overview Card
  */
-function drawSealSection(
+function drawDealCard(
   doc: jsPDF,
   y: number,
   deal: Deal,
-  verificationUrl?: string
+  colors: ThemeColors
 ): number {
-  // Check if we need a new page
-  if (y > PAGE.height - 80) {
-    doc.addPage();
-    y = PAGE.margin;
-  }
+  const cardStart = y;
 
-  // Section title
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(COLORS.text);
-  doc.text("Cryptographic Verification", PAGE.margin, y);
-  y += 10;
-
-  // Verification badge
-  doc.setFillColor(COLORS.success);
-  doc.roundedRect(PAGE.margin, y - 3, 80, 10, 2, 2, "F");
-  doc.setTextColor("#ffffff");
+  // Title Label
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("✓ CRYPTOGRAPHICALLY SEALED", PAGE.margin + 3, y + 3.5);
-  y += 15;
-
-  // Timestamps
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(COLORS.textLight);
-
-  doc.text("Created:", PAGE.margin, y);
-  doc.setTextColor(COLORS.text);
-  doc.text(formatDateTime(deal.createdAt), PAGE.margin + 25, y);
+  doc.setTextColor(colors.textMuted);
+  doc.text("DEAL OVERVIEW", PAGE.margin, y);
   y += 5;
 
-  if (deal.confirmedAt) {
-    doc.setTextColor(COLORS.textLight);
-    doc.text("Sealed:", PAGE.margin, y);
-    doc.setTextColor(COLORS.text);
-    doc.text(formatDateTime(deal.confirmedAt), PAGE.margin + 25, y);
-    y += 5;
-  }
-  y += 5;
+  // Draw Card Background (placeholder height, will redraw)
+  // We'll calculate height after content
+  const contentStartY = y;
+  let currentY = contentStartY + 10;
 
-  // SHA-256 Hash
-  if (deal.dealSeal) {
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(COLORS.text);
-    doc.text("SHA-256 Seal:", PAGE.margin, y);
-    y += 5;
+  // --- Content Calculation ---
 
-    // Draw hash in a monospace style box
-    doc.setFillColor(COLORS.background);
-    doc.rect(PAGE.margin, y - 3, PAGE.contentWidth, 12, "F");
-    doc.setFontSize(7);
-    doc.setFont("courier", "normal");
-    doc.setTextColor(COLORS.textLight);
-    // Split hash for better display
-    const hash = deal.dealSeal;
-    doc.text(hash, PAGE.margin + 2, y + 3);
-    y += 15;
+  // Deal Title
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.text);
+  doc.text(deal.title, PAGE.margin + 6, currentY);
+  currentY += 8;
+
+  // Deal Description
+  if (deal.description) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(colors.textSecondary);
+    const descLines = doc.splitTextToSize(deal.description, PAGE.contentWidth - 12);
+    doc.text(descLines, PAGE.margin + 6, currentY);
+    currentY += descLines.length * 4 + 6;
+  } else {
+    currentY += 4;
   }
 
-  // Verification URL
-  const verifyUrl =
-    verificationUrl ||
-    (typeof window !== "undefined"
-      ? `${window.location.origin}/verify?id=${deal.publicId}`
-      : `https://proofo.app/verify?id=${deal.publicId}`);
+  // Divider
+  doc.setDrawColor(colors.border);
+  doc.setLineWidth(0.2);
+  doc.line(PAGE.margin + 6, currentY, PAGE.width - PAGE.margin - 6, currentY);
+  currentY += 8;
 
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(COLORS.textLight);
-  doc.text("Verify this document:", PAGE.margin, y);
-  y += 5;
-  doc.setTextColor(COLORS.primary);
-  doc.textWithLink(verifyUrl, PAGE.margin, y, { url: verifyUrl });
-  y += 10;
+  // Parties Grid (Simple 2-column)
+  const colWidth = (PAGE.contentWidth - 12) / 2;
 
-  return y;
-}
-
-/**
- * Draw the footer section
- */
-function drawFooter(doc: jsPDF, deal: Deal, isPro: boolean): void {
-  const footerY = PAGE.height - 15;
-
-  // Footer line
-  doc.setDrawColor(COLORS.border);
-  doc.setLineWidth(0.5);
-  doc.line(PAGE.margin, footerY - 5, PAGE.width - PAGE.margin, footerY - 5);
-
-  // Footer text
+  // Key: Creator
   doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.textMuted);
+  doc.text("CREATOR", PAGE.margin + 6, currentY);
+
+  doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(COLORS.textLight);
+  doc.setTextColor(colors.text);
+  doc.text(deal.creatorName, PAGE.margin + 6, currentY + 6);
 
-  // Left side - Proofo branding
-  const footerText = isPro
-    ? "Generated by Proofo"
-    : "Generated by Proofo | proofo.app";
-  doc.text(footerText, PAGE.margin, footerY);
+  // Key: Recipient
+  doc.text("RECIPIENT", PAGE.margin + 6 + colWidth, currentY);
 
-  // Right side - timestamp and deal ID
-  const rightText = `${deal.publicId} | ${new Date().toISOString().split("T")[0]}`;
-  doc.text(rightText, PAGE.width - PAGE.margin, footerY, { align: "right" });
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(colors.text);
+  doc.text(deal.recipientName || "—", PAGE.margin + 6 + colWidth, currentY + 6);
 
-  // Watermark for non-Pro users
-  if (!isPro) {
-    doc.setFontSize(40);
-    doc.setTextColor(240, 240, 240);
-    doc.setFont("helvetica", "bold");
-    // Diagonal watermark
-    doc.text("PROOFO", PAGE.width / 2, PAGE.height / 2, {
-      align: "center",
-      angle: 45,
-    });
+  currentY += 16;
+
+
+  // --- Draw Card Rect ---
+  const cardHeight = currentY - contentStartY;
+  doc.setFillColor(colors.card);
+  doc.setDrawColor(colors.border);
+  doc.setLineWidth(0.3); // Subtle border
+
+  // We draw the rect BEHIND the text by moving up the logic or just redrawing (painful in jsPDF).
+  // Better approach: calculate height first then draw.
+  // Since we already calculated 'currentY', let's draw the rect now at z-index -1 logic...
+  // jsPDF paints painter's algorithm. So we must draw rect FIRST.
+  // Re-running the paint logic is safest.
+
+  // Reset Y for drawing
+  const cardY = contentStartY;
+  doc.roundedRect(PAGE.margin, cardY, PAGE.contentWidth, cardHeight, 3, 3, "FD");
+
+  // Re-draw Text (Yes, duplicate code, but cleaner than complex layout engines for raw jsPDF)
+  let drawY = cardY + 10;
+
+  // Title
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.text);
+  doc.text(deal.title, PAGE.margin + 6, drawY);
+  drawY += 8;
+
+  // Description
+  if (deal.description) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(colors.textSecondary);
+    const descLines = doc.splitTextToSize(deal.description, PAGE.contentWidth - 12);
+    doc.text(descLines, PAGE.margin + 6, drawY);
+    drawY += descLines.length * 4 + 6;
+  } else {
+    drawY += 4;
   }
+
+  // Divider
+  doc.setDrawColor(colors.border);
+  doc.line(PAGE.margin + 6, drawY, PAGE.width - PAGE.margin - 6, drawY);
+  drawY += 8;
+
+  // Parties
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.textMuted);
+  doc.text("CREATOR", PAGE.margin + 6, drawY);
+  doc.text("RECIPIENT", PAGE.margin + 6 + colWidth, drawY);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(colors.text);
+  doc.text(deal.creatorName, PAGE.margin + 6, drawY + 6);
+  doc.text(deal.recipientName || "—", PAGE.margin + 6 + colWidth, drawY + 6);
+
+  return cardY + cardHeight + 12; // Return bottom + gap
 }
 
 /**
- * Download the PDF file directly in the browser
+ * Draw Terms Card
  */
+function drawTermsCard(
+  doc: jsPDF,
+  y: number,
+  deal: Deal,
+  colors: ThemeColors
+): number {
+  // Label area
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.textMuted);
+  doc.text("TERMS AND CONDITIONS", PAGE.margin, y);
+  y += 5;
+
+  if (deal.terms.length === 0) return y;
+
+  const cardStartY = y;
+  let currentY = cardStartY + 8;
+  const termLabelWidth = 60;
+  const termValueWidth = PAGE.contentWidth - 12 - termLabelWidth;
+
+  // Pre-calculate height
+  let totalHeight = 16; // Padding top/bottom
+  const lineHeights: number[] = [];
+
+  deal.terms.forEach((term) => {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    const valueLines = doc.splitTextToSize(term.value, termValueWidth);
+    const h = Math.max(valueLines.length * 5, 6) + 6; // +6 for padding
+    lineHeights.push(h);
+    totalHeight += h;
+  });
+
+  // Draw Background
+  doc.setFillColor(colors.card);
+  doc.setDrawColor(colors.border);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(PAGE.margin, cardStartY, PAGE.contentWidth, totalHeight - 8, 3, 3, "FD"); // -8 adjustment
+
+  // Draw Content
+  currentY = cardStartY + 8;
+  deal.terms.forEach((term, idx) => {
+    const h = lineHeights[idx];
+
+    // Label
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(colors.textMuted);
+    doc.text(term.label, PAGE.margin + 6, currentY + 4);
+
+    // Value
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold"); // Bold for premium feel on values
+    doc.setTextColor(colors.text);
+    const valueLines = doc.splitTextToSize(term.value, termValueWidth);
+    doc.text(valueLines, PAGE.margin + 6 + termLabelWidth, currentY + 4);
+
+    // Divider line below (unless last)
+    if (idx < deal.terms.length - 1) {
+       doc.setDrawColor(colors.border);
+       doc.setLineWidth(0.1);
+       //  doc.line(PAGE.margin + 6, currentY + h - 3, PAGE.width - PAGE.margin - 6, currentY + h - 3);
+    }
+
+    currentY += h;
+  });
+
+  return currentY + 8;
+}
+
+/**
+ * Draw Signature Section
+ */
+async function drawSignatureCard(
+  doc: jsPDF,
+  y: number,
+  signatureUrl: string,
+  colors: ThemeColors
+): Promise<number> {
+  // Label
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(colors.textMuted);
+  doc.text("SIGNATURE", PAGE.margin, y);
+  y += 5;
+
+  const cardHeight = 50;
+
+  // Card BG
+  doc.setFillColor(colors.card);
+  doc.setDrawColor(colors.border);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(PAGE.margin, y, PAGE.contentWidth, cardHeight, 3, 3, "FD");
+
+  // Signature Content
+  const boxX = PAGE.margin + 6;
+  const boxY = y + 6;
+  const boxW = PAGE.contentWidth - 12;
+  const boxH = cardHeight - 12;
+
+  try {
+    if (signatureUrl.startsWith("data:image")) {
+       // Embed image
+       doc.addImage(signatureUrl, "PNG", boxX, boxY, boxW < 100 ? boxW : 100, boxH, undefined, "FAST");
+    } else if (signatureUrl) {
+       // URL or placeholder
+       doc.setFontSize(9);
+       doc.setFont("helvetica", "italic");
+       doc.setTextColor(colors.textMuted);
+       doc.text("Digital Signature Recorded", boxX, boxY + 10);
+    }
+  } catch (e) {
+      console.warn("Signature embed error", e);
+  }
+
+  return y + cardHeight + 12;
+}
+
+
+/**
+ * Draw Bottom Seal & Footer
+ */
+function drawSealAndFooter(
+  doc: jsPDF,
+  deal: Deal,
+  verificationUrl: string | undefined,
+  isPro: boolean,
+  colors: ThemeColors
+): void {
+  const footerH = 35;
+  const footerY = PAGE.height - PAGE.margin - footerH;
+
+  // If we are overlapping content, add a page
+  // (Caller logic handles basic flow, but footer is absolute)
+
+  // Seal Badge - Right aligned, floating above footer
+  doc.setDrawColor(colors.success);
+  doc.setFillColor(colors.success);
+  doc.setLineWidth(0.5);
+  // doc.roundedRect(PAGE.width - PAGE.margin - 40, footerY - 10, 40, 10, 5, 5, "F");
+
+  // Draw detailed seal info
+  const startX = PAGE.margin;
+
+  doc.setFontSize(8);
+  doc.setFont("courier", "normal");
+  doc.setTextColor(colors.textMuted);
+  doc.text(`ID: ${deal.publicId}`, startX, footerY);
+
+  if (deal.dealSeal) {
+      doc.text(`HASH: ${deal.dealSeal.substring(0, 32)}...`, startX, footerY + 4);
+  }
+
+  const dateStr = deal.confirmedAt
+    ? formatDateTime(deal.confirmedAt)
+    : formatDateTime(deal.createdAt);
+
+  doc.text(`TIMESTAMP: ${dateStr}`, startX, footerY + 8);
+
+  const verifyUrl = verificationUrl || `https://proofo.app/verify?id=${deal.publicId}`;
+  doc.setTextColor(colors.primary);
+  doc.textWithLink("VERIFY DOCUMENT ->", startX, footerY + 14, { url: verifyUrl });
+
+
+  // Big PROOFO watermark if not pro
+  if (!isPro) {
+      // center page
+      doc.saveGraphicsState();
+      doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
+      doc.setFontSize(60);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(colors.text);
+      doc.text("PROOFO FREE", PAGE.width/2, PAGE.height/2, { align: 'center', angle: 45 });
+      doc.restoreGraphicsState();
+  }
+}
+
+
 export function downloadPDF(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -458,9 +521,6 @@ export function downloadPDF(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Generate a filename for the PDF
- */
 export function generatePDFFilename(deal: Deal): string {
   const sanitizedTitle = deal.title
     .toLowerCase()
@@ -470,15 +530,11 @@ export function generatePDFFilename(deal: Deal): string {
   return `proofo-${sanitizedTitle}-${date}.pdf`;
 }
 
-/**
- * Convert PDF blob to base64 string for email attachment
- */
 export async function pdfBlobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      // Remove the data URL prefix to get pure base64
       const base64 = base64String.split(",")[1];
       resolve(base64);
     };

@@ -46,6 +46,7 @@ import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
 import { dashboardStyles } from "@/lib/dashboard-ui";
 import { CopyableId, StatCard, statusConfig } from "@/components/dashboard/shared-components";
+import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 
 // Deadline item type for upcoming deadlines widget
 interface DeadlineItem {
@@ -359,69 +360,10 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [user, refreshDeals]);
 
-  const stats = useMemo(() => {
-    const total = storeDeals.length;
-    const confirmed = storeDeals.filter(d => d.status === "confirmed").length;
-    const pending = storeDeals.filter(d => d.status === "pending").length;
+  // Simplified local stats for UI elements outside the main stats grid
+  const localStats = useMemo(() => {
     const inbox = storeDeals.filter(d => d.recipientEmail === user?.email && d.status === "pending").length;
-
-    const signedDeals = storeDeals.filter(d => d.status === "confirmed" && d.confirmedAt && d.createdAt);
-    let avgTimeHours = 0;
-    let avgTimeMinutes = 0;
-
-    if (signedDeals.length > 0) {
-      const totalMinutes = signedDeals.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0);
-      const avgMinutes = totalMinutes / signedDeals.length;
-      avgTimeHours = Math.floor(avgMinutes / 60);
-      avgTimeMinutes = Math.round(avgMinutes % 60);
-    }
-
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const recentDeals = storeDeals.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
-    const previousDeals = storeDeals.filter(d => {
-      const createdAt = new Date(d.createdAt);
-      return createdAt >= fourteenDaysAgo && createdAt < sevenDaysAgo;
-    });
-
-    const recentCompleted = recentDeals.filter(d => d.status === "confirmed").length;
-    const previousCompleted = previousDeals.filter(d => d.status === "confirmed").length;
-
-    const recentRate = recentDeals.length > 0 ? (recentCompleted / recentDeals.length) * 100 : 0;
-    const previousRate = previousDeals.length > 0 ? (previousCompleted / previousDeals.length) * 100 : 0;
-    const completionRateTrend = recentRate - previousRate;
-
-    const sortedConfirmedDeals = signedDeals.toSorted((a, b) =>
-      new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
-    );
-
-    let avgTimeMinutesTrend = 0;
-    if (sortedConfirmedDeals.length >= 2) {
-      const recentFive = sortedConfirmedDeals.slice(0, 5);
-      const previousFive = sortedConfirmedDeals.slice(5, 10);
-
-      if (recentFive.length > 0) {
-        const recentAvg = recentFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / recentFive.length;
-
-        if (previousFive.length > 0) {
-          const previousAvg = previousFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / previousFive.length;
-          avgTimeMinutesTrend = recentAvg - previousAvg;
-        }
-      }
-    }
-
-    return {
-      total,
-      confirmed,
-      pending,
-      inbox,
-      avgTimeHours,
-      avgTimeMinutes,
-      completionRateTrend,
-      avgTimeMinutesTrend
-    };
+    return { inbox };
   }, [storeDeals, user?.email]);
 
   const priorityQueue = useMemo(() => {
@@ -603,48 +545,7 @@ export default function DashboardPage() {
           <MobileCreateAction />
 
           {/* KPI Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <StatCard
-              label="Action Required"
-              value={stats.inbox}
-              icon={Inbox}
-              trend={stats.inbox > 0 ? "Attention" : "All Clear"}
-              trendDirection={stats.inbox > 0 ? "down" : "neutral"}
-              href="/dashboard/inbox"
-              delay={0}
-              colorClass="text-amber-500"
-            />
-            <StatCard
-              label="Active Deals"
-              value={stats.pending}
-              icon={Activity}
-              trend="Awaiting"
-              trendDirection="neutral"
-              href="/dashboard/agreements?status=pending"
-              delay={0.1}
-              colorClass="text-blue-500"
-            />
-            <StatCard
-              label="Completion Rate"
-              value={stats.total > 0 ? `${Math.round((stats.confirmed / stats.total) * 100)}%` : "0%"}
-              icon={TrendingUp}
-              trend={formatCompletionRateTrend(stats.completionRateTrend)}
-              trendDirection={stats.completionRateTrend > 0 ? "up" : stats.completionRateTrend < 0 ? "down" : "neutral"}
-              href="/dashboard/agreements"
-              delay={0.2}
-              colorClass="text-emerald-500"
-            />
-            <StatCard
-              label="Avg. Sign Time"
-              value={formatTimeValue(stats.avgTimeHours, stats.avgTimeMinutes)}
-              icon={Timer}
-              trend={formatTimeTrend(stats.avgTimeMinutesTrend)}
-              trendDirection={stats.avgTimeMinutesTrend < 0 ? "up" : stats.avgTimeMinutesTrend > 0 ? "down" : "neutral"}
-              href="/dashboard/agreements"
-              delay={0.3}
-              colorClass="text-purple-500"
-            />
-          </div>
+          <DashboardStats deals={storeDeals} userEmail={user?.email} />
 
           {/* Main Dashboard Area */}
           <div className="grid lg:grid-cols-3 gap-6">
@@ -664,8 +565,8 @@ export default function DashboardPage() {
                       )}
                     >
                       Priority Queue
-                      {stats.inbox > 0 && (
-                        <Badge className="text-[10px] h-4 px-1 bg-amber-500 text-white border-0">{stats.inbox}</Badge>
+                      {localStats.inbox > 0 && (
+                        <Badge className="text-[10px] h-4 px-1 bg-amber-500 text-white border-0">{localStats.inbox}</Badge>
                       )}
                     </button>
                     <button
@@ -855,7 +756,7 @@ export default function DashboardPage() {
                 </div>
                 <CardContent className="px-5 pb-0 pt-4 flex-1 flex flex-col">
                   <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-bold tracking-tight">{stats.total}</div>
+                    <div className="text-3xl font-bold tracking-tight">{storeDeals.length}</div>
                     <span className="text-xs text-muted-foreground font-medium">total deals</span>
                   </div>
                   <ActivitySparkline data={sparklineData} />

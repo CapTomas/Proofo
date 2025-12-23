@@ -1437,6 +1437,7 @@ export async function uploadProfileSignatureAction(
       return { signatureUrl: null, error: uploadError.message };
     }
 
+
     // Get public URL
     const { data: urlData } = supabase.storage
       .from("signatures")
@@ -1457,5 +1458,51 @@ export async function uploadProfileSignatureAction(
   } catch (error) {
     logger.error("Error uploading profile signature", error);
     return { signatureUrl: null, error: "Server error" };
+  }
+}
+
+// Download user data (GDPR/Backup)
+export async function downloadUserDataAction(): Promise<{ data: string | null; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { data: null, error: "Not authenticated" };
+    }
+
+    // Fetch all user data in parallel
+    const [
+      { data: profile },
+      { data: prefs },
+      { data: contacts },
+      { data: deals },
+      { data: auditLogs }
+    ] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      supabase.from("user_preferences").select("*").eq("user_id", user.id).single(),
+      supabase.from("contacts").select("*").eq("user_id", user.id),
+      supabase.from("deals").select("*").eq("creator_id", user.id),
+      // Fetch audit logs where user is actor
+      supabase.from("audit_log").select("*").eq("actor_id", user.id)
+    ]);
+
+    const exportData = {
+      exportInfo: {
+        generatedAt: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        version: "1.0"
+      },
+      user: { ...user, profile },
+      preferences: prefs || {},
+      contacts: contacts || [],
+      deals: deals || [],
+      activityLog: auditLogs || []
+    };
+
+    return { data: JSON.stringify(exportData, null, 2), error: null };
+  } catch (error) {
+    logger.error("Error downloading user data", error);
+    return { data: null, error: "Failed to generate export" };
   }
 }

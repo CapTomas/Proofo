@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
 import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint } from "@/components/dashboard/shared-components";
+import { EmptyState } from "@/components/dashboard/empty-state";
 
 // statusConfig imported from shared-components
 
@@ -522,27 +523,19 @@ export default function AgreementsPage() {
             ))}
           </motion.div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={dashboardStyles.emptyState}
-          >
-            <div className={dashboardStyles.emptyStateIcon}>
-              <FileCheck className="h-8 w-8 text-muted-foreground/50" />
-            </div>
-            <h3 className={dashboardStyles.emptyStateTitle}>No agreements found</h3>
-            <p className={dashboardStyles.emptyStateDescription}>
-              {searchQuery ? "Try adjusting your search terms." :
-               activeTab === 'active' ? "You have no active deals." : "You have no deal history."}
-            </p>
-            {!searchQuery && activeTab === 'active' && (
+          <EmptyState
+            icon={FileCheck}
+            title="No agreements found"
+            description={searchQuery ? "Try adjusting your search terms." :
+                         activeTab === 'active' ? "You have no active deals." : "You have no deal history."}
+            action={!searchQuery && activeTab === 'active' ? (
               <Link href="/deal/new">
                 <Button>
                   Create New Deal
                 </Button>
               </Link>
-            )}
-          </motion.div>
+            ) : undefined}
+          />
         )}
       </AnimatePresence>
 
