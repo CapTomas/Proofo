@@ -32,6 +32,16 @@ import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
 import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint } from "@/components/dashboard/shared-components";
 
@@ -240,6 +250,7 @@ export default function AgreementsPage() {
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
+  const [voidConfirmId, setVoidConfirmId] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -331,8 +342,10 @@ export default function AgreementsPage() {
     }
   };
 
-  const handleVoid = async (dealId: string) => {
-    if (!confirm("Void this deal? This cannot be undone.")) return;
+  const handleVoidConfirm = async () => {
+    if (!voidConfirmId) return;
+    const dealId = voidConfirmId;
+    setVoidConfirmId(null);
     setIsVoiding(dealId);
 
     if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
@@ -498,7 +511,7 @@ export default function AgreementsPage() {
                 deal={deal}
                 userId={user?.id}
                 onNudge={handleNudge}
-                onVoid={handleVoid}
+                onVoid={setVoidConfirmId}
                 onDuplicate={handleDuplicate}
                 onNavigate={handleNavigate}
                 onVerify={handleVerify}
@@ -532,6 +545,28 @@ export default function AgreementsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Void Confirmation Dialog */}
+      <AlertDialog open={!!voidConfirmId} onOpenChange={(open) => !open && setVoidConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Void this deal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The deal will be permanently voided
+              and the recipient will no longer be able to sign it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleVoidConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Void Deal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

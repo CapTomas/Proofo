@@ -41,6 +41,7 @@ import { useAppStore } from "@/store";
 import { timeAgo, formatDate } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
+import { toast } from "sonner";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
 import { dashboardStyles } from "@/lib/dashboard-ui";
@@ -489,13 +490,13 @@ export default function DashboardPage() {
   const handleNudge = async (deal: Deal) => {
     if (!deal.recipientEmail) {
       navigator.clipboard.writeText(`${window.location.origin}/d/${deal.publicId}`);
-      alert("Link copied to clipboard!");
+      toast.success("Link copied to clipboard!");
       return;
     }
     setNudgeLoading(deal.id);
     await sendDealInvitationAction({ dealId: deal.id, recipientEmail: deal.recipientEmail });
     setNudgeLoading(null);
-    alert("Nudge email sent!");
+    toast.success("Nudge sent", { description: "Reminder email delivered" });
   };
 
   const handleDuplicate = (deal: Deal) => {

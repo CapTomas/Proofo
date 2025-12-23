@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
 import { deterministicStringify } from "@/lib/crypto";
 import { createDealSchema, confirmDealSchema, voidDealSchema } from "@/lib/validations";
-import { updateProfileSchema } from "@/lib/validations/user";
+import { updateProfileSchema, appearancePreferencesSchema, doNotDisturbSchema } from "@/lib/validations/user";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 // Helper to create Supabase server client
@@ -651,6 +651,9 @@ export async function ensureProfileExistsAction(): Promise<{
 export async function updateProfileAction(updates: {
   name?: string;
   avatarUrl?: string;
+  jobTitle?: string;
+  location?: string;
+  currency?: string;
 }): Promise<{ error: string | null }> {
   try {
     // Validate input with Zod
@@ -673,12 +676,17 @@ export async function updateProfileAction(updates: {
       return { error: ensureError };
     }
 
+    // Build update object with snake_case keys for database
+    const dbUpdates: Record<string, unknown> = {};
+    if (validatedUpdates.name !== undefined) dbUpdates.name = validatedUpdates.name;
+    if (validatedUpdates.avatarUrl !== undefined) dbUpdates.avatar_url = validatedUpdates.avatarUrl;
+    if (validatedUpdates.jobTitle !== undefined) dbUpdates.job_title = validatedUpdates.jobTitle;
+    if (validatedUpdates.location !== undefined) dbUpdates.location = validatedUpdates.location;
+    if (validatedUpdates.currency !== undefined) dbUpdates.currency = validatedUpdates.currency;
+
     const { error } = await supabase
       .from("profiles")
-      .update({
-        name: validatedUpdates.name,
-        avatar_url: validatedUpdates.avatarUrl,
-      })
+      .update(dbUpdates)
       .eq("id", user.id);
 
     if (error) {
@@ -953,5 +961,501 @@ export async function sendDealInvitationAction(data: {
   } catch (error) {
     logger.error("Error sending invitation email", error);
     return { success: false, error: "Server error" };
+  }
+}
+
+// Get user profile with extended fields
+export async function getUserProfileAction(): Promise<{
+  profile: {
+    id: string;
+    email: string;
+    name: string | null;
+    avatarUrl: string | null;
+    jobTitle: string | null;
+    location: string | null;
+    currency: string | null;
+    signatureUrl: string | null;
+    isPro: boolean;
+  } | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { profile: null, error: "Not authenticated" };
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !data) {
+      return { profile: null, error: error?.message || "Profile not found" };
+    }
+
+    return {
+      profile: {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        avatarUrl: data.avatar_url,
+        jobTitle: data.job_title,
+        location: data.location,
+        currency: data.currency,
+        signatureUrl: data.signature_url,
+        isPro: data.is_pro || false,
+      },
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error fetching profile", error);
+    return { profile: null, error: "Server error" };
+  }
+}
+
+// Notification preferences type
+export type NotificationPreferences = {
+  notifyDealViewed: boolean;
+  notifyDealSigned: boolean;
+  notifyDealExpiring: boolean;
+  notifyDealComments: boolean;
+  notifyMessages: boolean;
+  notifyMentions: boolean;
+  notifyDeadlines: boolean;
+  notifyFollowups: boolean;
+  notifySecurity: boolean;
+  notifyProductUpdates: boolean;
+  emailFrequency: "instant" | "daily" | "weekly";
+  channelEmail: boolean;
+  channelPush: boolean;
+  channelMobile: boolean;
+};
+
+// Get notification preferences
+export async function getNotificationPreferencesAction(): Promise<{
+  preferences: NotificationPreferences | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { preferences: null, error: "Not authenticated" };
+    }
+
+    const { data, error } = await supabase
+      .from("user_preferences")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    // If no preferences exist yet, return defaults
+    if (error && error.code === "PGRST116") {
+      return {
+        preferences: {
+          notifyDealViewed: true,
+          notifyDealSigned: true,
+          notifyDealExpiring: true,
+          notifyDealComments: true,
+          notifyMessages: true,
+          notifyMentions: true,
+          notifyDeadlines: true,
+          notifyFollowups: false,
+          notifySecurity: true,
+          notifyProductUpdates: false,
+          emailFrequency: "instant",
+          channelEmail: true,
+          channelPush: true,
+          channelMobile: false,
+        },
+        error: null,
+      };
+    }
+
+    if (error || !data) {
+      return { preferences: null, error: error?.message || "Failed to load preferences" };
+    }
+
+    return {
+      preferences: {
+        notifyDealViewed: data.notify_deal_viewed,
+        notifyDealSigned: data.notify_deal_signed,
+        notifyDealExpiring: data.notify_deal_expiring,
+        notifyDealComments: data.notify_deal_comments,
+        notifyMessages: data.notify_messages,
+        notifyMentions: data.notify_mentions,
+        notifyDeadlines: data.notify_deadlines,
+        notifyFollowups: data.notify_followups,
+        notifySecurity: data.notify_security,
+        notifyProductUpdates: data.notify_product_updates,
+        emailFrequency: data.email_frequency as "instant" | "daily" | "weekly",
+        channelEmail: data.channel_email,
+        channelPush: data.channel_push,
+        channelMobile: data.channel_mobile,
+      },
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error fetching notification preferences", error);
+    return { preferences: null, error: "Server error" };
+  }
+}
+
+// Update notification preferences (upsert)
+export async function updateNotificationPreferencesAction(
+  preferences: Partial<NotificationPreferences>
+): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Build update object with snake_case keys
+    const dbUpdates: Record<string, unknown> = { user_id: user.id };
+    if (preferences.notifyDealViewed !== undefined) dbUpdates.notify_deal_viewed = preferences.notifyDealViewed;
+    if (preferences.notifyDealSigned !== undefined) dbUpdates.notify_deal_signed = preferences.notifyDealSigned;
+    if (preferences.notifyDealExpiring !== undefined) dbUpdates.notify_deal_expiring = preferences.notifyDealExpiring;
+    if (preferences.notifyDealComments !== undefined) dbUpdates.notify_deal_comments = preferences.notifyDealComments;
+    if (preferences.notifyMessages !== undefined) dbUpdates.notify_messages = preferences.notifyMessages;
+    if (preferences.notifyMentions !== undefined) dbUpdates.notify_mentions = preferences.notifyMentions;
+    if (preferences.notifyDeadlines !== undefined) dbUpdates.notify_deadlines = preferences.notifyDeadlines;
+    if (preferences.notifyFollowups !== undefined) dbUpdates.notify_followups = preferences.notifyFollowups;
+    if (preferences.notifySecurity !== undefined) dbUpdates.notify_security = preferences.notifySecurity;
+    if (preferences.notifyProductUpdates !== undefined) dbUpdates.notify_product_updates = preferences.notifyProductUpdates;
+    if (preferences.emailFrequency !== undefined) dbUpdates.email_frequency = preferences.emailFrequency;
+    if (preferences.channelEmail !== undefined) dbUpdates.channel_email = preferences.channelEmail;
+    if (preferences.channelPush !== undefined) dbUpdates.channel_push = preferences.channelPush;
+    if (preferences.channelMobile !== undefined) dbUpdates.channel_mobile = preferences.channelMobile;
+
+    // Upsert the preferences
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert(dbUpdates, { onConflict: "user_id" });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  } catch (error) {
+    logger.error("Error updating notification preferences", error);
+    return { error: "Server error" };
+  }
+}
+
+// Delete user account (cascade delete via DB constraints)
+export async function deleteUserAccountAction(): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Delete the user from auth (this will cascade to profiles and related data)
+    // Note: This requires the service role key, so we use admin API
+    // For client-side, we can delete the profile which will cascade, then sign out
+
+    // First, delete all user's deals where they are creator
+    const { error: dealsError } = await supabase
+      .from("deals")
+      .delete()
+      .eq("creator_id", user.id);
+
+    if (dealsError) {
+      logger.error("Error deleting user deals", dealsError);
+      // Continue anyway - we'll try to delete what we can
+    }
+
+    // Delete user preferences
+    await supabase
+      .from("user_preferences")
+      .delete()
+      .eq("user_id", user.id);
+
+    // Delete contacts
+    await supabase
+      .from("contacts")
+      .delete()
+      .eq("user_id", user.id);
+
+    // Delete profile (will cascade from auth.users FK constraint)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .delete()
+      .eq("id", user.id);
+
+    if (profileError) {
+      logger.error("Error deleting profile", profileError);
+      return { error: "Failed to delete account. Please contact support." };
+    }
+
+    // Sign out the user
+    await supabase.auth.signOut();
+
+    return { error: null };
+  } catch (error) {
+    logger.error("Error deleting user account", error);
+    return { error: "Server error" };
+  }
+}
+
+// Appearance preferences type
+export type AppearancePreferences = {
+  compactMode: boolean;
+  fontScale: number;
+  reducedMotion: boolean;
+};
+
+// Get appearance preferences
+export async function getAppearancePreferencesAction(): Promise<{
+  preferences: AppearancePreferences | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { preferences: null, error: "Not authenticated" };
+    }
+
+    const { data, error } = await supabase
+      .from("user_preferences")
+      .select("compact_mode, font_scale, reduced_motion")
+      .eq("user_id", user.id)
+      .single();
+
+    // If no preferences exist yet, return defaults
+    if (error && error.code === "PGRST116") {
+      return {
+        preferences: {
+          compactMode: false,
+          fontScale: 1.0,
+          reducedMotion: false,
+        },
+        error: null,
+      };
+    }
+
+    if (error || !data) {
+      return { preferences: null, error: error?.message || "Failed to load preferences" };
+    }
+
+    return {
+      preferences: {
+        compactMode: data.compact_mode ?? false,
+        fontScale: data.font_scale ?? 1.0,
+        reducedMotion: data.reduced_motion ?? false,
+      },
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error fetching appearance preferences", error);
+    return { preferences: null, error: "Server error" };
+  }
+}
+
+// Update appearance preferences (upsert)
+export async function updateAppearancePreferencesAction(
+  preferences: Partial<AppearancePreferences>
+): Promise<{ error: string | null }> {
+  try {
+    // Validate input
+    const validation = appearancePreferencesSchema.safeParse(preferences);
+    if (!validation.success) {
+      return { error: validation.error.issues[0]?.message || "Invalid input" };
+    }
+
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Build update object with snake_case keys
+    const dbUpdates: Record<string, unknown> = { user_id: user.id };
+    if (preferences.compactMode !== undefined) dbUpdates.compact_mode = preferences.compactMode;
+    if (preferences.fontScale !== undefined) dbUpdates.font_scale = preferences.fontScale;
+    if (preferences.reducedMotion !== undefined) dbUpdates.reduced_motion = preferences.reducedMotion;
+
+    // Upsert the preferences
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert(dbUpdates, { onConflict: "user_id" });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  } catch (error) {
+    logger.error("Error updating appearance preferences", error);
+    return { error: "Server error" };
+  }
+}
+
+// Do Not Disturb type (extended notification preferences)
+export type DoNotDisturbStatus = {
+  enabled: boolean;
+  expiresAt: string | null;
+};
+
+// Get Do Not Disturb status
+export async function getDoNotDisturbStatusAction(): Promise<{
+  status: DoNotDisturbStatus | null;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { status: null, error: "Not authenticated" };
+    }
+
+    const { data, error } = await supabase
+      .from("user_preferences")
+      .select("do_not_disturb, dnd_expires_at")
+      .eq("user_id", user.id)
+      .single();
+
+    // If no preferences exist yet, return defaults
+    if (error && error.code === "PGRST116") {
+      return {
+        status: { enabled: false, expiresAt: null },
+        error: null,
+      };
+    }
+
+    if (error || !data) {
+      return { status: null, error: error?.message || "Failed to load status" };
+    }
+
+    // Check if DND has expired
+    const isExpired = data.dnd_expires_at && new Date(data.dnd_expires_at) < new Date();
+
+    return {
+      status: {
+        enabled: isExpired ? false : (data.do_not_disturb ?? false),
+        expiresAt: isExpired ? null : data.dnd_expires_at,
+      },
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error fetching DND status", error);
+    return { status: null, error: "Server error" };
+  }
+}
+
+// Toggle Do Not Disturb (with optional duration in minutes)
+export async function toggleDoNotDisturbAction(
+  enabled: boolean,
+  durationMinutes?: number
+): Promise<{ error: string | null }> {
+  try {
+    // Validate input
+    const validation = doNotDisturbSchema.safeParse({ enabled, durationMinutes });
+    if (!validation.success) {
+      return { error: validation.error.issues[0]?.message || "Invalid input" };
+    }
+
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: "Not authenticated" };
+    }
+
+    // Calculate expiry time if duration provided
+    let expiresAt: string | null = null;
+    if (enabled && durationMinutes && durationMinutes > 0) {
+      const expiry = new Date();
+      expiry.setMinutes(expiry.getMinutes() + durationMinutes);
+      expiresAt = expiry.toISOString();
+    }
+
+    // Upsert the preferences
+    const { error } = await supabase
+      .from("user_preferences")
+      .upsert({
+        user_id: user.id,
+        do_not_disturb: enabled,
+        dnd_expires_at: expiresAt,
+      }, { onConflict: "user_id" });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { error: null };
+  } catch (error) {
+    logger.error("Error toggling DND", error);
+    return { error: "Server error" };
+  }
+}
+
+// Upload signature to user profile
+export async function uploadProfileSignatureAction(
+  signatureBase64: string
+): Promise<{ signatureUrl: string | null; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { signatureUrl: null, error: "Not authenticated" };
+    }
+
+    // Convert base64 to buffer
+    const base64Data = signatureBase64.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+
+    // Generate unique filename for user's signature
+    const filename = `${user.id}/profile-signature-${nanoid(10)}.png`;
+
+    // Upload to Supabase Storage (signatures bucket)
+    const { error: uploadError } = await supabase.storage
+      .from("signatures")
+      .upload(filename, buffer, {
+        contentType: "image/png",
+        cacheControl: "3600",
+        upsert: true, // Allow overwriting previous signature
+      });
+
+    if (uploadError) {
+      return { signatureUrl: null, error: uploadError.message };
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("signatures")
+      .getPublicUrl(filename);
+
+    // Update profile with new signature URL
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ signature_url: urlData.publicUrl })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error("Error updating profile signature URL", updateError);
+      // Still return the URL since the image was uploaded successfully
+    }
+
+    return { signatureUrl: urlData.publicUrl, error: null };
+  } catch (error) {
+    logger.error("Error uploading profile signature", error);
+    return { signatureUrl: null, error: "Server error" };
   }
 }

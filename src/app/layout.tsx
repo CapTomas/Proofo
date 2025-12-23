@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Proofo - Digital Handshake",
@@ -61,6 +62,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
           </AuthProvider>
+          <Toaster richColors position="bottom-right" theme="system" />
         </ThemeProvider>
       </body>
     </html>

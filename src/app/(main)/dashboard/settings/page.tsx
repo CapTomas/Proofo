@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { LucideIcon } from "lucide-react";
@@ -64,10 +64,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAppStore } from "@/store";
 import { dashboardStyles, containerVariants, itemVariants, getTabButtonClass } from "@/lib/dashboard-ui";
 import { cn, getUserInitials } from "@/lib/utils";
-import { updateProfileAction } from "@/app/actions/deal-actions";
+import {
+  updateProfileAction,
+  getUserProfileAction,
+  getNotificationPreferencesAction,
+  updateNotificationPreferencesAction,
+  deleteUserAccountAction,
+  uploadAvatarAction,
+  getDoNotDisturbStatusAction,
+  toggleDoNotDisturbAction,
+  NotificationPreferences,
+  DoNotDisturbStatus
+} from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { CopyableId } from "@/components/dashboard/shared-components";
 import { User as UserType } from "@/types";
+import { toast } from "sonner";
+import { useAppearance } from "@/components/providers/appearance-provider";
+import { SignatureEditor } from "@/components/signature-editor";
+import { BillingTab } from "./billing-tab";
 
 // Type for settings user (extends User with optional fields that may be locally modified)
 type SettingsUser = UserType | null;
@@ -98,7 +113,7 @@ const CURRENCIES = [
 // --- SUB-COMPONENTS ---
 
 const SettingGroup = ({ title, description, children }: { title: string, description?: string, children: React.ReactNode }) => (
-  <motion.div variants={itemVariants} className="space-y-4">
+  <div className="space-y-4">
     <div className="flex flex-col gap-1">
       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
         {title}
@@ -108,7 +123,7 @@ const SettingGroup = ({ title, description, children }: { title: string, descrip
     <div className="grid gap-4">
       {children}
     </div>
-  </motion.div>
+  </div>
 );
 
 const SettingCard = ({
@@ -153,7 +168,7 @@ const SettingCard = ({
         <div className="flex-1 min-w-0 space-y-1 py-0.5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h4 className={cn("font-semibold text-sm", variant === "danger" && "text-destructive")}>{title}</h4>
+              <h4 className={cn("font-semibold text-sm text-foreground", variant === "danger" && "text-destructive")}>{title}</h4>
               {description && <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>}
             </div>
             {action && <div className="shrink-0" onClick={e => e.stopPropagation()}>{action}</div>}
@@ -173,24 +188,136 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
   const [location, setLocation] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || "");
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [isSignatureEditorOpen, setIsSignatureEditorOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle avatar file selection
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be less than 2MB");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+
+        if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
+          const { avatarUrl: newUrl, error } = await uploadAvatarAction(base64);
+          if (error) {
+            toast.error("Failed to upload avatar", { description: error });
+            setIsUploadingAvatar(false);
+            return;
+          }
+          if (newUrl) {
+            setAvatarUrl(newUrl);
+            setUser({ ...user, avatarUrl: newUrl });
+            toast.success("Avatar updated successfully");
+          }
+        } else {
+          // Demo mode - just show locally
+          setAvatarUrl(base64);
+          if (user) setUser({ ...user, avatarUrl: base64 });
+          toast.success("Avatar updated (demo mode)");
+        }
+        setIsUploadingAvatar(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error("Failed to process image");
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  // Load persisted profile data on mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!isSupabaseConfigured() || !user || user.id.startsWith("demo-")) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { profile, error } = await getUserProfileAction();
+      if (error) {
+        toast.error("Failed to load profile data");
+        setIsLoading(false);
+        return;
+      }
+
+      if (profile) {
+        setName(profile.name || user?.name || "");
+        setJobTitle(profile.jobTitle || "");
+        setLocation(profile.location || "");
+        setCurrency(profile.currency || "USD");
+        setSignatureUrl(profile.signatureUrl || null);
+      }
+      setIsLoading(false);
+    };
+
+    loadProfile();
+  }, [user]);
+
+  // Calculate profile completion dynamically
+  const profileCompletion = useMemo(() => {
+    let completed = 0;
+    const total = 5; // name, email (always filled), jobTitle, location, currency
+
+    if (user?.email) completed++;
+    if (name.trim()) completed++;
+    if (jobTitle.trim()) completed++;
+    if (location.trim()) completed++;
+    if (currency) completed++;
+
+    return Math.round((completed / total) * 100);
+  }, [user?.email, name, jobTitle, location, currency]);
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setIsSaving(true);
 
-    await new Promise(r => setTimeout(r, 800));
+    try {
+      if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
+        const { error } = await updateProfileAction({
+          name: name.trim(),
+          jobTitle: jobTitle.trim() || undefined,
+          location: location.trim() || undefined,
+          currency: currency as "USD" | "EUR" | "GBP" | "CZK" | undefined,
+        });
 
-    if (isSupabaseConfigured() && user && !user.id.startsWith("demo-")) {
-      await updateProfileAction({ name });
-    }
+        if (error) {
+          toast.error("Failed to save profile", { description: error });
+          setIsSaving(false);
+          return;
+        }
+      }
 
-    if (user) {
-      setUser({ ...user, name });
+      if (user) {
+        setUser({ ...user, name: name.trim() });
+      }
+      toast.success("Profile saved successfully");
+    } catch {
+      toast.error("An error occurred while saving");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -200,14 +327,32 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
         <Card className={cn(dashboardStyles.cardBase, "h-full flex flex-col cursor-default")}>
           <CardContent className="p-6 flex flex-col items-center text-center space-y-6 flex-1">
             <div className="relative group">
-              <Avatar className="h-32 w-32 border-4 border-background shadow-xl ring-1 ring-border/50">
-                <AvatarImage src={user?.avatarUrl} className="object-cover" />
+              {/* Hidden file input for avatar upload */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+              <Avatar
+                className="h-32 w-32 border-4 border-background shadow-xl ring-1 ring-border/50 cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <AvatarImage src={avatarUrl || user?.avatarUrl} className="object-cover" />
                 <AvatarFallback className="text-3xl bg-linear-to-br from-primary to-primary/80 text-primary-foreground">
                   {getUserInitials(user?.name, user?.email)}
                 </AvatarFallback>
               </Avatar>
-              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-[1px]">
-                <Camera className="h-8 w-8 text-white" />
+              <div
+                className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-[1px]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {isUploadingAvatar ? (
+                  <RefreshCw className="h-8 w-8 text-white animate-spin" />
+                ) : (
+                  <Camera className="h-8 w-8 text-white" />
+                )}
               </div>
             </div>
 
@@ -222,11 +367,24 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Stored Signature</span>
                 <PenLine className="h-3 w-3 text-muted-foreground" />
               </div>
-              <div className="h-16 flex items-center justify-center">
-                <p className="text-xs text-muted-foreground italic opacity-50">No signature saved yet</p>
+              <div className="h-16 flex items-center justify-center bg-white rounded-lg">
+                {signatureUrl ? (
+                  <img
+                    src={signatureUrl}
+                    alt="Your signature"
+                    className="h-14 object-contain"
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground italic opacity-50">No signature saved yet</p>
+                )}
               </div>
-              <Button variant="outline" size="sm" className="w-full h-7 text-xs mt-2">
-                Update Signature
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-xs mt-2"
+                onClick={() => setIsSignatureEditorOpen(true)}
+              >
+                {signatureUrl ? "Update Signature" : "Add Signature"}
               </Button>
             </div>
           </CardContent>
@@ -234,13 +392,21 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
           <div className="p-4 bg-muted/30 border-t border-border/50">
             <div className="flex justify-between items-center text-xs">
               <span className="text-muted-foreground">Profile Completion</span>
-              <span className="font-medium text-primary">65%</span>
+              <span className="font-medium text-primary">{profileCompletion}%</span>
             </div>
             <div className="h-1.5 w-full bg-secondary rounded-full mt-2 overflow-hidden">
-              <div className="h-full bg-primary w-[65%] rounded-full" />
+              <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${profileCompletion}%` }} />
             </div>
           </div>
         </Card>
+
+        {/* Signature Editor Modal */}
+        <SignatureEditor
+          isOpen={isSignatureEditorOpen}
+          onClose={() => setIsSignatureEditorOpen(false)}
+          onSave={(url) => setSignatureUrl(url)}
+          currentSignatureUrl={signatureUrl}
+        />
       </motion.div>
 
       {/* Right Column: Detailed Form */}
@@ -365,10 +531,10 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
               onClick={handleSave}
               disabled={isSaving || !name.trim()}
               size="sm"
-              className={cn("gap-2 min-w-[120px]", saved && "bg-emerald-500 hover:bg-emerald-600 text-white")}
+              className="gap-2 min-w-[120px]"
             >
-              {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : null}
-              {isSaving ? "Saving..." : saved ? "Saved Changes" : "Save Changes"}
+              {isSaving && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+              {isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </CardFooter>
         </Card>
@@ -378,10 +544,31 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
 };
 
 const AccountTab = ({ user }: { user: SettingsUser }) => {
-  const sessions = [
-    { id: 1, device: "MacBook Pro", browser: "Chrome", location: "Prague, CZ", current: true, icon: Monitor },
-    { id: 2, device: "iPhone 15", browser: "Safari", location: "Prague, CZ", current: false, icon: Smartphone },
-  ];
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE") return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await deleteUserAccountAction();
+      if (error) {
+        toast.error("Failed to delete account", { description: error });
+        setIsDeleting(false);
+        return;
+      }
+      toast.success("Account deleted. Redirecting...");
+      // Redirect to home page after a brief delay
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
+    } catch {
+      toast.error("An error occurred");
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -391,49 +578,99 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
             icon={Fingerprint}
             title="Two-Factor Auth"
             description="Secure your account with 2FA."
-            action={<Switch disabled />}
+            action={
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
+                <Switch disabled />
+              </div>
+            }
           />
           <SettingCard
             icon={Zap}
             title="Quick Login"
             description="Enable biometric login."
-            action={<Switch />}
+            action={
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
+                <Switch disabled />
+              </div>
+            }
           />
         </div>
       </SettingGroup>
 
-      <SettingGroup title="Active Sessions">
+      <SettingGroup title="Account Information">
         <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default")}>
-          <div className="divide-y divide-border/50">
-            {sessions.map((session) => (
-              <div key={session.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground border border-border/50">
-                    <session.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm">{session.device}</p>
-                      {session.current && (
-                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Current</Badge>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                      <span>{session.browser}</span>
-                      <span className="text-border">•</span>
-                      <span>{session.location}</span>
-                    </div>
-                  </div>
+          <CardContent className="p-4 space-y-4">
+            {/* Email */}
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground border border-border/50">
+                  <Mail className="h-5 w-5" />
                 </div>
-                {!session.current && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                )}
+                <div>
+                  <p className="text-xs text-muted-foreground">Email Address</p>
+                  <p className="font-medium text-sm">{user?.email || "Not set"}</p>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+
+            <Separator />
+
+            {/* User ID */}
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground border border-border/50">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">User ID</p>
+                  <p className="font-mono text-xs text-muted-foreground">{user?.id?.slice(0, 8)}...{user?.id?.slice(-4)}</p>
+                </div>
+              </div>
+              <CopyableId id={user?.id || ""} className="h-7" />
+            </div>
+
+            <Separator />
+
+            {/* Sign Out */}
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground border border-border/50">
+                  <LogOut className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Sign Out</p>
+                  <p className="text-xs text-muted-foreground">End your current session</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => window.location.href = "/login"}
+              >
+                Sign Out
+              </Button>
+            </div>
+          </CardContent>
         </Card>
+      </SettingGroup>
+
+      <SettingGroup title="Data & Privacy">
+        <SettingCard
+          icon={Download}
+          title="Export Your Data"
+          description="Download a copy of all your data in JSON format."
+          action={
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
+              <Button variant="outline" size="sm" className="h-8 text-xs" disabled>
+                Export
+              </Button>
+            </div>
+          }
+        />
       </SettingGroup>
 
       <SettingGroup title="Danger Zone">
@@ -442,7 +679,16 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
           title="Delete Account"
           description="Permanently delete your account and all associated data."
           variant="danger"
-          action={<Button variant="destructive" size="sm" className="h-8 text-xs">Delete Account</Button>}
+          action={
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete Account
+            </Button>
+          }
         >
           <div className="flex items-start gap-2 mt-2 p-3 bg-destructive/10 rounded-lg text-xs text-destructive">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -450,6 +696,76 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
           </div>
         </SettingCard>
       </SettingGroup>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AnimatePresence>
+        {showDeleteDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => !isDeleting && setShowDeleteDialog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Delete Account</h3>
+                  <p className="text-sm text-muted-foreground">This action cannot be undone</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-4">
+                This will permanently delete your account, all your deals, contacts, and preferences.
+                Type <strong className="text-destructive">DELETE</strong> to confirm.
+              </p>
+
+              <Input
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder='Type "DELETE" to confirm'
+                className="mb-4"
+                disabled={isDeleting}
+              />
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmation !== "DELETE" || isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete My Account"
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -492,7 +808,17 @@ const AppearanceTab = () => {
   const { theme, setTheme } = useTheme();
   const { setTheme: setStoreTheme } = useAppStore();
   const [mounted, setMounted] = useState(false);
-  const [isCompact, setIsCompact] = useState(false);
+
+  // Use the appearance context for persistent settings
+  const {
+    compactMode,
+    fontScale,
+    reducedMotion,
+    isLoading: appearanceLoading,
+    setCompactMode,
+    setFontScale,
+    setReducedMotion
+  } = useAppearance();
 
   useEffect(() => {
     setMounted(true);
@@ -504,6 +830,9 @@ const AppearanceTab = () => {
   };
 
   if (!mounted) return null;
+
+  // Font scale display value (e.g., "100%", "80%", "120%")
+  const fontScalePercent = Math.round(fontScale * 100);
 
   return (
     <div className="grid gap-8 lg:grid-cols-3">
@@ -552,7 +881,13 @@ const AppearanceTab = () => {
             icon={Monitor}
             title="Compact Mode"
             description="Reduce padding and spacing to fit more content on screen."
-            action={<Switch checked={isCompact} onCheckedChange={setIsCompact} />}
+            action={
+              <Switch
+                checked={compactMode}
+                onCheckedChange={setCompactMode}
+                disabled={appearanceLoading}
+              />
+            }
           />
         </SettingGroup>
 
@@ -560,21 +895,37 @@ const AppearanceTab = () => {
           <SettingCard
             icon={Type}
             title="Font Scaling"
-            description="Adjust the base text size."
-            action={
-              <div className="w-32">
-                <div className="h-1.5 w-full bg-secondary rounded-full relative">
-                  <div className="absolute left-0 top-0 h-full w-1/2 bg-primary rounded-full" />
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 bg-background border-2 border-primary rounded-full shadow-sm" />
-                </div>
-              </div>
-            }
-          />
+            description={`Adjust the base text size. Currently: ${fontScalePercent}%`}
+          >
+            <div className="flex items-center gap-4 pt-2">
+              <span className="text-xs text-muted-foreground w-8">80%</span>
+              <input
+                type="range"
+                min="0.8"
+                max="1.2"
+                step="0.05"
+                value={fontScale}
+                onChange={(e) => setFontScale(parseFloat(e.target.value))}
+                disabled={appearanceLoading}
+                className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+              <span className="text-xs text-muted-foreground w-10">120%</span>
+              <Badge variant="secondary" className="text-xs font-mono min-w-[48px] justify-center">
+                {fontScalePercent}%
+              </Badge>
+            </div>
+          </SettingCard>
           <SettingCard
             icon={MousePointer2}
             title="Reduced Motion"
             description="Minimize interface animations for better accessibility."
-            action={<Switch />}
+            action={
+              <Switch
+                checked={reducedMotion}
+                onCheckedChange={setReducedMotion}
+                disabled={appearanceLoading}
+              />
+            }
           />
         </SettingGroup>
       </div>
@@ -586,7 +937,7 @@ const AppearanceTab = () => {
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Live Preview</h3>
             <Badge variant="outline" className="text-[10px]">Active</Badge>
           </div>
-          <AppearancePreview compact={isCompact} />
+          <AppearancePreview compact={compactMode} />
           <p className="text-xs text-muted-foreground text-center">
             Preview updates instantly as you change settings.
           </p>
@@ -595,6 +946,7 @@ const AppearanceTab = () => {
     </div>
   );
 };
+
 
 // --- BILLING COMPONENTS ---
 
@@ -637,18 +989,15 @@ const VisualCreditCard = ({ isPro }: { isPro: boolean }) => (
   </div>
 );
 
-const BillingTab = ({ user }: { user: SettingsUser }) => {
+// --- BILLING TAB ---
+
+const BillingTabLegacy = ({ user }: { user: SettingsUser }) => {
   const isPro = user?.isPro || false;
 
   return (
     <div className="space-y-8">
-      {/* Plan Status */}
-      <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default border-primary/20 overflow-hidden relative")}>
-        {isPro && (
-          <div className="absolute top-0 right-0 p-4">
-            <Badge className="bg-primary text-primary-foreground shadow-sm">Active Subscription</Badge>
-          </div>
-        )}
+      {/* Current Plan Status */}
+      <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default overflow-hidden relative")}>
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
         <CardContent className="p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
@@ -658,12 +1007,12 @@ const BillingTab = ({ user }: { user: SettingsUser }) => {
               </h3>
               <div className="space-y-1">
                 <h2 className="text-3xl font-bold tracking-tight">
-                  {isPro ? "Professional Plan" : "Starter Plan"}
+                  {isPro ? "Professional Plan" : "Free Plan"}
                 </h2>
                 <p className="text-muted-foreground max-w-md">
                   {isPro
-                    ? "You have full access to all features including unlimited history and custom branding."
-                    : "Unlock unlimited history, custom branding, and remove watermarks from your documents."}
+                    ? "You have full access to all features."
+                    : "You're on the free plan. Upgrade to Pro when it launches for premium features."}
                 </p>
               </div>
             </div>
@@ -672,104 +1021,155 @@ const BillingTab = ({ user }: { user: SettingsUser }) => {
                 <span className="text-4xl font-bold">{isPro ? "$9" : "$0"}</span>
                 <span className="text-muted-foreground text-sm">/month</span>
               </div>
-              <Button size="lg" variant={isPro ? "outline" : "default"} className="w-full md:w-auto shadow-lg">
-                {isPro ? "Manage Subscription" : "Upgrade to Pro"}
-              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Payment Method - Visual Card */}
-        <div className="lg:col-span-1 space-y-4">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            Payment Method
-          </h3>
-          <Card className={cn(dashboardStyles.cardBase, "h-full cursor-default bg-secondary/10")}>
-            <CardContent className="p-6 flex flex-col items-center gap-6">
-              <VisualCreditCard isPro={isPro} />
-              <div className="w-full">
-                {isPro ? (
-                  <Button variant="outline" className="w-full">Update Card</Button>
-                ) : (
-                  <Button variant="outline" className="w-full border-dashed border-2">
-                    <PlusIcon className="h-4 w-4 mr-2" /> Add Payment Method
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Usage & History */}
-        <div className="lg:col-span-2 space-y-8">
-          <SettingGroup title="Usage Overview">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Card className="bg-card border-border/50 shadow-sm">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
-                    <PieChart className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Deals This Month</p>
-                    <p className="text-xl font-bold">12 <span className="text-sm text-muted-foreground font-normal">/ {isPro ? "Unlimited" : "5"}</span></p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-card border-border/50 shadow-sm">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                    <RefreshCw className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Next Invoice</p>
-                    <p className="text-xl font-bold">{isPro ? "Feb 1, 2024" : "N/A"}</p>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Pro Plan Coming Soon */}
+      <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default border-dashed border-2 border-primary/30")}>
+        <CardContent className="p-8 text-center">
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Sparkles className="h-8 w-8 text-primary" />
             </div>
-          </SettingGroup>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold">Pro Plan Coming Soon</h3>
+              <p className="text-muted-foreground">
+                We're working on premium features that will help you close more deals faster.
+              </p>
+            </div>
 
-          <SettingGroup title="Invoice History">
-            <Card className={cn(dashboardStyles.cardBase, "cursor-default")}>
-              <div className="divide-y divide-border/50">
-                {[
-                  { id: "INV-001", date: "Jan 1, 2024", amount: "$9.00", status: "Paid" },
-                  { id: "INV-002", date: "Dec 1, 2023", amount: "$9.00", status: "Paid" },
-                ].map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground">
-                        <Receipt className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{inv.id}</p>
-                        <p className="text-xs text-muted-foreground">{inv.date}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm font-medium">{inv.amount}</span>
-                      <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                        {inv.status}
-                      </Badge>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+            {/* Feature comparison */}
+            <div className="grid grid-cols-2 gap-4 pt-4 text-left">
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Free</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <span>5 deals per month</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <span>Basic templates</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <span>Email receipts</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <span>30-day history</span>
+                  </li>
+                </ul>
               </div>
-            </Card>
-          </SettingGroup>
-        </div>
-      </div>
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">Pro</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span>Unlimited deals</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span>Custom templates</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span>No watermarks</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span>Unlimited history</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground pt-4">
+              Billing features will be available when Stripe integration is complete.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
 const NotificationsTab = () => {
-  const [emailFrequency, setEmailFrequency] = useState("instant");
+  const [isLoading, setIsLoading] = useState(true);
+  const [prefs, setPrefs] = useState<NotificationPreferences>({
+    notifyDealViewed: true,
+    notifyDealSigned: true,
+    notifyDealExpiring: true,
+    notifyDealComments: true,
+    notifyMessages: true,
+    notifyMentions: true,
+    notifyDeadlines: true,
+    notifyFollowups: false,
+    notifySecurity: true,
+    notifyProductUpdates: false,
+    emailFrequency: "instant",
+    channelEmail: true,
+    channelPush: true,
+    channelMobile: false,
+  });
+  const [dndStatus, setDndStatus] = useState<DoNotDisturbStatus>({ enabled: false, expiresAt: null });
+  const [isMuting, setIsMuting] = useState(false);
+
+  // Load preferences on mount
+  useEffect(() => {
+    const loadPrefs = async () => {
+      if (!isSupabaseConfigured()) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Load notification preferences and DND status in parallel
+      const [notifResult, dndResult] = await Promise.all([
+        getNotificationPreferencesAction(),
+        getDoNotDisturbStatusAction(),
+      ]);
+
+      if (notifResult.error) {
+        toast.error("Failed to load notification preferences");
+      } else if (notifResult.preferences) {
+        setPrefs(notifResult.preferences);
+      }
+
+      if (dndResult.status) {
+        setDndStatus(dndResult.status);
+      }
+
+      setIsLoading(false);
+    };
+    loadPrefs();
+  }, []);
+
+  // Save preference when it changes
+  const updatePref = async <K extends keyof NotificationPreferences>(
+    key: K,
+    value: NotificationPreferences[K]
+  ) => {
+    const oldValue = prefs[key];
+    setPrefs((prev) => ({ ...prev, [key]: value }));
+
+    if (isSupabaseConfigured()) {
+      const { error } = await updateNotificationPreferencesAction({ [key]: value });
+      if (error) {
+        toast.error("Failed to save preference");
+        setPrefs((prev) => ({ ...prev, [key]: oldValue }));
+      }
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-3">
@@ -781,25 +1181,25 @@ const NotificationsTab = () => {
               icon={FileText}
               title="Deal Viewed"
               description="When someone opens your deal."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyDealViewed} onCheckedChange={(v) => updatePref("notifyDealViewed", v)} />}
             />
             <SettingCard
               icon={PenLine}
               title="Deal Signed"
               description="When a deal is signed by all parties."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyDealSigned} onCheckedChange={(v) => updatePref("notifyDealSigned", v)} />}
             />
             <SettingCard
               icon={AlertTriangle}
               title="Deal Expiring"
               description="When a deal is about to expire."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyDealExpiring} onCheckedChange={(v) => updatePref("notifyDealExpiring", v)} />}
             />
             <SettingCard
               icon={Activity}
               title="Deal Comments"
               description="When someone comments on a deal."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyDealComments} onCheckedChange={(v) => updatePref("notifyDealComments", v)} />}
             />
           </div>
         </SettingGroup>
@@ -810,13 +1210,13 @@ const NotificationsTab = () => {
               icon={MessageSquare}
               title="In-App Messages"
               description="Messages from other users."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyMessages} onCheckedChange={(v) => updatePref("notifyMessages", v)} />}
             />
             <SettingCard
               icon={AtSign}
               title="Mentions"
               description="When you're mentioned in a deal."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyMentions} onCheckedChange={(v) => updatePref("notifyMentions", v)} />}
             />
           </div>
         </SettingGroup>
@@ -827,13 +1227,13 @@ const NotificationsTab = () => {
               icon={Calendar}
               title="Upcoming Deadlines"
               description="Reminder before deal deadlines."
-              action={<Switch defaultChecked />}
+              action={<Switch checked={prefs.notifyDeadlines} onCheckedChange={(v) => updatePref("notifyDeadlines", v)} />}
             />
             <SettingCard
               icon={Clock}
               title="Follow-up Reminders"
               description="Remind to follow up on pending deals."
-              action={<Switch />}
+              action={<Switch checked={prefs.notifyFollowups} onCheckedChange={(v) => updatePref("notifyFollowups", v)} />}
             />
           </div>
         </SettingGroup>
@@ -845,13 +1245,13 @@ const NotificationsTab = () => {
               title="Security Alerts"
               description="Important security notifications."
               variant="highlight"
-              action={<Switch defaultChecked disabled />}
+              action={<Switch checked={prefs.notifySecurity} disabled />}
             />
             <SettingCard
               icon={Sparkles}
               title="Product Updates"
               description="New features and improvements."
-              action={<Switch />}
+              action={<Switch checked={prefs.notifyProductUpdates} onCheckedChange={(v) => updatePref("notifyProductUpdates", v)} />}
             />
           </div>
         </SettingGroup>
@@ -874,25 +1274,25 @@ const NotificationsTab = () => {
                 <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Email Frequency</Label>
                 <div className="space-y-2">
                   {[
-                    { id: "instant", label: "Instant", desc: "Get notified immediately" },
-                    { id: "daily", label: "Daily Digest", desc: "Once per day summary" },
-                    { id: "weekly", label: "Weekly Digest", desc: "Once per week summary" },
+                    { id: "instant" as const, label: "Instant", desc: "Get notified immediately" },
+                    { id: "daily" as const, label: "Daily Digest", desc: "Once per day summary" },
+                    { id: "weekly" as const, label: "Weekly Digest", desc: "Once per week summary" },
                   ].map((option) => (
                     <button
                       key={option.id}
-                      onClick={() => setEmailFrequency(option.id)}
+                      onClick={() => updatePref("emailFrequency", option.id)}
                       className={cn(
                         "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                        emailFrequency === option.id
+                        prefs.emailFrequency === option.id
                           ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                           : "border-border/50 hover:border-primary/30 hover:bg-secondary/30"
                       )}
                     >
                       <div className={cn(
                         "h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors",
-                        emailFrequency === option.id ? "border-primary bg-primary" : "border-muted-foreground/40"
+                        prefs.emailFrequency === option.id ? "border-primary bg-primary" : "border-muted-foreground/40"
                       )}>
-                        {emailFrequency === option.id && (
+                        {prefs.emailFrequency === option.id && (
                           <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
                         )}
                       </div>
@@ -916,21 +1316,21 @@ const NotificationsTab = () => {
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Email</span>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch checked={prefs.channelEmail} onCheckedChange={(v) => updatePref("channelEmail", v)} />
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
                     <div className="flex items-center gap-3">
                       <Bell className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Push</span>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch checked={prefs.channelPush} onCheckedChange={(v) => updatePref("channelPush", v)} />
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
                     <div className="flex items-center gap-3">
                       <Smartphone className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Mobile</span>
                     </div>
-                    <Switch />
+                    <Switch checked={prefs.channelMobile} onCheckedChange={(v) => updatePref("channelMobile", v)} />
                   </div>
                 </div>
               </div>
@@ -941,13 +1341,63 @@ const NotificationsTab = () => {
           <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default")}>
             <CardContent className="p-4 space-y-3">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</h4>
-              <Button variant="outline" className="w-full justify-start gap-2 h-9">
-                <BellOff className="h-4 w-4" />
+
+              {/* Show DND status if active */}
+              {dndStatus.enabled && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <VolumeX className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs text-amber-600 font-medium">
+                    Do Not Disturb is active
+                    {dndStatus.expiresAt && (
+                      <span className="text-amber-500/80">
+                        {" "}until {new Date(dndStatus.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 h-9"
+                disabled={isMuting || dndStatus.enabled}
+                onClick={async () => {
+                  setIsMuting(true);
+                  const { error } = await toggleDoNotDisturbAction(true, 60); // 60 minutes
+                  if (error) {
+                    toast.error("Failed to enable mute");
+                  } else {
+                    const expiry = new Date();
+                    expiry.setMinutes(expiry.getMinutes() + 60);
+                    setDndStatus({ enabled: true, expiresAt: expiry.toISOString() });
+                    toast.success("Notifications muted for 1 hour");
+                  }
+                  setIsMuting(false);
+                }}
+              >
+                {isMuting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BellOff className="h-4 w-4" />}
                 <span className="text-sm">Mute All for 1 Hour</span>
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 h-9">
+
+              <Button
+                variant={dndStatus.enabled ? "default" : "outline"}
+                className={cn("w-full justify-start gap-2 h-9", dndStatus.enabled && "bg-amber-500 hover:bg-amber-600")}
+                disabled={isMuting}
+                onClick={async () => {
+                  setIsMuting(true);
+                  const newState = !dndStatus.enabled;
+                  const { error } = await toggleDoNotDisturbAction(newState);
+                  if (error) {
+                    toast.error("Failed to toggle Do Not Disturb");
+                  } else {
+                    setDndStatus({ enabled: newState, expiresAt: null });
+                    toast.success(newState ? "Do Not Disturb enabled" : "Do Not Disturb disabled");
+                  }
+                  setIsMuting(false);
+                }}
+              >
                 <VolumeX className="h-4 w-4" />
-                <span className="text-sm">Do Not Disturb</span>
+                <span className="text-sm">{dndStatus.enabled ? "Turn Off Do Not Disturb" : "Do Not Disturb"}</span>
               </Button>
             </CardContent>
           </Card>

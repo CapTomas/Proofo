@@ -179,31 +179,155 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          currency: string | null
           email: string
           id: string
           is_pro: boolean | null
+          job_title: string | null
+          location: string | null
           name: string | null
+          signature_url: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          currency?: string | null
           email: string
           id: string
           is_pro?: boolean | null
+          job_title?: string | null
+          location?: string | null
           name?: string | null
+          signature_url?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          currency?: string | null
           email?: string
           id?: string
           is_pro?: boolean | null
+          job_title?: string | null
+          location?: string | null
           name?: string | null
+          signature_url?: string | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      contacts: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          email: string | null
+          notes: string | null
+          is_hidden: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          email?: string | null
+          notes?: string | null
+          is_hidden?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          email?: string | null
+          notes?: string | null
+          is_hidden?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          notify_deal_viewed: boolean | null
+          notify_deal_signed: boolean | null
+          notify_deal_expiring: boolean | null
+          notify_deal_comments: boolean | null
+          notify_messages: boolean | null
+          notify_mentions: boolean | null
+          notify_deadlines: boolean | null
+          notify_followups: boolean | null
+          notify_security: boolean | null
+          notify_product_updates: boolean | null
+          email_frequency: string | null
+          channel_email: boolean | null
+          channel_push: boolean | null
+          channel_mobile: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          notify_deal_viewed?: boolean | null
+          notify_deal_signed?: boolean | null
+          notify_deal_expiring?: boolean | null
+          notify_deal_comments?: boolean | null
+          notify_messages?: boolean | null
+          notify_mentions?: boolean | null
+          notify_deadlines?: boolean | null
+          notify_followups?: boolean | null
+          notify_security?: boolean | null
+          notify_product_updates?: boolean | null
+          email_frequency?: string | null
+          channel_email?: boolean | null
+          channel_push?: boolean | null
+          channel_mobile?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          notify_deal_viewed?: boolean | null
+          notify_deal_signed?: boolean | null
+          notify_deal_expiring?: boolean | null
+          notify_deal_comments?: boolean | null
+          notify_messages?: boolean | null
+          notify_mentions?: boolean | null
+          notify_deadlines?: boolean | null
+          notify_followups?: boolean | null
+          notify_security?: boolean | null
+          notify_product_updates?: boolean | null
+          email_frequency?: string | null
+          channel_email?: boolean | null
+          channel_push?: boolean | null
+          channel_mobile?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

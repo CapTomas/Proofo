@@ -173,3 +173,107 @@
     box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.2);
   }
 }
+
+/* ==========================================================================
+   APPEARANCE PREFERENCES - Compact Mode, Font Scale, Reduced Motion
+   ========================================================================== */
+
+/* Font Scale - applied via CSS variable on :root */
+:root {
+  --font-scale: 1;
+}
+
+/* Compact Mode - reduces padding and spacing throughout the app */
+html.compact-mode {
+  /* Card padding reductions */
+  --compact-padding-sm: 0.75rem;
+  --compact-padding-md: 1rem;
+  --compact-padding-lg: 1.25rem;
+  --compact-gap-sm: 0.5rem;
+  --compact-gap-md: 0.75rem;
+  --compact-gap-lg: 1rem;
+}
+
+.compact-mode .p-4 {
+  padding: 0.75rem;
+}
+
+.compact-mode .p-5 {
+  padding: 1rem;
+}
+
+.compact-mode .p-6 {
+  padding: 1.25rem;
+}
+
+.compact-mode .p-8 {
+  padding: 1.5rem;
+}
+
+.compact-mode .gap-4 {
+  gap: 0.75rem;
+}
+
+.compact-mode .gap-5 {
+  gap: 1rem;
+}
+
+.compact-mode .gap-6 {
+  gap: 1rem;
+}
+
+.compact-mode .gap-8 {
+  gap: 1.25rem;
+}
+
+.compact-mode .space-y-4 > * + * {
+  margin-top: 0.75rem;
+}
+
+.compact-mode .space-y-6 > * + * {
+  margin-top: 1rem;
+}
+
+.compact-mode .space-y-8 > * + * {
+  margin-top: 1.25rem;
+}
+
+/* Reduce heights in compact mode */
+.compact-mode .h-10 {
+  height: 2.25rem;
+}
+
+.compact-mode .h-12 {
+  height: 2.75rem;
+}
+
+/* Reduced Motion - disables all CSS transitions and animations */
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Respect system preference for reduced motion when class not explicitly set */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.reduced-motion-off) *,
+  html:not(.reduced-motion-off) *::before,
+  html:not(.reduced-motion-off) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* No-scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

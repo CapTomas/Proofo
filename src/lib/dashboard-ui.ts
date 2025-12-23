@@ -145,7 +145,7 @@ export const dashboardStyles = {
   filterPillInactive: "text-muted-foreground hover:text-foreground hover:bg-background/50",
 
   // Tab buttons
-  tabButton: "px-4 py-1.5 text-xs font-medium rounded-lg transition-all",
+  tabButton: "px-4 py-1.5 text-xs font-medium rounded-xl transition-all",
   tabButtonActive: "bg-background text-foreground shadow-sm",
   tabButtonInactive: "text-muted-foreground hover:text-foreground",
 

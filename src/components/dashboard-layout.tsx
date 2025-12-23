@@ -266,8 +266,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button variant="ghost" size="icon" className="w-full h-10 rounded-xl" onClick={handleLogout} disabled={isLoggingOut}>
-                        <div className="h-6 w-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold">
-                          {userInitials}
+                        <div className="h-6 w-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold overflow-hidden">
+                          {user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={userName} className="w-full h-full object-cover" />
+                          ) : (
+                            userInitials
+                          )}
                         </div>
                       </Button>
                     </TooltipTrigger>
@@ -279,8 +283,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 ) : (
                   <div className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-muted/50 transition-colors group">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0 shadow-sm">
-                        {userInitials}
+                      <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0 shadow-sm overflow-hidden">
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={userName} className="w-full h-full object-cover" />
+                        ) : (
+                          userInitials
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{userName}</p>
@@ -409,8 +417,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     <>
                       <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-muted/50">
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0">
-                            {userInitials}
+                          <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0 shadow-sm overflow-hidden">
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt={userName} className="w-full h-full object-cover" />
+                            ) : (
+                              userInitials
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-medium">{userName}</p>

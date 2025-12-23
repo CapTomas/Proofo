@@ -38,6 +38,16 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { useAppStore } from "@/store";
 import { timeAgo, formatDate } from "@/lib/crypto";
@@ -45,6 +55,8 @@ import { cn, getUserInitials } from "@/lib/utils";
 import { Deal } from "@/types";
 import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
 import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
+import { getContactsAction, createContactAction, updateContactAction, deleteContactAction } from "@/app/actions/contact-actions";
+import { toast } from "sonner";
 
 // --- TYPES & CONFIG ---
 
@@ -481,6 +493,8 @@ export default function PeoplePage() {
   const [hiddenContactIds, setHiddenContactIds] = useState<string[]>([]);
   const [flippedId, setFlippedId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -496,21 +510,43 @@ export default function PeoplePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Load persistence
+  // Load contacts from server
   useEffect(() => {
-    const savedContacts = localStorage.getItem("proofo-custom-contacts");
-    const savedHidden = localStorage.getItem("proofo-hidden-contacts");
-
-    if (savedContacts) {
-      try { setCustomContacts(JSON.parse(savedContacts)); } catch (e) { console.error(e); }
-    }
-    if (savedHidden) {
-      try { setHiddenContactIds(JSON.parse(savedHidden)); } catch (e) { console.error(e); }
-    }
-    setIsLoaded(true);
+    const loadContacts = async () => {
+      // Try to load from server first
+      const { contacts, error } = await getContactsAction();
+      if (!error && contacts.length > 0) {
+        // Transform server contacts to local format
+        const serverContacts: Contact[] = contacts.map(c => ({
+          id: c.id,
+          name: c.name,
+          email: c.email || undefined,
+          dealsCount: 0,
+          role: "recipient" as const,
+          isCustom: true,
+          recentDeals: []
+        }));
+        // Get hidden contact IDs from server contacts
+        const hiddenIds = contacts.filter(c => c.isHidden).map(c => c.id);
+        setCustomContacts(serverContacts);
+        setHiddenContactIds(hiddenIds);
+      } else {
+        // Fall back to localStorage for demo/unauthenticated users
+        const savedContacts = localStorage.getItem("proofo-custom-contacts");
+        const savedHidden = localStorage.getItem("proofo-hidden-contacts");
+        if (savedContacts) {
+          try { setCustomContacts(JSON.parse(savedContacts)); } catch { /* ignore */ }
+        }
+        if (savedHidden) {
+          try { setHiddenContactIds(JSON.parse(savedHidden)); } catch { /* ignore */ }
+        }
+      }
+      setIsLoaded(true);
+    };
+    loadContacts();
   }, []);
 
-  // Save persistence - Only save if loaded to prevent overwriting with initial empty state
+  // Save to localStorage as backup for unauthenticated users
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem("proofo-custom-contacts", JSON.stringify(customContacts));
@@ -636,11 +672,26 @@ export default function PeoplePage() {
 
   const hasHiddenContacts = hiddenContactIds.length > 0;
 
-  // Handlers
-  const handleAddContact = () => {
+  // Handlers - Now async with server action integration
+  const handleAddContact = async () => {
     if (!newContact.name.trim()) return;
+    setIsSaving(true);
+
+    // Create on server
+    const { contact: serverContact, error } = await createContactAction({
+      name: newContact.name.trim(),
+      email: newContact.email.trim() || undefined,
+    });
+
+    if (error) {
+      toast.error("Failed to add contact", { description: error });
+      setIsSaving(false);
+      return;
+    }
+
+    // Add to local state
     const contact: Contact = {
-      id: `custom-${Date.now()}`,
+      id: serverContact?.id || `custom-${Date.now()}`,
       name: newContact.name.trim(),
       email: newContact.email.trim() || undefined,
       dealsCount: 0,
@@ -651,19 +702,41 @@ export default function PeoplePage() {
     setCustomContacts(prev => [...prev, contact]);
     setNewContact({ name: "", email: "" });
     setShowAddModal(false);
+    setIsSaving(false);
+    toast.success("Contact added");
   };
 
-  const handleDeleteContact = (id: string) => {
-    if (confirm("Delete this contact?")) {
-      setCustomContacts(prev => prev.filter(c => c.id !== id));
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+
+    // Delete from server
+    const { error } = await deleteContactAction(id);
+    if (error) {
+      toast.error("Failed to delete contact", { description: error });
+      return;
     }
+
+    setCustomContacts(prev => prev.filter(c => c.id !== id));
+    toast.success("Contact deleted");
   };
 
-  const handleHideContact = (id: string) => {
+  const handleHideContact = async (id: string) => {
+    // Update on server
+    const { error } = await updateContactAction({ id, isHidden: true });
+    if (error) {
+      // If server fails, still update locally (may be demo user)
+    }
     setHiddenContactIds(prev => [...prev, id]);
   };
 
-  const handleUnhideContact = (id: string) => {
+  const handleUnhideContact = async (id: string) => {
+    // Update on server
+    const { error } = await updateContactAction({ id, isHidden: false });
+    if (error) {
+      // If server fails, still update locally (may be demo user)
+    }
     setHiddenContactIds(prev => prev.filter(hid => hid !== id));
   };
 
@@ -810,7 +883,7 @@ export default function PeoplePage() {
                 isFlipped={flippedId === contact.id}
                 onFlip={(e) => { e.preventDefault(); setFlippedId(flippedId === contact.id ? null : contact.id); }}
                 onAction={handleAction}
-                onDelete={contact.isCustom ? () => handleDeleteContact(contact.id) : undefined}
+                onDelete={contact.isCustom ? () => setDeleteConfirmId(contact.id) : undefined}
                 onHide={() => handleHideContact(contact.id)}
                 onUnhide={() => handleUnhideContact(contact.id)}
                 isHiddenView={showHidden}
@@ -884,6 +957,27 @@ export default function PeoplePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this contact?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the contact from your list. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

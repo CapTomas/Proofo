@@ -39,9 +39,40 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   name TEXT,
   avatar_url TEXT,
   is_pro BOOLEAN DEFAULT FALSE,
+  -- Phase 1 additions (Dec 2025)
+  job_title TEXT,
+  location TEXT,
+  currency TEXT DEFAULT 'USD',
+  signature_url TEXT,
+  -- timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Phase 1 Migration: Add new columns to existing profiles table
+-- Run this if upgrading from an older schema:
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS job_title TEXT;
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location TEXT;
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS signature_url TEXT;
+
+-- 3b. Contacts table (for People Page persistence, Phase 1)
+CREATE TABLE IF NOT EXISTS public.contacts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT,
+  notes TEXT,
+  is_hidden BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Composite unique constraint: one contact per email per user
+  UNIQUE(user_id, email)
+);
+
+-- Contacts indexes
+CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON public.contacts(user_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_email ON public.contacts(email);
 
 -- 4. Deals table (core table)
 CREATE TABLE IF NOT EXISTS public.deals (
@@ -105,6 +136,50 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.access_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
+
+-- 8b. User Preferences Table (Phase 1 - Settings persistence)
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  -- Notification preferences
+  notify_deal_viewed BOOLEAN DEFAULT TRUE,
+  notify_deal_signed BOOLEAN DEFAULT TRUE,
+  notify_deal_expiring BOOLEAN DEFAULT TRUE,
+  notify_deal_comments BOOLEAN DEFAULT TRUE,
+  notify_messages BOOLEAN DEFAULT TRUE,
+  notify_mentions BOOLEAN DEFAULT TRUE,
+  notify_deadlines BOOLEAN DEFAULT TRUE,
+  notify_followups BOOLEAN DEFAULT FALSE,
+  notify_security BOOLEAN DEFAULT TRUE,
+  notify_product_updates BOOLEAN DEFAULT FALSE,
+  email_frequency TEXT DEFAULT 'instant',
+  channel_email BOOLEAN DEFAULT TRUE,
+  channel_push BOOLEAN DEFAULT TRUE,
+  channel_mobile BOOLEAN DEFAULT FALSE,
+  -- Do Not Disturb
+  do_not_disturb BOOLEAN DEFAULT FALSE,
+  dnd_expires_at TIMESTAMPTZ,
+  -- Appearance preferences
+  compact_mode BOOLEAN DEFAULT FALSE,
+  font_scale NUMERIC(3,2) DEFAULT 1.00,
+  reduced_motion BOOLEAN DEFAULT FALSE,
+  -- timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+-- Phase 1.1 Migration: Add new columns to existing user_preferences table
+-- Run this if upgrading from an older schema:
+-- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS do_not_disturb BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS dnd_expires_at TIMESTAMPTZ;
+-- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS compact_mode BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS font_scale NUMERIC(3,2) DEFAULT 1.00;
+-- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS reduced_motion BOOLEAN DEFAULT FALSE;
+
+-- User Preferences RLS
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 
 -- 9. RLS Policies
 -- Profiles
@@ -150,6 +225,32 @@ CREATE POLICY "Users can view audit logs for their deals" ON public.audit_log FO
     AND (deals.creator_id = auth.uid() OR deals.recipient_id = auth.uid())
   )
 );
+
+-- Contacts (Phase 1)
+DROP POLICY IF EXISTS "Users can view their own contacts" ON public.contacts;
+CREATE POLICY "Users can view their own contacts" ON public.contacts FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create their own contacts" ON public.contacts;
+CREATE POLICY "Users can create their own contacts" ON public.contacts FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own contacts" ON public.contacts;
+CREATE POLICY "Users can update their own contacts" ON public.contacts FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own contacts" ON public.contacts;
+CREATE POLICY "Users can delete their own contacts" ON public.contacts FOR DELETE USING (auth.uid() = user_id);
+
+-- User Preferences (Phase 1)
+DROP POLICY IF EXISTS "Users can view their own preferences" ON public.user_preferences;
+CREATE POLICY "Users can view their own preferences" ON public.user_preferences FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create their own preferences" ON public.user_preferences;
+CREATE POLICY "Users can create their own preferences" ON public.user_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own preferences" ON public.user_preferences;
+CREATE POLICY "Users can update their own preferences" ON public.user_preferences FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own preferences" ON public.user_preferences;
+CREATE POLICY "Users can delete their own preferences" ON public.user_preferences FOR DELETE USING (auth.uid() = user_id);
 
 -- 10. Functions & Triggers
 
@@ -283,7 +384,7 @@ BEGIN
   FROM public.deals d
   LEFT JOIN public.profiles p ON d.creator_id = p.id
   WHERE d.public_id = p_public_id;
-  
+
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -334,7 +435,7 @@ BEGIN
     AND expires_at > NOW()
     AND used_at IS NULL
   LIMIT 1;
-  
+
   RETURN v_token;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -358,7 +459,7 @@ BEGIN
   WHERE deal_id = p_deal_id
   ORDER BY created_at DESC
   LIMIT 1;
-  
+
   IF NOT FOUND THEN
     RETURN json_build_object('status', 'not_found', 'expires_at', NULL);
   END IF;
@@ -411,7 +512,7 @@ GRANT EXECUTE ON FUNCTION public.get_token_status_for_deal(UUID) TO authenticate
 --    - Policy definition: true
 --
 -- 5. Add another policy:
---    - Policy name: "Allow authenticated uploads"  
+--    - Policy name: "Allow authenticated uploads"
 --    - Allowed operation: INSERT
 --    - Target roles: public (for anonymous recipients)
 --    - Policy definition: true
