@@ -50,8 +50,8 @@ export default function TermsPage() {
                 Agreement to Terms
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                By accessing or using Proofo, you agree to be bound by these Terms of Service.
-                If you do not agree to these terms, please do not use our services.
+                By accessing or using Proofo, you agree to be bound by these Terms of Service. If
+                you do not agree to these terms, please do not use our services.
               </p>
             </section>
 
@@ -60,9 +60,9 @@ export default function TermsPage() {
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-4">1. Description of Service</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Proofo provides a digital agreement platform that enables users to create,
-                send, and sign digital agreements. Our service creates cryptographically-sealed
-                records of agreements between parties.
+                Proofo provides a digital agreement platform that enables users to create, send, and
+                sign digital agreements. Our service creates cryptographically-sealed records of
+                agreements between parties.
               </p>
             </section>
 
@@ -79,9 +79,9 @@ export default function TermsPage() {
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-4">3. Intellectual Property</h2>
               <p className="text-muted-foreground leading-relaxed">
-                The Proofo platform, including its design, features, and technology, is owned
-                by Proofo and protected by intellectual property laws. You retain ownership
-                of the content you create using our service.
+                The Proofo platform, including its design, features, and technology, is owned by
+                Proofo and protected by intellectual property laws. You retain ownership of the
+                content you create using our service.
               </p>
             </section>
 
@@ -89,16 +89,16 @@ export default function TermsPage() {
               <h2 className="text-xl font-semibold mb-4">4. Limitation of Liability</h2>
               <p className="text-muted-foreground leading-relaxed">
                 Proofo provides the service &quot;as is&quot; without warranties of any kind. We are
-                not liable for any indirect, incidental, or consequential damages arising
-                from your use of the service.
+                not liable for any indirect, incidental, or consequential damages arising from your
+                use of the service.
               </p>
             </section>
 
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-4">5. Modifications</h2>
               <p className="text-muted-foreground leading-relaxed">
-                We reserve the right to modify these terms at any time. Continued use of
-                the service after changes constitutes acceptance of the modified terms.
+                We reserve the right to modify these terms at any time. Continued use of the service
+                after changes constitutes acceptance of the modified terms.
               </p>
             </section>
 

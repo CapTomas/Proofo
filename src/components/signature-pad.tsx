@@ -81,7 +81,7 @@ export function SignaturePad({
         <div className="absolute bottom-4 left-6 text-[10px] text-muted-foreground/50 tracking-wide uppercase">
           Sign here
         </div>
-        
+
         <SignatureCanvas
           ref={sigCanvas}
           canvasProps={{
@@ -98,21 +98,27 @@ export function SignaturePad({
           maxWidth={3}
           onEnd={handleEnd}
         />
-        
+
         {isEmpty && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            aria-hidden="true"
+          >
             <div className="flex flex-col items-center gap-2">
               <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center">
                 <PenLine className="h-5 w-5 text-muted-foreground/50" />
               </div>
-              <p className="text-muted-foreground/60 text-sm font-medium" id="signature-instructions">
+              <p
+                className="text-muted-foreground/60 text-sm font-medium"
+                id="signature-instructions"
+              >
                 Draw your signature
               </p>
             </div>
           </div>
         )}
       </div>
-      
+
       <div className="flex gap-3">
         <Button
           type="button"
@@ -130,10 +136,7 @@ export function SignaturePad({
           variant={isEmpty ? "outline" : "default"}
           size="sm"
           disabled={isEmpty || disabled}
-          className={cn(
-            "flex-1 h-10 transition-all",
-            !isEmpty && "shadow-lg shadow-primary/20"
-          )}
+          className={cn("flex-1 h-10 transition-all", !isEmpty && "shadow-lg shadow-primary/20")}
         >
           <Check className="h-4 w-4 mr-2" />
           {isEmpty ? "Sign Above" : "Signed ✓"}

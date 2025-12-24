@@ -13,12 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Mail,
-  ArrowRight,
-  Shield,
-  AlertCircle,
-} from "lucide-react";
+import { Mail, ArrowRight, Shield, AlertCircle } from "lucide-react";
 import { signInWithEmail, signInWithGoogle, isSupabaseConfigured } from "@/lib/supabase";
 import { useAppStore } from "@/store";
 
@@ -46,9 +41,7 @@ export function LoginModal({
 
   // Helper function to create demo user and handle success callback
   const createDemoUser = (emailAddress: string) => {
-    const userName = emailAddress.includes("@")
-      ? emailAddress.split("@")[0]
-      : "Demo User";
+    const userName = emailAddress.includes("@") ? emailAddress.split("@")[0] : "Demo User";
 
     setUser({
       id: `demo-${Date.now()}`,
@@ -233,7 +226,8 @@ export function LoginModal({
               </motion.div>
               <h3 className="text-xl font-semibold mb-2">Check your email</h3>
               <p className="text-muted-foreground mb-6">
-                We sent a magic link to<br />
+                We sent a magic link to
+                <br />
                 <strong className="text-foreground">{email}</strong>
               </p>
               <Button variant="ghost" onClick={() => setIsSent(false)}>

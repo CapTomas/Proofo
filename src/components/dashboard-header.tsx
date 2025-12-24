@@ -4,16 +4,9 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  Search,
-  Plus,
-  Menu,
-  Bell,
-  Command,
-} from "lucide-react";
+import { Search, Plus, Menu, Bell, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 
 interface DashboardHeaderProps {
   onMenuClick: () => void;
@@ -34,14 +27,14 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
     // Capitalize: "dashboard" -> "Dashboard", "new-deal" -> "New Deal"
     const label = segment
       .split("-")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
 
     return {
       href,
       label,
       isLast: index === segments.length - 1,
-      isRoot: segment === "dashboard" && index === 0
+      isRoot: segment === "dashboard" && index === 0,
     };
   });
 
@@ -74,9 +67,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
             {/* Breadcrumb Items */}
             {breadcrumbItems.map((item, index) => (
               <div key={item.href} className="flex items-center">
-                {index > 0 && (
-                  <span className="text-muted-foreground/40 mx-2 font-light">/</span>
-                )}
+                {index > 0 && <span className="text-muted-foreground/40 mx-2 font-light">/</span>}
                 <Link
                   href={item.href}
                   className={cn(
@@ -127,7 +118,11 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hidden sm:flex h-9 w-9 relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground hidden sm:flex h-9 w-9 relative"
+                >
                   <Bell className="h-5 w-5" />
                   <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-primary border-2 border-background" />
                   <span className="sr-only">Notifications</span>
@@ -140,7 +135,10 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
           {/* New Deal Button - Primary Action */}
           {showNewDeal && (
             <Link href="/deal/new">
-              <Button size="sm" className="h-9 gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95 ml-1 font-medium">
+              <Button
+                size="sm"
+                className="h-9 gap-1.5 shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95 ml-1 font-medium"
+              >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">New Deal</span>
                 <span className="sm:hidden">New</span>

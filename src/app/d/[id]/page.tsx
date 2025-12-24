@@ -43,7 +43,7 @@ import {
   markDealViewedAction,
   getTokenStatusAction,
   sendDealReceiptAction,
-  TokenStatus
+  TokenStatus,
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { generateDealPDF, downloadPDF, generatePDFFilename, pdfBlobToBase64 } from "@/lib/pdf";
@@ -76,7 +76,12 @@ const demoDeal: Deal = {
     { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
     { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
     { id: "3", label: "Expected Return Date", value: "February 15, 2024", type: "date" },
-    { id: "4", label: "Condition Notes", value: "Excellent condition, includes original box and accessories", type: "text" },
+    {
+      id: "4",
+      label: "Condition Notes",
+      value: "Excellent condition, includes original box and accessories",
+      type: "text",
+    },
   ],
   createdAt: "2024-01-20T14:00:00Z",
   status: "pending",
@@ -96,16 +101,30 @@ const demoConfirmedDeal: Deal = {
     { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
     { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
     { id: "3", label: "Expected Return Date", value: "February 15, 2024", type: "date" },
-    { id: "4", label: "Condition Notes", value: "Excellent condition, includes original box and accessories", type: "text" },
+    {
+      id: "4",
+      label: "Condition Notes",
+      value: "Excellent condition, includes original box and accessories",
+      type: "text",
+    },
   ],
   createdAt: "2024-01-20T14:00:00Z",
   confirmedAt: "2024-01-21T10:30:00Z",
   status: "confirmed",
-  signatureUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  signatureUrl:
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
   dealSeal: "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678",
 };
 
-type Step = "review" | "sign" | "email" | "complete" | "already_signed" | "voided" | "not_found" | "expired";
+type Step =
+  | "review"
+  | "sign"
+  | "email"
+  | "complete"
+  | "already_signed"
+  | "voided"
+  | "not_found"
+  | "expired";
 
 // Template icon name mapping
 const templateIconNames: Record<string, string> = {
@@ -113,7 +132,7 @@ const templateIconNames: Record<string, string> = {
   "simple-agreement": "Handshake",
   "payment-promise": "DollarSign",
   "service-exchange": "ArrowLeftRight",
-  "custom": "PenLine",
+  custom: "PenLine",
 };
 
 // Helper function to determine initial step
@@ -340,9 +359,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   // Auto-send receipt email for logged-in users (fire-and-forget)
   const sendReceiptForLoggedInUser = async (deal: Deal, recipientEmail: string) => {
     try {
-      const verificationUrl = typeof window !== "undefined"
-        ? `${window.location.origin}/verify?id=${deal.publicId}`
-        : `https://proofo.app/verify?id=${deal.publicId}`;
+      const verificationUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/verify?id=${deal.publicId}`
+          : `https://proofo.app/verify?id=${deal.publicId}`;
 
       const { pdfBlob } = await generateDealPDF({
         deal: deal,
@@ -384,9 +404,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     setIsGeneratingPDF(true);
     try {
-      const verificationUrl = typeof window !== "undefined"
-        ? `${window.location.origin}/verify?id=${targetDeal.publicId}`
-        : `https://proofo.app/verify?id=${targetDeal.publicId}`;
+      const verificationUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/verify?id=${targetDeal.publicId}`
+          : `https://proofo.app/verify?id=${targetDeal.publicId}`;
 
       const { pdfBlob } = await generateDealPDF({
         deal: targetDeal,
@@ -414,9 +435,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     try {
       // First generate the PDF
-      const verificationUrl = typeof window !== "undefined"
-        ? `${window.location.origin}/verify?id=${confirmedDeal.publicId}`
-        : `https://proofo.app/verify?id=${confirmedDeal.publicId}`;
+      const verificationUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/verify?id=${confirmedDeal.publicId}`
+          : `https://proofo.app/verify?id=${confirmedDeal.publicId}`;
 
       const { pdfBlob } = await generateDealPDF({
         deal: confirmedDeal,
@@ -478,7 +500,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
           </div>
           <h1 className="text-2xl font-bold mb-3">Deal Not Found</h1>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            This deal doesn&apos;t exist or the link may have expired. Please check with the person who sent you this link.
+            This deal doesn&apos;t exist or the link may have expired. Please check with the person
+            who sent you this link.
           </p>
           <Link href="/">
             <Button>Go to Proofo</Button>
@@ -520,7 +543,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </div>
               <h1 className="text-2xl font-bold mb-3">Deal Not Found</h1>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                This deal doesn&apos;t exist or the link may have expired. Please check with the person who sent you this link.
+                This deal doesn&apos;t exist or the link may have expired. Please check with the
+                person who sent you this link.
               </p>
               <Link href="/">
                 <Button>Go to Proofo</Button>
@@ -541,7 +565,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </div>
               <h1 className="text-2xl font-bold mb-3">Deal Voided</h1>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                This deal has been voided by {displayDeal.creatorName} and is no longer available for signing.
+                This deal has been voided by {displayDeal.creatorName} and is no longer available
+                for signing.
               </p>
               <Link href="/">
                 <Button variant="outline">Go to Proofo</Button>
@@ -562,7 +587,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </div>
               <h1 className="text-2xl font-bold mb-3">Link Expired</h1>
               <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                This signing link has expired{tokenExpiresAt ? ` on ${formatDateTime(tokenExpiresAt)}` : ""}.
+                This signing link has expired
+                {tokenExpiresAt ? ` on ${formatDateTime(tokenExpiresAt)}` : ""}.
               </p>
               <Card className="mb-6 max-w-md mx-auto">
                 <CardContent className="p-4">
@@ -571,7 +597,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <div className="text-left text-sm">
                       <p className="font-medium mb-1">What happened?</p>
                       <p className="text-muted-foreground">
-                        For security reasons, signing links expire after 7 days. Please contact {displayDeal.creatorName} to request a new signing link.
+                        For security reasons, signing links expire after 7 days. Please contact{" "}
+                        {displayDeal.creatorName} to request a new signing link.
                       </p>
                     </div>
                   </div>
@@ -597,7 +624,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
             >
               {/* Success Header */}
               <div className="text-center mb-8">
-                <Badge variant="secondary" className="mb-4 px-4 py-1.5 bg-emerald-500/10 text-emerald-700 border-emerald-500/30">
+                <Badge
+                  variant="secondary"
+                  className="mb-4 px-4 py-1.5 bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                >
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                   Sealed & Verified
                 </Badge>
@@ -605,7 +635,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   Deal Complete
                 </h1>
                 <p className="text-muted-foreground">
-                  This agreement was sealed on {displayDeal.confirmedAt ? formatDateTime(displayDeal.confirmedAt) : "a previous date"}
+                  This agreement was sealed on{" "}
+                  {displayDeal.confirmedAt
+                    ? formatDateTime(displayDeal.confirmedAt)
+                    : "a previous date"}
                 </p>
               </div>
 
@@ -659,7 +692,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <div className="flex items-center gap-2 text-sm">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Recipient:</span>
-                      <span className="font-medium">{displayDeal.recipientName || "Recipient"}</span>
+                      <span className="font-medium">
+                        {displayDeal.recipientName || "Recipient"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Hash className="h-4 w-4 text-muted-foreground" />
@@ -672,7 +707,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
                   {/* Terms */}
                   <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      Agreement Terms
+                    </h4>
                     {displayDeal.terms.map((term, index) => (
                       <motion.div
                         key={term.id}
@@ -700,13 +737,15 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   </CardHeader>
                   <CardContent>
                     <div className="bg-muted/30 rounded-lg p-4 flex justify-center">
-                      {displayDeal.signatureUrl.startsWith('data:') ? (
+                      {displayDeal.signatureUrl.startsWith("data:") ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- base64 data URL for signature
                         <img
                           src={displayDeal.signatureUrl}
                           alt="Signature"
                           className="max-h-24 object-contain"
                         />
                       ) : (
+                        // eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL for signature
                         <img
                           src={displayDeal.signatureUrl}
                           alt="Signature"
@@ -818,9 +857,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
                   {displayDeal.creatorName} wants to make a deal
                 </h1>
-                <p className="text-muted-foreground">
-                  Review the terms below before signing
-                </p>
+                <p className="text-muted-foreground">Review the terms below before signing</p>
                 {user && (
                   <Badge variant="outline" className="mt-3 gap-1.5">
                     <CheckCircle2 className="h-3 w-3 text-emerald-500" />
@@ -892,7 +929,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
                   {/* Terms */}
                   <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Agreement Terms</h4>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      Agreement Terms
+                    </h4>
                     {displayDeal.terms.map((term, index) => (
                       <motion.div
                         key={term.id}
@@ -956,7 +995,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
                   Almost Done
                 </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">Sign to Accept</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
+                  Sign to Accept
+                </h1>
                 <p className="text-muted-foreground">
                   Draw your signature below to seal this agreement
                 </p>
@@ -1130,10 +1171,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 >
                   <CheckCircle2 className="h-10 w-10 text-white" />
                 </motion.div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">Deal Sealed! 🎉</h1>
-                <p className="text-muted-foreground">
-                  Where should we send your receipt?
-                </p>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
+                  Deal Sealed! 🎉
+                </h1>
+                <p className="text-muted-foreground">Where should we send your receipt?</p>
                 {user && (
                   <Badge variant="outline" className="mt-3 gap-1.5">
                     <User className="h-3 w-3" />
@@ -1146,7 +1187,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <CardContent className="p-6 sm:p-8 space-y-6">
                   <div className="space-y-3">
                     <Label htmlFor="email" className="text-sm font-medium">
-                      Email Address <span className="text-muted-foreground">({user?.email ? "Auto-filled" : "Optional"})</span>
+                      Email Address{" "}
+                      <span className="text-muted-foreground">
+                        ({user?.email ? "Auto-filled" : "Optional"})
+                      </span>
                     </Label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1172,7 +1216,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   {emailSent && (
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                       <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-                      <p className="text-sm text-emerald-700">Receipt sent successfully! Check your inbox.</p>
+                      <p className="text-sm text-emerald-700">
+                        Receipt sent successfully! Check your inbox.
+                      </p>
                     </div>
                   )}
 
@@ -1180,7 +1226,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border">
                       <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                       <p className="text-sm text-muted-foreground">
-                        We&apos;ll send you a PDF copy of this agreement with the cryptographic seal for your records. Your email is never shared.
+                        We&apos;ll send you a PDF copy of this agreement with the cryptographic seal
+                        for your records. Your email is never shared.
                       </p>
                     </div>
                   )}
@@ -1188,7 +1235,12 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </Card>
 
               <div className="flex gap-4">
-                <Button variant="outline" className="flex-1" onClick={handleSkipEmail} disabled={isSendingEmail}>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleSkipEmail}
+                  disabled={isSendingEmail}
+                >
                   Skip for Now
                 </Button>
                 <Button
@@ -1240,7 +1292,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 <CheckCircle2 className="h-12 w-12 text-white" />
               </motion.div>
 
-              <h1 className="text-2xl sm:text-3xl font-bold mb-4 tracking-tight">You&apos;re All Set!</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-4 tracking-tight">
+                You&apos;re All Set!
+              </h1>
               <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                 This agreement has been cryptographically sealed and is now enforceable.
                 {emailSent && " A copy has been sent to your email."}
@@ -1277,16 +1331,19 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       <span className="font-medium text-sm">
                         {confirmedDeal?.confirmedAt
                           ? formatDate(confirmedDeal.confirmedAt)
-                          : new Date().toLocaleString('en-US', {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
+                          : new Date().toLocaleString("en-US", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
                             })}
                       </span>
                     </div>
                     {confirmedDeal?.dealSeal && (
                       <div className="flex items-center justify-between py-2 border-b">
                         <span className="text-muted-foreground text-sm">Seal Hash</span>
-                        <Badge variant="outline" className="font-mono text-xs max-w-[200px] truncate">
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-xs max-w-[200px] truncate"
+                        >
                           {confirmedDeal.dealSeal.slice(0, 16)}...
                         </Badge>
                       </div>
@@ -1365,7 +1422,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-muted-foreground mb-4">Want to create your own deals?</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Want to create your own deals?
+                    </p>
                     <Link href="/dashboard">
                       <Button className="shadow-lg shadow-primary/20 gap-2">
                         <Sparkles className="h-4 w-4" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { supabase, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
 import { useAppStore } from "@/store";
 import { getUserDealsAction, ensureProfileExistsAction } from "@/app/actions/deal-actions";
@@ -25,10 +25,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isSyncingRef = useRef(false);
 
   // Track if we're on a protected route
-  const isProtectedRoute = pathname?.startsWith("/dashboard") ||
-                           pathname?.startsWith("/settings") ||
-                           pathname?.startsWith("/templates") ||
-                           pathname?.startsWith("/verify");
+  const isProtectedRoute =
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/settings") ||
+    pathname?.startsWith("/templates") ||
+    pathname?.startsWith("/verify");
 
   /**
    * Sync user data from server
@@ -47,7 +48,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // CRITICAL: Use getUser() not getSession() for security
       // getUser() validates the JWT with Supabase Auth server
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
 
       if (authError || !authUser) {
         // No valid session - clear client state
@@ -66,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch profile and deals in parallel
       const [profileResult, dealsResult] = await Promise.all([
         ensureProfileExistsAction(),
-        getUserDealsAction()
+        getUserDealsAction(),
       ]);
 
       // Update user state
@@ -82,7 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (dealsResult.deals) {
         setDeals(dealsResult.deals);
       }
-
     } catch (error) {
       console.error("Error syncing auth state:", error);
     } finally {
@@ -112,27 +115,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          // Re-sync user data
-          await syncUserData();
-        } else if (event === "SIGNED_OUT") {
-          // Clear all client state
-          setUser(null);
-          setDeals([]);
-          setNeedsOnboarding(false);
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("proofo-storage");
-          }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, _session) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        // Re-sync user data
+        await syncUserData();
+      } else if (event === "SIGNED_OUT") {
+        // Clear all client state
+        setUser(null);
+        setDeals([]);
+        setNeedsOnboarding(false);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("proofo-storage");
+        }
 
-          // Redirect to home if on protected route
-          if (isProtectedRoute) {
-            router.push("/");
-          }
+        // Redirect to home if on protected route
+        if (isProtectedRoute) {
+          router.push("/");
         }
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -147,21 +150,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isSupabaseConfigured()) return;
 
     // Refresh session every 10 minutes
-    const interval = setInterval(async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser && user) {
-        // Session expired - clear state
-        setUser(null);
-        setDeals([]);
-        if (isProtectedRoute) {
-          router.push("/login?error=session_expired");
+    const interval = setInterval(
+      async () => {
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+        if (!authUser && user) {
+          // Session expired - clear state
+          setUser(null);
+          setDeals([]);
+          if (isProtectedRoute) {
+            router.push("/login?error=session_expired");
+          }
         }
-      }
-    }, 10 * 60 * 1000);
+      },
+      10 * 60 * 1000
+    );
 
     return () => clearInterval(interval);
   }, [user, setUser, setDeals, isProtectedRoute, router]);
 
   return <>{children}</>;
 }
-

@@ -27,13 +27,20 @@ import {
   Copy,
   XCircle,
   FileText,
-  Command,
 } from "lucide-react";
 import Link from "next/link";
 import { dealTemplates } from "@/lib/templates";
 import { DealTemplate, TemplateField } from "@/types";
 import { cn } from "@/lib/utils";
-import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
+import {
+  dashboardStyles,
+  containerVariants,
+  itemVariants,
+  cardFlipTransition,
+  getToggleButtonClass,
+  getFilterPillClass,
+  getGridClass,
+} from "@/lib/dashboard-ui";
 import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
@@ -62,7 +69,7 @@ const templateMetadata: Record<string, { category: string }> = {
   "simple-agreement": { category: "General" },
   "payment-promise": { category: "Financial" },
   "service-exchange": { category: "Services" },
-  "custom": { category: "General" },
+  custom: { category: "General" },
 };
 
 // HighlightText imported from shared-components
@@ -86,7 +93,7 @@ const TemplateCard = ({
   isExpanded,
   onToggleExpand,
   isFlipped,
-  onFlip
+  onFlip,
 }: TemplateCardProps) => {
   const IconComponent = iconMap[template.icon] || PenLine;
   const meta = templateMetadata[template.id] || { category: "General" };
@@ -94,17 +101,15 @@ const TemplateCard = ({
 
   if (viewMode === "list") {
     return (
-      <motion.div
-        variants={itemVariants}
-        layout
-        className="group relative"
-      >
+      <motion.div variants={itemVariants} layout className="group relative">
         <Link href={linkHref}>
           <div className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-muted/40 hover:border-primary/20 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer">
-            <div className={cn(
-              "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors border shadow-sm",
-              "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
-            )}>
+            <div
+              className={cn(
+                "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors border shadow-sm",
+                "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
+              )}
+            >
               <IconComponent className="h-5 w-5" />
             </div>
 
@@ -113,7 +118,10 @@ const TemplateCard = ({
                 <h3 className="font-semibold text-foreground truncate">
                   <HighlightText text={template.name} query={searchQuery} />
                 </h3>
-                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium border-0 bg-secondary/50 text-muted-foreground">
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] h-5 px-1.5 font-medium border-0 bg-secondary/50 text-muted-foreground"
+                >
                   {meta.category}
                 </Badge>
               </div>
@@ -123,18 +131,26 @@ const TemplateCard = ({
             </div>
 
             <div className="hidden sm:flex items-center gap-2 mr-4">
-              {(isExpanded ? template.fields : template.fields.slice(0, 3)).map((field: TemplateField) => {
-                const FieldIcon = fieldTypeIcons[field.type] || Type;
-                return (
-                  <div key={field.id} className="flex items-center gap-1 text-[10px] text-muted-foreground bg-secondary/30 px-2 py-1.5 rounded-md border border-transparent group-hover:border-border/50 transition-colors h-7">
-                    <FieldIcon className="h-3 w-3 opacity-70" />
-                    <span>{field.label}</span>
-                  </div>
-                );
-              })}
+              {(isExpanded ? template.fields : template.fields.slice(0, 3)).map(
+                (field: TemplateField) => {
+                  const FieldIcon = fieldTypeIcons[field.type] || Type;
+                  return (
+                    <div
+                      key={field.id}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground bg-secondary/30 px-2 py-1.5 rounded-md border border-transparent group-hover:border-border/50 transition-colors h-7"
+                    >
+                      <FieldIcon className="h-3 w-3 opacity-70" />
+                      <span>{field.label}</span>
+                    </div>
+                  );
+                }
+              )}
               {!isExpanded && template.fields.length > 3 && (
                 <button
-                  onClick={(e) => { e.preventDefault(); onToggleExpand(e); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onToggleExpand(e);
+                  }}
                   className="text-[10px] px-2 py-1 rounded-md bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors font-medium h-7 flex items-center"
                 >
                   +{template.fields.length - 3}
@@ -143,12 +159,20 @@ const TemplateCard = ({
             </div>
 
             <div className="flex gap-1">
-               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
-                  <Eye className="h-4 w-4" />
-               </Button>
-               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
-                  <Copy className="h-4 w-4" />
-               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </Link>
@@ -158,13 +182,8 @@ const TemplateCard = ({
 
   // Grid View with Flip Interaction
   return (
-    <motion.div
-      variants={itemVariants}
-      layout
-      className="h-full perspective-1000"
-    >
+    <motion.div variants={itemVariants} layout className="h-full perspective-1000">
       <div className="relative h-full w-full" style={{ perspective: "1000px" }}>
-
         {/* Front of Card */}
         <motion.div
           className={cn(
@@ -174,7 +193,7 @@ const TemplateCard = ({
           initial={false}
           animate={{
             rotateY: isFlipped ? 180 : 0,
-            opacity: isFlipped ? 0 : 1
+            opacity: isFlipped ? 0 : 1,
           }}
           transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
@@ -183,13 +202,18 @@ const TemplateCard = ({
             <Link href={linkHref} className="flex-1 p-5 pb-0 flex flex-col group">
               {/* Header */}
               <div className="flex justify-between items-start mb-4">
-                <div className={cn(
-                  "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
-                  "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
-                )}>
+                <div
+                  className={cn(
+                    "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
+                    "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
+                  )}
+                >
                   <IconComponent className="h-5 w-5" />
                 </div>
-                <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
+                >
                   {meta.category}
                 </Badge>
               </div>
@@ -206,31 +230,37 @@ const TemplateCard = ({
 
               {/* Field Tags (Clickable +1) */}
               <div className="flex flex-wrap gap-1.5 mb-6 content-start flex-1 items-start">
-                {(isExpanded ? template.fields : template.fields.slice(0, 3)).map((field: TemplateField) => {
-                  const FieldIcon = fieldTypeIcons[field.type] || Type;
-                  return (
-                    <motion.div
-                      layout
-                      key={field.id}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                    >
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
+                {(isExpanded ? template.fields : template.fields.slice(0, 3)).map(
+                  (field: TemplateField) => {
+                    const FieldIcon = fieldTypeIcons[field.type] || Type;
+                    return (
+                      <motion.div
+                        layout
+                        key={field.id}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
                       >
-                        <FieldIcon className="h-3 w-3 mr-1 opacity-70" />
-                        {field.label}
-                      </Badge>
-                    </motion.div>
-                  );
-                })}
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
+                        >
+                          <FieldIcon className="h-3 w-3 mr-1 opacity-70" />
+                          {field.label}
+                        </Badge>
+                      </motion.div>
+                    );
+                  }
+                )}
                 {!isExpanded && template.fields.length > 3 && (
                   <motion.div layout>
                     <Badge
                       variant="outline"
                       className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed cursor-pointer hover:bg-secondary hover:text-foreground transition-colors h-6 flex items-center"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleExpand(e); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onToggleExpand(e);
+                      }}
                     >
                       +{template.fields.length - 3}
                     </Badge>
@@ -241,7 +271,10 @@ const TemplateCard = ({
 
             {/* Footer Action Bar */}
             <div className={dashboardStyles.cardFooter}>
-              <Link href={linkHref} className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+              <Link
+                href={linkHref}
+                className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
                 Use Template
               </Link>
 
@@ -250,7 +283,11 @@ const TemplateCard = ({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onFlip(e); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onFlip(e);
+                  }}
                   title="Preview Template"
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -288,7 +325,7 @@ const TemplateCard = ({
           initial={{ rotateY: 180 }}
           animate={{
             rotateY: isFlipped ? 0 : -180,
-            opacity: isFlipped ? 1 : 0
+            opacity: isFlipped ? 1 : 0,
           }}
           transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
@@ -303,7 +340,10 @@ const TemplateCard = ({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 rounded-full -mr-2 text-muted-foreground hover:text-primary"
-                onClick={(e) => { e.preventDefault(); onFlip(e); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onFlip(e);
+                }}
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
@@ -313,19 +353,29 @@ const TemplateCard = ({
               {template.fields.map((field: TemplateField) => {
                 const FieldIcon = fieldTypeIcons[field.type] || Type;
                 return (
-                  <div key={field.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border border-border/50 shadow-sm">
+                  <div
+                    key={field.id}
+                    className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border border-border/50 shadow-sm"
+                  >
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <FieldIcon className="h-3.5 w-3.5 opacity-70" />
                       <span>{field.label}</span>
                     </div>
-                    {field.required && <span className="text-[9px] text-destructive font-medium bg-destructive/5 px-1.5 py-0.5 rounded-md border border-destructive/10">Req</span>}
+                    {field.required && (
+                      <span className="text-[9px] text-destructive font-medium bg-destructive/5 px-1.5 py-0.5 rounded-md border border-destructive/10">
+                        Req
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
 
             <div className="mt-auto pt-4 border-t border-border/40">
-              <Link href={linkHref} className="group/link flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors w-full py-1">
+              <Link
+                href={linkHref}
+                className="group/link flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors w-full py-1"
+              >
                 Use Template
               </Link>
             </div>
@@ -358,14 +408,15 @@ export default function TemplatesPage() {
 
   const filteredTemplates = useMemo(() => {
     return dealTemplates
-      .filter(t => t.id !== "custom")
+      .filter((t) => t.id !== "custom")
       .filter((template) => {
         const matchesSearch =
           template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           template.description.toLowerCase().includes(searchQuery.toLowerCase());
 
         const meta = templateMetadata[template.id];
-        const matchesCategory = selectedCategory === "All" || (meta && meta.category === selectedCategory);
+        const matchesCategory =
+          selectedCategory === "All" || (meta && meta.category === selectedCategory);
 
         return matchesSearch && matchesCategory;
       });
@@ -373,12 +424,13 @@ export default function TemplatesPage() {
 
   return (
     <div className={dashboardStyles.pageContainer}>
-
       {/* Header */}
       <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
           <h1 className={dashboardStyles.pageTitle}>Templates</h1>
-          <p className={dashboardStyles.pageDescription}>Jumpstart your agreements with battle-tested patterns</p>
+          <p className={dashboardStyles.pageDescription}>
+            Jumpstart your agreements with battle-tested patterns
+          </p>
         </div>
       </div>
 
@@ -439,16 +491,22 @@ export default function TemplatesPage() {
           className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
         >
           {filteredTemplates.length > 0 ? (
-            filteredTemplates.map((template, index) => (
+            filteredTemplates.map((template) => (
               <TemplateCard
                 key={template.id}
                 template={template}
                 viewMode={viewMode}
                 searchQuery={searchQuery}
                 isExpanded={expandedId === template.id}
-                onToggleExpand={(e) => { e.preventDefault(); setExpandedId(expandedId === template.id ? null : template.id); }}
+                onToggleExpand={(e) => {
+                  e.preventDefault();
+                  setExpandedId(expandedId === template.id ? null : template.id);
+                }}
                 isFlipped={flippedId === template.id}
-                onFlip={(e) => { e.preventDefault(); setFlippedId(flippedId === template.id ? null : template.id); }}
+                onFlip={(e) => {
+                  e.preventDefault();
+                  setFlippedId(flippedId === template.id ? null : template.id);
+                }}
               />
             ))
           ) : (
@@ -459,7 +517,10 @@ export default function TemplatesPage() {
               action={
                 <Button
                   variant="outline"
-                  onClick={() => { setSearchQuery(""); setSelectedCategory("All"); }}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory("All");
+                  }}
                 >
                   Clear Filters
                 </Button>
@@ -482,7 +543,9 @@ export default function TemplatesPage() {
               <div className="h-14 w-14 rounded-2xl bg-background border shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:border-primary/20">
                 <Wrench className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
-              <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">Create Custom Template</h3>
+              <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
+                Create Custom Template
+              </h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
                 Build a reusable template from scratch with your own fields, terms, and logic.
               </p>

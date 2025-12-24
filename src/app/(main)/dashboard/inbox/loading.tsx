@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardStyles } from "@/lib/dashboard-ui";
 import { StatCardSkeleton, CardSkeleton } from "@/components/dashboard/skeleton-components";
-import { Search, LayoutGrid, List as ListIcon, Inbox, RefreshCw } from "lucide-react";
+import { Search, LayoutGrid, List as ListIcon, RefreshCw } from "lucide-react";
 
 export default function InboxLoading() {
   return (
@@ -38,10 +38,14 @@ export default function InboxLoading() {
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
           <div className={dashboardStyles.toggleGroup}>
-            <div className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonActive} opacity-50`}>
+            <div
+              className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonActive} opacity-50`}
+            >
               <LayoutGrid className="h-4 w-4" />
             </div>
-            <div className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonInactive} opacity-30`}>
+            <div
+              className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonInactive} opacity-30`}
+            >
               <ListIcon className="h-4 w-4" />
             </div>
           </div>

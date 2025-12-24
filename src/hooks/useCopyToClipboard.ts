@@ -40,11 +40,7 @@ interface UseCopyToClipboardReturn {
 export function useCopyToClipboard(
   options: UseCopyToClipboardOptions = {}
 ): UseCopyToClipboardReturn {
-  const {
-    resetDelay = TIMING.COPY_FEEDBACK,
-    onSuccess,
-    onError,
-  } = options;
+  const { resetDelay = TIMING.COPY_FEEDBACK, onSuccess, onError } = options;
 
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

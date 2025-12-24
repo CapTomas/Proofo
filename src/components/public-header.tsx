@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useSpring,
-  PanInfo
-} from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useSpring, PanInfo } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -35,7 +29,12 @@ const HeaderMagneticWrapper = ({ children }: { children: React.ReactNode }) => {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = e;
-    const { left, top, width, height } = ref.current?.getBoundingClientRect() || { left: 0, top: 0, width: 0, height: 0 };
+    const { left, top, width, height } = ref.current?.getBoundingClientRect() || {
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+    };
     const centerX = left + width / 2;
     const centerY = top + height / 2;
     x.set((clientX - centerX) * 0.15);
@@ -104,14 +103,18 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
       opacity: 1,
       transition: {
         staggerChildren: 0.06,
-        delayChildren: 0.15
-      }
-    }
+        delayChildren: 0.15,
+      },
+    },
   };
 
   const menuItemVariants = {
     hidden: { opacity: 0, x: 20 },
-    visible: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: { type: "spring" as const, stiffness: 300, damping: 24 },
+    },
   };
 
   // Handle swipe to close
@@ -125,34 +128,37 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/20 bg-background/20 backdrop-blur-2xl transition-all duration-300">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-6xl">
-
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/"
+              className="flex items-center gap-2 group"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               <AnimatedLogo size={28} className="text-foreground" />
               <span className="font-bold tracking-tight text-lg">Proofo</span>
             </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/#features" className={getLinkClass("features")}>Features</Link>
-              <Link href="/#how-it-works" className={getLinkClass("how-it-works")}>How it works</Link>
-              <Link href="/#pricing" className={getLinkClass("pricing")}>Pricing</Link>
+              <Link href="/#features" className={getLinkClass("features")}>
+                Features
+              </Link>
+              <Link href="/#how-it-works" className={getLinkClass("how-it-works")}>
+                How it works
+              </Link>
+              <Link href="/#pricing" className={getLinkClass("pricing")}>
+                Pricing
+              </Link>
 
               {/* Highlighted Links */}
               <div className="h-4 w-px bg-border/50 mx-1" />
 
-              <Link
-                href="/demo"
-                className={getLinkClass("demo", true)}
-              >
+              <Link href="/demo" className={getLinkClass("demo", true)}>
                 <Sparkles className="h-3.5 w-3.5" />
                 Demo
               </Link>
-              <Link
-                href="/verify"
-                className={getLinkClass("verify", true)}
-              >
+              <Link href="/verify" className={getLinkClass("verify", true)}>
                 <Shield className="h-3.5 w-3.5" />
                 Verify
               </Link>
@@ -166,20 +172,30 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
             {/* Desktop Auth */}
             <div className="hidden sm:flex items-center gap-2">
               <Link href="/login">
-                <Button size="sm" variant="ghost" className="text-sm font-medium h-9 hover:bg-primary/5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-sm font-medium h-9 hover:bg-primary/5"
+                >
                   Log In
                 </Button>
               </Link>
               <Link href="/deal/new">
                 <HeaderMagneticWrapper>
-                  <Button size="sm" className="font-medium h-9 shadow-sm">Get Started</Button>
+                  <Button size="sm" className="font-medium h-9 shadow-sm">
+                    Get Started
+                  </Button>
                 </HeaderMagneticWrapper>
               </Link>
             </div>
 
             {/* Mobile Auth (User Icon) */}
             <Link href="/login" className="sm:hidden">
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-secondary/50 text-foreground hover:bg-secondary/60 border border-transparent hover:border-border/30 transition-all backdrop-blur-sm">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full bg-secondary/50 text-foreground hover:bg-secondary/60 border border-transparent hover:border-border/30 transition-all backdrop-blur-sm"
+              >
                 <User className="h-4 w-4" />
                 <span className="sr-only">Log In</span>
               </Button>
@@ -250,11 +266,13 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
                 <div className="space-y-10">
                   {/* Section 1: Product */}
                   <div className="space-y-2">
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2 opacity-70">Experience</p>
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2 opacity-70">
+                      Experience
+                    </p>
                     <MobileNavLink
                       href="/demo"
                       icon={Sparkles}
-                      active={currentPage === 'demo'}
+                      active={currentPage === "demo"}
                       onClick={() => setMobileMenuOpen(false)}
                       variants={menuItemVariants}
                       description="Try the interactive demo"
@@ -264,7 +282,7 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
                     <MobileNavLink
                       href="/verify"
                       icon={Shield}
-                      active={currentPage === 'verify'}
+                      active={currentPage === "verify"}
                       onClick={() => setMobileMenuOpen(false)}
                       variants={menuItemVariants}
                       description="Check deal authenticity"
@@ -275,10 +293,33 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
 
                   {/* Section 2: Navigation */}
                   <div className="space-y-2">
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2 opacity-70">Company</p>
-                    <MobileNavLink href="/#features" icon={Layers} onClick={() => setMobileMenuOpen(false)} variants={menuItemVariants}>Features</MobileNavLink>
-                    <MobileNavLink href="/#how-it-works" icon={Zap} onClick={() => setMobileMenuOpen(false)} variants={menuItemVariants}>How it works</MobileNavLink>
-                    <MobileNavLink href="/#pricing" icon={CreditCard} onClick={() => setMobileMenuOpen(false)} variants={menuItemVariants}>Pricing</MobileNavLink>
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2 opacity-70">
+                      Company
+                    </p>
+                    <MobileNavLink
+                      href="/#features"
+                      icon={Layers}
+                      onClick={() => setMobileMenuOpen(false)}
+                      variants={menuItemVariants}
+                    >
+                      Features
+                    </MobileNavLink>
+                    <MobileNavLink
+                      href="/#how-it-works"
+                      icon={Zap}
+                      onClick={() => setMobileMenuOpen(false)}
+                      variants={menuItemVariants}
+                    >
+                      How it works
+                    </MobileNavLink>
+                    <MobileNavLink
+                      href="/#pricing"
+                      icon={CreditCard}
+                      onClick={() => setMobileMenuOpen(false)}
+                      variants={menuItemVariants}
+                    >
+                      Pricing
+                    </MobileNavLink>
                   </div>
                 </div>
               </motion.div>
@@ -292,7 +333,10 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
                   </Button>
                 </Link>
                 <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block">
-                  <Button variant="outline" className="w-full justify-center gap-2 h-12 text-base rounded-2xl border-border/40 bg-background/30 hover:bg-background/50 backdrop-blur-sm">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-center gap-2 h-12 text-base rounded-2xl border-border/40 bg-background/30 hover:bg-background/50 backdrop-blur-sm"
+                  >
                     <LogIn className="h-4 w-4" />
                     Log In
                   </Button>
@@ -318,44 +362,70 @@ interface MobileNavLinkProps {
   active?: boolean;
   variants?: {
     hidden: { opacity: number; x: number };
-    visible: { opacity: number; x: number; transition: { type: "spring"; stiffness: number; damping: number } };
+    visible: {
+      opacity: number;
+      x: number;
+      transition: { type: "spring"; stiffness: number; damping: number };
+    };
   };
   description?: string;
 }
 
-function MobileNavLink({ href, icon: Icon, children, onClick, active, variants, description }: MobileNavLinkProps) {
+function MobileNavLink({
+  href,
+  icon: Icon,
+  children,
+  onClick,
+  active,
+  variants,
+  description,
+}: MobileNavLinkProps) {
   return (
     <motion.div variants={variants}>
       <Link href={href} onClick={onClick}>
-        <div className={cn(
-          "group flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300",
-          active
-            ? "bg-primary/5 border border-primary/10 shadow-sm"
-            : "hover:bg-secondary/40 border border-transparent hover:border-border/20"
-        )}>
+        <div
+          className={cn(
+            "group flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300",
+            active
+              ? "bg-primary/5 border border-primary/10 shadow-sm"
+              : "hover:bg-secondary/40 border border-transparent hover:border-border/20"
+          )}
+        >
           <div className="flex items-center gap-4">
-            <div className={cn(
-              "h-10 w-10 rounded-xl flex items-center justify-center transition-colors duration-300",
-              active
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                : "bg-secondary/60 group-hover:bg-background text-muted-foreground group-hover:text-foreground shadow-sm"
-            )}>
+            <div
+              className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center transition-colors duration-300",
+                active
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                  : "bg-secondary/60 group-hover:bg-background text-muted-foreground group-hover:text-foreground shadow-sm"
+              )}
+            >
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <span className={cn(
-                "block font-semibold text-base",
-                active ? "text-primary" : "text-foreground"
-              )}>{children}</span>
+              <span
+                className={cn(
+                  "block font-semibold text-base",
+                  active ? "text-primary" : "text-foreground"
+                )}
+              >
+                {children}
+              </span>
               {description && (
-                <span className="block text-xs text-muted-foreground mt-0.5 font-medium opacity-80">{description}</span>
+                <span className="block text-xs text-muted-foreground mt-0.5 font-medium opacity-80">
+                  {description}
+                </span>
               )}
             </div>
           </div>
-          <ChevronRight className={cn(
-            "h-5 w-5 transition-transform duration-300 group-hover:translate-x-1",
-            active ? "text-primary opacity-100" : "text-muted-foreground opacity-30 group-hover:opacity-100"
-          )} />
+          <ChevronRight
+            className={cn(
+              "h-5 w-5 transition-transform duration-300 group-hover:translate-x-1",
+              active
+                ? "text-primary opacity-100"
+                : "text-muted-foreground opacity-30 group-hover:opacity-100"
+            )}
+          />
         </div>
       </Link>
     </motion.div>

@@ -1,18 +1,26 @@
 import { nanoid } from "nanoid";
 
-
-
 /**
- * Generate a unique public ID for a deal
- * Uses nanoid with a short, URL-safe format
+ * Generate a unique public ID for a deal.
+ *
+ * Uses `nanoid` (10 chars) to create a short, URL-safe identifier that is
+ * easy to share and type, but sufficiently collision-resistant for this scope.
+ *
+ * @returns {string} A 10-character alphanumeric ID (e.g., "Kj9f7L2m1p")
  */
 export function generatePublicId(): string {
   return nanoid(10);
 }
 
 /**
- * Generate a secure access token for deal confirmation
- * 32-byte hex string for security
+ * Generate a secure access token for deal confirmation.
+ *
+ * Creates a high-entropy 32-byte hex string (64 characters).
+ * Prioritizes the Web Crypto API `getRandomValues` in the browser
+ * for true cryptographic randomness. Falls back to `nanoid` (64 chars)
+ * for server-side environments or older browsers.
+ *
+ * @returns {string} A 64-character secure hexadecimal or alphanumeric string.
  */
 export function generateAccessToken(): string {
   // In browser, use Web Crypto API
@@ -53,7 +61,25 @@ export function deterministicStringify(obj: unknown): string {
 }
 
 /**
- * Calculate SHA-256 hash of deal data for cryptographic sealing
+ * Calculate a SHA-256 hash of deal data for cryptographic sealing.
+ *
+ * This is the "Seal" of the deal. It ensures that any tampering with the
+ * deal ID, terms, signature, or timestamp after confirmation will result
+ * in a hash mismatch during verification.
+ *
+ * Process:
+ * 1. Normalize the timestamp to ISO string format for consistency.
+ * 2. Deterministically stringify the payload (sorted keys) to ensure
+ *    the same data always produces the same hash regardless of object key order.
+ * 3. Use `crypto.subtle.digest` (Web Crypto) in-browser or `crypto` module in Node.js.
+ *
+ * @param {Object} data - The core deal data to seal.
+ * @param {string} data.dealId - Internal DB ID of the deal.
+ * @param {string | Object} data.terms - The final agreed-upon terms.
+ * @param {string} [data.signatureUrl] - Optional base64 or URL of the recipient's signature.
+ * @param {string} data.timestamp - The ISO timestamp of when the deal was sealed.
+ * @returns {Promise<string>} A hex-encoded SHA-256 hash string.
+ * @throws {Error} If no cryptographic hashing method is available in the environment.
  */
 export async function calculateDealSeal(data: {
   dealId: string;
@@ -61,7 +87,6 @@ export async function calculateDealSeal(data: {
   signatureUrl?: string;
   timestamp: string;
 }): Promise<string> {
-
   // 1. Parse terms if it's a string, so we can re-stringify it deterministically
   let termsObj;
   try {
@@ -104,7 +129,6 @@ export async function calculateDealSeal(data: {
 
   throw new Error("No cryptographic hashing method available");
 }
-
 
 /**
  * Format a date for display

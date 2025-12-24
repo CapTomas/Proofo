@@ -69,8 +69,6 @@ export function OtpInput({
   };
 
   const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
-    const input = e.currentTarget;
-
     // Backspace
     if (e.key === "Backspace") {
       e.preventDefault();

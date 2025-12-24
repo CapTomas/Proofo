@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-import { Sparkles, Check, Zap, PieChart, RefreshCw, Receipt, Download } from "lucide-react";
+import { Sparkles, Zap, PieChart, RefreshCw, Receipt, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,12 +15,14 @@ type SettingsUser = UserType | null;
 
 // Helper components
 const VisualCreditCard = ({ isPro }: { isPro: boolean }) => (
-  <div className={cn(
-    "relative w-full aspect-[1.586] rounded-2xl p-6 flex flex-col justify-between overflow-hidden text-white shadow-xl transition-all duration-500",
-    isPro
-      ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700"
-      : "bg-gradient-to-br from-slate-400 to-slate-500 grayscale opacity-80"
-  )}>
+  <div
+    className={cn(
+      "relative w-full aspect-[1.586] rounded-2xl p-6 flex flex-col justify-between overflow-hidden text-white shadow-xl transition-all duration-500",
+      isPro
+        ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700"
+        : "bg-gradient-to-br from-slate-400 to-slate-500 grayscale opacity-80"
+    )}
+  >
     {/* Background Pattern */}
     <div className="absolute inset-0 opacity-20">
       <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white blur-3xl" />
@@ -54,28 +56,42 @@ const VisualCreditCard = ({ isPro }: { isPro: boolean }) => (
 );
 
 const PlusIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
     <line x1="12" y1="5" x2="12" y2="19"></line>
     <line x1="5" y1="12" x2="19" y2="12"></line>
   </svg>
 );
 
-const SettingGroup = ({ title, children, description }: { title: string; children: React.ReactNode; description?: string }) => (
+const SettingGroup = ({
+  title,
+  children,
+  description,
+}: {
+  title: string;
+  children: React.ReactNode;
+  description?: string;
+}) => (
   <div className="space-y-3">
     <div className="space-y-1">
-      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</h3>
+      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+        {title}
+      </h3>
       {description && <p className="text-sm text-muted-foreground">{description}</p>}
     </div>
     {children}
   </div>
 );
 
-import {
-  SettingsCardSkeleton,
-  SettingsGroupSkeleton,
-  SettingsProfileSkeleton
-} from "@/components/dashboard/shared-components";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsGroupSkeleton } from "@/components/dashboard/shared-components";
 
 export const BillingTab = ({ user }: { user: SettingsUser }) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -93,7 +109,7 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
         <div className="bg-card border border-border/50 rounded-2xl h-[200px] animate-pulse shadow-sm" />
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-1">
-             <div className="bg-card border border-border/50 rounded-2xl h-[400px] animate-pulse shadow-sm" />
+            <div className="bg-card border border-border/50 rounded-2xl h-[400px] animate-pulse shadow-sm" />
           </div>
           <div className="lg:col-span-2 space-y-6">
             <SettingsGroupSkeleton count={2} />
@@ -107,10 +123,17 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
   return (
     <div className="space-y-8">
       {/* Plan Status */}
-      <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default border-primary/20 overflow-hidden relative")}>
+      <Card
+        className={cn(
+          dashboardStyles.cardBase,
+          "h-auto cursor-default border-primary/20 overflow-hidden relative"
+        )}
+      >
         {isPro && (
           <div className="absolute top-0 right-0 p-4">
-            <Badge className="bg-primary text-primary-foreground shadow-sm">Active Subscription</Badge>
+            <Badge className="bg-primary text-primary-foreground shadow-sm">
+              Active Subscription
+            </Badge>
           </div>
         )}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
@@ -137,10 +160,20 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
                 <span className="text-muted-foreground text-sm">/month</span>
               </div>
               <div className="relative">
-                <Button size="lg" variant={isPro ? "outline" : "default"} className="w-full md:w-auto shadow-lg" disabled>
+                <Button
+                  size="lg"
+                  variant={isPro ? "outline" : "default"}
+                  className="w-full md:w-auto shadow-lg"
+                  disabled
+                >
                   {isPro ? "Manage Subscription" : "Upgrade to Pro"}
                 </Button>
-                <Badge variant="outline" className="absolute -top-2 -right-2 text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
+                <Badge
+                  variant="outline"
+                  className="absolute -top-2 -right-2 text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border"
+                >
+                  Coming Soon
+                </Badge>
               </div>
             </div>
           </div>
@@ -160,12 +193,22 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
                 {isPro ? (
                   <Button variant="outline" className="w-full" disabled>
                     Update Card
-                    <Badge variant="outline" className="ml-2 text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Soon</Badge>
+                    <Badge
+                      variant="outline"
+                      className="ml-2 text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border"
+                    >
+                      Soon
+                    </Badge>
                   </Button>
                 ) : (
                   <Button variant="outline" className="w-full border-dashed border-2" disabled>
                     <PlusIcon className="h-4 w-4 mr-2" /> Add Payment Method
-                    <Badge variant="outline" className="ml-2 text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Soon</Badge>
+                    <Badge
+                      variant="outline"
+                      className="ml-2 text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border"
+                    >
+                      Soon
+                    </Badge>
                   </Button>
                 )}
               </div>
@@ -183,8 +226,15 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
                     <PieChart className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Deals This Month</p>
-                    <p className="text-xl font-bold">12 <span className="text-sm text-muted-foreground font-normal">/ {isPro ? "Unlimited" : "5"}</span></p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      Deals This Month
+                    </p>
+                    <p className="text-xl font-bold">
+                      12{" "}
+                      <span className="text-sm text-muted-foreground font-normal">
+                        / {isPro ? "Unlimited" : "5"}
+                      </span>
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -194,7 +244,9 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
                     <RefreshCw className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Next Invoice</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      Next Invoice
+                    </p>
                     <p className="text-xl font-bold">{isPro ? "Feb 1, 2024" : "N/A"}</p>
                   </div>
                 </CardContent>
@@ -209,7 +261,10 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
                   { id: "INV-001", date: "Jan 1, 2024", amount: "$9.00", status: "Paid" },
                   { id: "INV-002", date: "Dec 1, 2023", amount: "$9.00", status: "Paid" },
                 ].map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground">
                         <Receipt className="h-4 w-4" />
@@ -221,7 +276,10 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-sm font-medium">{inv.amount}</span>
-                      <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                      >
                         {inv.status}
                       </Badge>
                       <Button variant="ghost" size="icon" className="h-8 w-8" disabled>

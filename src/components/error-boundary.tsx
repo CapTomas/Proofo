@@ -32,10 +32,7 @@ interface ErrorBoundaryState {
  * </ErrorBoundary>
  * ```
  */
-export class ErrorBoundary extends React.Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
@@ -82,11 +79,7 @@ interface ErrorFallbackProps {
 /**
  * Default error fallback UI component
  */
-export function ErrorFallback({
-  error,
-  onRetry,
-  showHomeButton = true,
-}: ErrorFallbackProps) {
+export function ErrorFallback({ error, onRetry, showHomeButton = true }: ErrorFallbackProps) {
   return (
     <div className="min-h-[400px] flex items-center justify-center p-8">
       <motion.div
@@ -98,20 +91,15 @@ export function ErrorFallback({
           <AlertTriangle className="w-8 h-8 text-destructive" />
         </div>
 
-        <h2 className="text-xl font-semibold text-foreground mb-2">
-          Something went wrong
-        </h2>
+        <h2 className="text-xl font-semibold text-foreground mb-2">Something went wrong</h2>
 
         <p className="text-muted-foreground mb-6">
-          An unexpected error occurred. Please try again or return to the home
-          page.
+          An unexpected error occurred. Please try again or return to the home page.
         </p>
 
         {error && process.env.NODE_ENV === "development" && (
           <div className="mb-6 p-4 rounded-lg bg-muted/50 text-left overflow-auto max-h-32">
-            <code className="text-xs text-destructive font-mono break-all">
-              {error.message}
-            </code>
+            <code className="text-xs text-destructive font-mono break-all">{error.message}</code>
           </div>
         )}
 

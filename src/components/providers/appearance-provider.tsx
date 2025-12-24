@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import {
   getAppearancePreferencesAction,
   updateAppearancePreferencesAction,
-  AppearancePreferences
+  AppearancePreferences,
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -163,50 +163,62 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   }, [compactMode, fontScale]);
 
   // Save to storage/database
-  const savePreferences = useCallback(async (prefs: Partial<AppearancePreferences>) => {
-    // Always save to localStorage as backup/cache
-    const current = { compactMode, fontScale, reducedMotion };
-    const newPrefs = { ...current, ...prefs };
-    localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(newPrefs));
+  const savePreferences = useCallback(
+    async (prefs: Partial<AppearancePreferences>) => {
+      // Always save to localStorage as backup/cache
+      const current = { compactMode, fontScale, reducedMotion };
+      const newPrefs = { ...current, ...prefs };
+      localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(newPrefs));
 
-    if (isSupabaseConfigured()) {
-      const { error } = await updateAppearancePreferencesAction(prefs);
-      if (error) {
-        // If DB fails (e.g. missing columns), strictly warn but don't break the UI
-        // We already saved to localStorage above
-        console.warn("Failed to persist appearance to database:", error);
+      if (isSupabaseConfigured()) {
+        const { error } = await updateAppearancePreferencesAction(prefs);
+        if (error) {
+          // If DB fails (e.g. missing columns), strictly warn but don't break the UI
+          // We already saved to localStorage above
+          console.warn("Failed to persist appearance to database:", error);
 
-        // Use a less alarming toast if it's likely a migration issue
-        if (error.includes("column") || error.includes("relation")) {
-           // Silent fail for migration issues, user still sees changes locally
-        } else {
-           toast.error("Cloud save failed, settings saved locally");
+          // Use a less alarming toast if it's likely a migration issue
+          if (error.includes("column") || error.includes("relation")) {
+            // Silent fail for migration issues, user still sees changes locally
+          } else {
+            toast.error("Cloud save failed, settings saved locally");
+          }
+          return false;
         }
-        return false;
       }
-    }
-    return true;
-  }, [compactMode, fontScale, reducedMotion]);
+      return true;
+    },
+    [compactMode, fontScale, reducedMotion]
+  );
 
   // Setters
-  const setCompactMode = useCallback(async (value: boolean) => {
-    setCompactModeState(value);
-    applyAppearanceToDOM({ compactMode: value, fontScale, reducedMotion });
-    await savePreferences({ compactMode: value });
-  }, [fontScale, reducedMotion, savePreferences]);
+  const setCompactMode = useCallback(
+    async (value: boolean) => {
+      setCompactModeState(value);
+      applyAppearanceToDOM({ compactMode: value, fontScale, reducedMotion });
+      await savePreferences({ compactMode: value });
+    },
+    [fontScale, reducedMotion, savePreferences]
+  );
 
-  const setFontScale = useCallback(async (value: number) => {
-    const clampedValue = Math.max(0.8, Math.min(1.2, value));
-    setFontScaleState(clampedValue);
-    applyAppearanceToDOM({ compactMode, fontScale: clampedValue, reducedMotion });
-    await savePreferences({ fontScale: clampedValue });
-  }, [compactMode, reducedMotion, savePreferences]);
+  const setFontScale = useCallback(
+    async (value: number) => {
+      const clampedValue = Math.max(0.8, Math.min(1.2, value));
+      setFontScaleState(clampedValue);
+      applyAppearanceToDOM({ compactMode, fontScale: clampedValue, reducedMotion });
+      await savePreferences({ fontScale: clampedValue });
+    },
+    [compactMode, reducedMotion, savePreferences]
+  );
 
-  const setReducedMotion = useCallback(async (value: boolean) => {
-    setReducedMotionState(value);
-    applyAppearanceToDOM({ compactMode, fontScale, reducedMotion: value });
-    await savePreferences({ reducedMotion: value });
-  }, [compactMode, fontScale, savePreferences]);
+  const setReducedMotion = useCallback(
+    async (value: boolean) => {
+      setReducedMotionState(value);
+      applyAppearanceToDOM({ compactMode, fontScale, reducedMotion: value });
+      await savePreferences({ reducedMotion: value });
+    },
+    [compactMode, fontScale, savePreferences]
+  );
 
   return (
     <AppearanceContext.Provider

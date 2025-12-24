@@ -63,10 +63,20 @@ export default function PrivacyPage() {
                 Information We Collect
               </h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li><strong>Account Information:</strong> Email address, name, and profile details</li>
-                <li><strong>Agreement Data:</strong> The content of agreements you create and signatures</li>
-                <li><strong>Usage Data:</strong> How you interact with our service</li>
-                <li><strong>Device Information:</strong> Browser type, IP address, and device identifiers</li>
+                <li>
+                  <strong>Account Information:</strong> Email address, name, and profile details
+                </li>
+                <li>
+                  <strong>Agreement Data:</strong> The content of agreements you create and
+                  signatures
+                </li>
+                <li>
+                  <strong>Usage Data:</strong> How you interact with our service
+                </li>
+                <li>
+                  <strong>Device Information:</strong> Browser type, IP address, and device
+                  identifiers
+                </li>
               </ul>
             </section>
 
@@ -88,8 +98,8 @@ export default function PrivacyPage() {
               <h2 className="text-xl font-semibold mb-4">Data Security</h2>
               <p className="text-muted-foreground leading-relaxed">
                 We use industry-standard security measures to protect your data, including
-                encryption in transit and at rest. Agreement seals are cryptographically
-                secured to ensure integrity and authenticity.
+                encryption in transit and at rest. Agreement seals are cryptographically secured to
+                ensure integrity and authenticity.
               </p>
             </section>
 
@@ -111,18 +121,26 @@ export default function PrivacyPage() {
                 Your Rights
               </h2>
               <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li><strong>Access:</strong> Request a copy of your personal data</li>
-                <li><strong>Correction:</strong> Update inaccurate information</li>
-                <li><strong>Deletion:</strong> Request deletion of your account and data</li>
-                <li><strong>Portability:</strong> Export your data in a standard format</li>
+                <li>
+                  <strong>Access:</strong> Request a copy of your personal data
+                </li>
+                <li>
+                  <strong>Correction:</strong> Update inaccurate information
+                </li>
+                <li>
+                  <strong>Deletion:</strong> Request deletion of your account and data
+                </li>
+                <li>
+                  <strong>Portability:</strong> Export your data in a standard format
+                </li>
               </ul>
             </section>
 
             <section className="mb-8">
               <h2 className="text-xl font-semibold mb-4">Cookies</h2>
               <p className="text-muted-foreground leading-relaxed">
-                We use essential cookies to maintain your session and preferences.
-                We do not use tracking cookies for advertising purposes.
+                We use essential cookies to maintain your session and preferences. We do not use
+                tracking cookies for advertising purposes.
               </p>
             </section>
 

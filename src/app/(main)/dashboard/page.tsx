@@ -9,34 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowRight,
-  Clock,
   CheckCircle2,
-  XCircle,
   RefreshCw,
-  TrendingUp,
   Shield,
-  Activity,
   Search,
-  ExternalLink,
   Inbox,
   CalendarDays,
   Lightbulb,
   ChevronRight,
-  Timer,
   FileClock,
   Send,
   Download,
   Copy,
-  Check,
   Zap,
   BarChart3,
   Fingerprint,
-  PenLine,
-  Mail
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Deal, DealStatus } from "@/types";
+import { Deal } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo, formatDate } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -45,7 +37,11 @@ import { toast } from "sonner";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
 import { dashboardStyles } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard, statusConfig, DealRowSkeleton, StatCardSkeleton } from "@/components/dashboard/shared-components";
+import {
+  CopyableId,
+  statusConfig,
+  DealRowSkeleton,
+} from "@/components/dashboard/shared-components";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 
 // Deadline item type for upcoming deadlines widget
@@ -62,7 +58,7 @@ const PRO_TIPS = [
   "Ensure enforceability: Always use a specific email address for recipients to enable direct tracking.",
   "Security first: Every deal is cryptographically sealed with a SHA-256 hash upon signing.",
   "Verification made easy: Verify any receipt by scanning the QR code or entering the Deal ID.",
-  "Stay organized: Add a 'Due Date' field to templates to populate your Upcoming Deadlines widget."
+  "Stay organized: Add a 'Due Date' field to templates to populate your Upcoming Deadlines widget.",
 ];
 
 // statusConfig imported from shared-components
@@ -82,34 +78,6 @@ function getRelativeTime(dateStr: string) {
   return formatDate(dateStr);
 }
 
-function getSignTimeMinutes(deal: Deal): number {
-  if (!deal.confirmedAt || !deal.createdAt) return 0;
-  const created = new Date(deal.createdAt).getTime();
-  const confirmed = new Date(deal.confirmedAt).getTime();
-  return (confirmed - created) / (1000 * 60);
-}
-
-function formatTimeValue(hours: number, minutes: number): string {
-  if (hours > 0) return `~${hours}h`;
-  if (minutes > 0) return `~${minutes}m`;
-  return "N/A";
-}
-
-function formatTimeTrend(minutes: number): string | undefined {
-  if (minutes === 0) return undefined;
-  const absMinutes = Math.abs(minutes);
-  if (absMinutes >= 60) {
-    const hours = Math.round(minutes / 60);
-    return `${minutes > 0 ? '+' : ''}${hours}h`;
-  }
-  return `${minutes > 0 ? '+' : ''}${Math.round(minutes)}m`;
-}
-
-function formatCompletionRateTrend(trend: number): string | undefined {
-  if (trend === 0) return undefined;
-  return `${trend > 0 ? '+' : ''}${Math.round(trend)}%`;
-}
-
 // --- MICRO-COMPONENTS ---
 
 const ScrambleText = ({ text, className }: { text: string; className?: string }) => {
@@ -119,7 +87,7 @@ const ScrambleText = ({ text, className }: { text: string; className?: string })
   useEffect(() => {
     let iteration = 0;
     const interval = setInterval(() => {
-      setDisplayText((prev) =>
+      setDisplayText(() =>
         text
           .split("")
           .map((letter, index) => {
@@ -169,13 +137,13 @@ const DealRow = ({
   userId,
   type,
   onAction,
-  isActionLoading
+  isActionLoading,
 }: {
-  deal: Deal,
-  userId?: string,
-  type: "inbox" | "pending" | "recent",
-  onAction?: (deal: Deal) => void,
-  isActionLoading?: boolean
+  deal: Deal;
+  userId?: string;
+  type: "inbox" | "pending" | "recent";
+  onAction?: (deal: Deal) => void;
+  isActionLoading?: boolean;
 }) => {
   const isCreator = deal.creatorId === userId;
   const isInbox = !isCreator;
@@ -190,21 +158,30 @@ const DealRow = ({
       className="group flex items-center justify-between p-3 rounded-xl hover:bg-muted/40 border border-transparent hover:border-border/50 transition-all cursor-pointer"
     >
       <Link href={`/d/${deal.publicId}`} className="flex-1 flex items-center gap-4 min-w-0">
-        <div className={cn(
-          "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm transition-colors",
-          config.bg, config.border, config.color
-        )}>
+        <div
+          className={cn(
+            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm transition-colors",
+            config.bg,
+            config.border,
+            config.color
+          )}
+        >
           <StatusIcon className="h-4.5 w-4.5" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap mb-0.5">
-            <p className="font-semibold text-sm truncate max-w-[120px] sm:max-w-[200px] text-foreground">{deal.title}</p>
+            <p className="font-semibold text-sm truncate max-w-[120px] sm:max-w-[200px] text-foreground">
+              {deal.title}
+            </p>
 
-            <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+            <Badge
+              variant={config.badgeVariant}
+              className="h-5 px-1.5 text-[10px] font-medium border"
+            >
               {config.label}
             </Badge>
 
-            {isInbox && deal.status === 'pending' && (
+            {isInbox && deal.status === "pending" && (
               <Badge className="h-5 px-1.5 text-[10px] bg-amber-500 hover:bg-amber-600 text-white border-0 animate-pulse">
                 Action Required
               </Badge>
@@ -213,11 +190,13 @@ const DealRow = ({
           <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
             {isCreator ? (
               <span className="flex items-center gap-1.5 truncate">
-                <Send className="h-3 w-3 shrink-0" /> <span className="truncate">To {deal.recipientName}</span>
+                <Send className="h-3 w-3 shrink-0" />{" "}
+                <span className="truncate">To {deal.recipientName}</span>
               </span>
             ) : (
               <span className="flex items-center gap-1.5 truncate">
-                <Inbox className="h-3 w-3 shrink-0" /> <span className="truncate">From {deal.creatorName}</span>
+                <Inbox className="h-3 w-3 shrink-0" />{" "}
+                <span className="truncate">From {deal.creatorName}</span>
               </span>
             )}
             <span className="hidden xs:inline text-border">•</span>
@@ -249,16 +228,20 @@ const DealRow = ({
             >
               {isActionLoading ? (
                 <RefreshCw className="h-3 w-3 animate-spin" />
-              ) : type === 'pending' ? (
+              ) : type === "pending" ? (
                 <Mail className="h-3 w-3" />
               ) : (
                 <Copy className="h-3 w-3" />
               )}
-              {isActionLoading ? "Sending..." : type === 'pending' ? 'Nudge' : 'Duplicate'}
+              {isActionLoading ? "Sending..." : type === "pending" ? "Nudge" : "Duplicate"}
             </Button>
           )}
           <Link href={`/d/${deal.publicId}`} className="hidden sm:block">
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -270,15 +253,21 @@ const DealRow = ({
 
 const ActivitySparkline = ({ data }: { data: number[] }) => {
   const max = Math.max(...data, 1);
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * 100;
-    const y = 100 - (val / max) * 80; // Scale to 80% height to leave room at top
-    return `${x},${y}`;
-  }).join(" ");
+  const points = data
+    .map((val, i) => {
+      const x = (i / (data.length - 1)) * 100;
+      const y = 100 - (val / max) * 80; // Scale to 80% height to leave room at top
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <div className="h-16 w-full relative">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible">
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="h-full w-full overflow-visible"
+      >
         <defs>
           <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" className="text-primary" />
@@ -286,12 +275,18 @@ const ActivitySparkline = ({ data }: { data: number[] }) => {
           </linearGradient>
         </defs>
         <path
-          d={`M0,100 L0,${100 - (data[0]/max)*80} ${points.split(' ').map((p, i) => `L${p}`).join(' ')} L100,100 Z`}
+          d={`M0,100 L0,${100 - (data[0] / max) * 80} ${points
+            .split(" ")
+            .map((p, _i) => `L${p}`)
+            .join(" ")} L100,100 Z`}
           fill="url(#gradient)"
           className="text-primary"
         />
         <path
-          d={`M0,${100 - (data[0]/max)*80} ${points.split(' ').map((p, i) => `L${p}`).join(' ')}`}
+          d={`M0,${100 - (data[0] / max) * 80} ${points
+            .split(" ")
+            .map((p, _i) => `L${p}`)
+            .join(" ")}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -320,6 +315,7 @@ export default function DashboardPage() {
   const hasInitializedRef = useRef(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -327,8 +323,10 @@ export default function DashboardPage() {
     if (!isMounted) return;
     const updateDateTime = () => {
       const now = new Date();
-      setCurrentDate(now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
-      setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setCurrentDate(
+        now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+      );
+      setCurrentTime(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
     };
     updateDateTime();
     const interval = setInterval(updateDateTime, 60000);
@@ -342,20 +340,24 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const refreshDeals = useCallback(async (showLoading = false) => {
-    if (!isSupabaseConfigured()) return;
-    if (showLoading) setIsRefreshing(true);
+  const refreshDeals = useCallback(
+    async (showLoading = false) => {
+      if (!isSupabaseConfigured()) return;
+      if (showLoading) setIsRefreshing(true);
 
-    const { deals } = await getUserDealsAction();
-    if (deals) setDeals(deals);
+      const { deals } = await getUserDealsAction();
+      if (deals) setDeals(deals);
 
-    setIsLoaded(true);
-    if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
-  }, [setDeals]);
+      setIsLoaded(true);
+      if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
+    },
+    [setDeals]
+  );
 
   useEffect(() => {
     if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
       hasInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals(true);
     }
     const interval = setInterval(() => refreshDeals(false), 30000);
@@ -364,18 +366,20 @@ export default function DashboardPage() {
 
   // Simplified local stats for UI elements outside the main stats grid
   const localStats = useMemo(() => {
-    const inbox = storeDeals.filter(d => d.recipientEmail === user?.email && d.status === "pending").length;
+    const inbox = storeDeals.filter(
+      (d) => d.recipientEmail === user?.email && d.status === "pending"
+    ).length;
     return { inbox };
   }, [storeDeals, user?.email]);
 
   const priorityQueue = useMemo(() => {
     const inbox = storeDeals
-      .filter(d => d.recipientEmail === user?.email && d.status === "pending")
-      .map(d => ({ ...d, queueType: "inbox" as const }));
+      .filter((d) => d.recipientEmail === user?.email && d.status === "pending")
+      .map((d) => ({ ...d, queueType: "inbox" as const }));
 
     const pending = storeDeals
-      .filter(d => d.creatorId === user?.id && d.status === "pending")
-      .map(d => ({ ...d, queueType: "pending" as const }));
+      .filter((d) => d.creatorId === user?.id && d.status === "pending")
+      .map((d) => ({ ...d, queueType: "pending" as const }));
 
     return [...inbox, ...pending]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -389,14 +393,21 @@ export default function DashboardPage() {
   }, [storeDeals]);
 
   const latestDeal = useMemo(() => {
-    return [...storeDeals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    return [...storeDeals].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
   }, [storeDeals]);
 
   const upcomingDeadlines = useMemo(() => {
     const dealsWithDates = storeDeals
-      .filter(d => d.status !== "voided" && d.status !== "confirmed")
-      .map(d => {
-        const dateTerm = d.terms.find(t => t.type === "date" || t.label.toLowerCase().includes("date") || t.label.toLowerCase().includes("deadline"));
+      .filter((d) => d.status !== "voided" && d.status !== "confirmed")
+      .map((d) => {
+        const dateTerm = d.terms.find(
+          (t) =>
+            t.type === "date" ||
+            t.label.toLowerCase().includes("date") ||
+            t.label.toLowerCase().includes("deadline")
+        );
         return dateTerm ? { deal: d, date: dateTerm.value, label: dateTerm.label } : null;
       })
       .filter((item): item is DeadlineItem => item !== null)
@@ -409,7 +420,7 @@ export default function DashboardPage() {
   const sparklineData = useMemo(() => {
     const now = new Date();
     const data: number[] = [];
-    const dealTimestamps = storeDeals.map(deal => new Date(deal.createdAt).getTime());
+    const dealTimestamps = storeDeals.map((deal) => new Date(deal.createdAt).getTime());
 
     for (let i = 6; i >= 0; i--) {
       const dayStart = new Date(now);
@@ -421,8 +432,8 @@ export default function DashboardPage() {
       dayEnd.setHours(23, 59, 59, 999);
       const dayEndTime = dayEnd.getTime();
 
-      const dealsInDay = dealTimestamps.filter(timestamp =>
-        timestamp >= dayStartTime && timestamp <= dayEndTime
+      const dealsInDay = dealTimestamps.filter(
+        (timestamp) => timestamp >= dayStartTime && timestamp <= dayEndTime
       ).length;
 
       data.push(dealsInDay);
@@ -459,373 +470,411 @@ export default function DashboardPage() {
       {needsOnboarding && <OnboardingModal onComplete={() => setNeedsOnboarding(false)} />}
 
       <div className={dashboardStyles.pageContainer}>
-
-          {/* Header */}
-          <div className={dashboardStyles.pageHeader}>
-            <div className="min-w-0">
-              <h1 className={dashboardStyles.pageTitle}>
-                Welcome back, <span className="text-muted-foreground">{user?.name?.split(" ")[0] || "there"}</span>
-              </h1>
-              <p className={cn(dashboardStyles.pageDescription, "flex items-center gap-2")}>
-                {isMounted && currentDate ? (
-                  <>
-                    {currentDate}
-                    <span className="w-1 h-1 rounded-full bg-border" />
-                    <span className="font-mono text-xs">{currentTime}</span>
-                  </>
-                ) : (
-                  <span className="opacity-0">Loading...</span>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={dashboardStyles.syncButton}
-                onClick={() => refreshDeals(true)}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")} />
-                <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
-              </Button>
-            </div>
+        {/* Header */}
+        <div className={dashboardStyles.pageHeader}>
+          <div className="min-w-0">
+            <h1 className={dashboardStyles.pageTitle}>
+              Welcome back,{" "}
+              <span className="text-muted-foreground">{user?.name?.split(" ")[0] || "there"}</span>
+            </h1>
+            <p className={cn(dashboardStyles.pageDescription, "flex items-center gap-2")}>
+              {isMounted && currentDate ? (
+                <>
+                  {currentDate}
+                  <span className="w-1 h-1 rounded-full bg-border" />
+                  <span className="font-mono text-xs">{currentTime}</span>
+                </>
+              ) : (
+                <span className="opacity-0">Loading...</span>
+              )}
+            </p>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={dashboardStyles.syncButton}
+              onClick={() => refreshDeals(true)}
+              disabled={isRefreshing}
+            >
+              <RefreshCw
+                className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")}
+              />
+              <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
+            </Button>
+          </div>
+        </div>
 
-          <MobileCreateAction />
+        <MobileCreateAction />
 
-          {/* KPI Grid */}
-          <DashboardStats deals={storeDeals} userEmail={user?.email} isLoading={!isLoaded} />
+        {/* KPI Grid */}
+        <DashboardStats deals={storeDeals} userEmail={user?.email} isLoading={!isLoaded} />
 
-          {/* Main Dashboard Area */}
-          <div className="grid lg:grid-cols-3 gap-6">
-
-            {/* Left Column (2/3): Priority & Activity */}
-            <div className="lg:col-span-2 space-y-6">
-
-              {/* Main List Card */}
-              <Card className="h-auto lg:h-[424px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <div className="flex gap-6">
-                    <button
-                      onClick={() => setActiveTab("priority")}
-                      className={cn(
-                        "text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer",
-                        activeTab === "priority" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      Priority Queue
-                      {localStats.inbox > 0 && (
-                        <Badge className="text-[10px] h-4 px-1 bg-amber-500 text-white border-0">{localStats.inbox}</Badge>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("recent")}
-                      className={cn(
-                        "text-sm font-medium transition-colors cursor-pointer",
-                        activeTab === "recent" ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      Recent Deals
-                    </button>
-                  </div>
-                  <Link href="/dashboard/agreements">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs hidden sm:flex gap-1">
-                      View All <ChevronRight className="h-3 w-3" />
-                    </Button>
-                  </Link>
+        {/* Main Dashboard Area */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left Column (2/3): Priority & Activity */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Main List Card */}
+            <Card className="h-auto lg:h-[424px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 flex items-center justify-between">
+                <div className="flex gap-6">
+                  <button
+                    onClick={() => setActiveTab("priority")}
+                    className={cn(
+                      "text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer",
+                      activeTab === "priority"
+                        ? "text-primary font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Priority Queue
+                    {localStats.inbox > 0 && (
+                      <Badge className="text-[10px] h-4 px-1 bg-amber-500 text-white border-0">
+                        {localStats.inbox}
+                      </Badge>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("recent")}
+                    className={cn(
+                      "text-sm font-medium transition-colors cursor-pointer",
+                      activeTab === "recent"
+                        ? "text-primary font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Recent Deals
+                  </button>
                 </div>
+                <Link href="/dashboard/agreements">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs hidden sm:flex gap-1">
+                    View All <ChevronRight className="h-3 w-3" />
+                  </Button>
+                </Link>
+              </div>
 
-                <CardContent className="p-3 flex-1 overflow-y-auto custom-scrollbar min-h-[300px] lg:min-h-0">
-                  <AnimatePresence mode="wait">
-                    {!isLoaded ? (
-                      <motion.div
-                        key="skeleton"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="space-y-1"
-                      >
-                        {[...Array(5)].map((_, i) => (
-                          <DealRowSkeleton key={i} />
-                        ))}
-                      </motion.div>
-                    ) : activeTab === "priority" ? (
-                      <motion.div
-// ...
-                        key="priority"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        {priorityQueue.length > 0 ? (
-                          priorityQueue.map((deal) => (
-                            <DealRow
-                              key={deal.id}
-                              deal={deal}
-                              userId={user?.id || ""}
-                              type={deal.queueType as "inbox" | "pending"}
-                              onAction={deal.queueType === "pending" ? () => handleNudge(deal) : undefined}
-                              isActionLoading={nudgeLoading === deal.id}
-                            />
-                          ))
-                        ) : (
-                          <div className="h-64 flex flex-col items-center justify-center text-center text-muted-foreground">
-                            <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                              <CheckCircle2 className="h-8 w-8 opacity-20" />
-                            </div>
-                            <p className="font-semibold text-foreground">All caught up</p>
-                            <p className="text-xs max-w-[200px] mt-1">No pending actions or signatures required at the moment.</p>
-                          </div>
-                        )}
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="recent"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
-                        {recentDeals.map((deal) => (
+              <CardContent className="p-3 flex-1 overflow-y-auto custom-scrollbar min-h-[300px] lg:min-h-0">
+                <AnimatePresence mode="wait">
+                  {!isLoaded ? (
+                    <motion.div
+                      key="loading-priority"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="space-y-1"
+                    >
+                      {[...Array(5)].map((_, _i) => (
+                        <DealRowSkeleton key={_i} />
+                      ))}
+                    </motion.div>
+                  ) : activeTab === "priority" ? (
+                    <motion.div
+                      // ...
+                      key="priority"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      {priorityQueue.length > 0 ? (
+                        priorityQueue.map((deal) => (
                           <DealRow
                             key={deal.id}
                             deal={deal}
                             userId={user?.id || ""}
-                            type="recent"
-                            onAction={() => handleDuplicate(deal)}
+                            type={deal.queueType as "inbox" | "pending"}
+                            onAction={
+                              deal.queueType === "pending" ? () => handleNudge(deal) : undefined
+                            }
+                            isActionLoading={nudgeLoading === deal.id}
                           />
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </CardContent>
-                <div className="p-3 border-t border-border/40 text-center sm:hidden bg-muted/10">
-                  <Link href="/dashboard/agreements">
-                    <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground h-8">
-                      View all agreements <ChevronRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-
-              {/* Deadlines Widget */}
-              {(upcomingDeadlines.length > 0 || !isLoaded) && (
-                <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                  <div className="px-5 py-3">
-                    <h3 className="text-sm font-medium flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4 text-primary" />
-                      Upcoming Deadlines
-                    </h3>
-                  </div>
-                  <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-0 pr-2 pl-2">
-                    {!isLoaded ? (
-                      <div className="p-3 space-y-3">
-                        {[...Array(2)].map((_, i) => (
-                          <div key={i} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Skeleton className="h-8 w-1 rounded-full" />
-                              <div className="space-y-1">
-                                <Skeleton className="h-4 w-32" />
-                                <Skeleton className="h-3 w-24 opacity-50" />
-                              </div>
-                            </div>
-                            <Skeleton className="h-5 w-16" />
+                        ))
+                      ) : (
+                        <div className="h-64 flex flex-col items-center justify-center text-center text-muted-foreground">
+                          <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                            <CheckCircle2 className="h-8 w-8 opacity-20" />
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div>
-                        {upcomingDeadlines.map((item: DeadlineItem) => (
-                          <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
-                            <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
-                              <div className="flex items-center gap-3">
-                                <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
-                                <div>
-                                  <p className="font-semibold text-foreground text-sm">{item.deal.title}</p>
-                                  <p className="text-xs text-muted-foreground">{item.label}: {formatDate(item.date)}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="font-mono text-[10px] whitespace-nowrap border-border bg-background">
-                                  {getRelativeTime(item.date)}
-                                </Badge>
-                                <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Right Column (1/3): Context & Tools */}
-            <div className="space-y-6">
-
-              {/* Latest Snapshot - Mini Receipt Style */}
-              <Card className="h-[200px] overflow-hidden border border-border/50 shadow-card rounded-2xl flex flex-col bg-background">
-                <div className="px-5 py-3 flex items-center justify-between">
-                  <h3 className="text-sm font-medium flex items-center gap-2">
-                    <FileClock className="h-4 w-4 text-primary" />
-                    Latest Activity
-                  </h3>
-                  {latestDeal && <CopyableId id={latestDeal.publicId} className="bg-secondary/30" />}
-                </div>
-                <CardContent className="p-4 flex-1 flex flex-col justify-between">
-                  {!isLoaded ? (
-                    <div className="flex items-start gap-3">
-                      <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
-                      <div className="flex-1 space-y-2">
-                        <div className="flex justify-between">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-4 w-12" />
-                        </div>
-                        <Skeleton className="h-3 w-32" />
-                        <Skeleton className="h-3 w-16 opacity-50" />
-                      </div>
-                    </div>
-                  ) : latestDeal ? (
-// ...
-                    <>
-                      <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0 border border-primary/10">
-                          <Fingerprint className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <p className="font-bold text-sm truncate pr-2">{latestDeal.title}</p>
-                            <Badge variant={statusConfig[latestDeal.status].badgeVariant} className="text-[10px] h-4 px-1">
-                              {statusConfig[latestDeal.status].label}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {latestDeal.status === 'confirmed' ? 'Signed by' : 'Sent to'} {latestDeal.recipientName}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1 font-mono opacity-80">
-                            {formatDate(latestDeal.createdAt)}
+                          <p className="font-semibold text-foreground">All caught up</p>
+                          <p className="text-xs max-w-[200px] mt-1">
+                            No pending actions or signatures required at the moment.
                           </p>
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <Link href={`/d/${latestDeal.publicId}`} className="w-full">
-                          <Button variant="outline" size="sm" className="w-full h-8 text-xs rounded-lg">View</Button>
-                        </Link>
-                        {latestDeal.status === 'confirmed' ? (
-                          <Button variant="secondary" size="sm" className="w-full h-8 text-xs gap-1 rounded-lg">
-                            <Download className="h-3 w-3" /> Receipt
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="w-full h-8 text-xs rounded-lg"
-                            onClick={() => handleNudge(latestDeal)}
-                            disabled={nudgeLoading === latestDeal.id}
-                          >
-                            {nudgeLoading === latestDeal.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Nudge"}
-                          </Button>
-                        )}
-                      </div>
-                    </>
+                      )}
+                    </motion.div>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-center text-muted-foreground text-xs">
-                      No deals created yet.
-                    </div>
+                    <motion.div
+                      key="recent"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      {recentDeals.map((deal) => (
+                        <DealRow
+                          key={deal.id}
+                          deal={deal}
+                          userId={user?.id || ""}
+                          type="recent"
+                          onAction={() => handleDuplicate(deal)}
+                        />
+                      ))}
+                    </motion.div>
                   )}
-                </CardContent>
-              </Card>
+                </AnimatePresence>
+              </CardContent>
+              <div className="p-3 border-t border-border/40 text-center sm:hidden bg-muted/10">
+                <Link href="/dashboard/agreements">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-muted-foreground h-8"
+                  >
+                    View all agreements <ChevronRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+            </Card>
 
-              {/* Analytics Graph */}
-              <Card className="h-[200px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 flex items-center justify-between">
-                  <h3 className="text-sm font-medium flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    Volume
-                  </h3>
-                  <Badge variant="secondary" className="text-[10px] h-5 border-0 bg-background/50">7 Days</Badge>
-                </div>
-                <CardContent className="px-5 pb-0 pt-4 flex-1 flex flex-col">
-                  {!isLoaded ? (
-                    <div className="space-y-4">
-                      <div className="flex items-baseline gap-2">
-                        <Skeleton className="h-9 w-12" />
-                        <Skeleton className="h-4 w-20 opacity-50" />
-                      </div>
-                      <Skeleton className="h-16 w-full opacity-30" />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-baseline gap-2">
-                        <div className="text-3xl font-bold tracking-tight">{storeDeals.length}</div>
-                        <span className="text-xs text-muted-foreground font-medium">total deals</span>
-                      </div>
-                      <ActivitySparkline data={sparklineData} />
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Quick Verify */}
+            {/* Deadlines Widget */}
+            {(upcomingDeadlines.length > 0 || !isLoaded) && (
               <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
                 <div className="px-5 py-3">
                   <h3 className="text-sm font-medium flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" />
-                    Quick Verify
+                    <CalendarDays className="h-4 w-4 text-primary" />
+                    Upcoming Deadlines
                   </h3>
                 </div>
-                <CardContent className="p-5 flex flex-col justify-center h-full">
-                  <form onSubmit={handleVerify} className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Deal ID or Hash..."
-                        className="pl-9 h-10 text-xs font-mono bg-background border-border/60 focus:bg-background transition-colors"
-                        value={verifyId}
-                        onChange={(e) => setVerifyId(e.target.value)}
-                      />
+                <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-0 pr-2 pl-2">
+                  {!isLoaded ? (
+                    <div className="p-3 space-y-3">
+                      {[...Array(2)].map((_, i) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-8 w-1 rounded-full" />
+                            <div className="space-y-1">
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-24 opacity-50" />
+                            </div>
+                          </div>
+                          <Skeleton className="h-5 w-16" />
+                        </div>
+                      ))}
                     </div>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className={cn(
-                        "w-full h-9 text-xs font-medium rounded-lg shadow-sm transition-all duration-200",
-                        verifyId.trim() ? "hover:shadow-md active:scale-95" : "opacity-50 cursor-not-allowed"
-                      )}
-                      disabled={!verifyId.trim()}
-                    >
-                      Verify Authenticity
-                    </Button>
-                  </form>
+                  ) : (
+                    <div>
+                      {upcomingDeadlines.map((item: DeadlineItem) => (
+                        <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
+                          <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
+                            <div className="flex items-center gap-3">
+                              <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
+                              <div>
+                                <p className="font-semibold text-foreground text-sm">
+                                  {item.deal.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.label}: {formatDate(item.date)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className="font-mono text-[10px] whitespace-nowrap border-border bg-background"
+                              >
+                                {getRelativeTime(item.date)}
+                              </Badge>
+                              <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-
-            </div>
+            )}
           </div>
 
-          {/* Footer Tip */}
-          <motion.div
-            key={tipIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:px-6 rounded-xl border border-dashed bg-muted/30 text-xs text-muted-foreground px-4 mx-auto"
-          >
-            <div className="flex items-center gap-2 shrink-0">
-              <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-              <span className="font-medium text-foreground">Pro Tip:</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="block sm:hidden leading-relaxed">
-                {PRO_TIPS[tipIndex]}
-              </span>
-              <span className="hidden sm:block">
-                <ScrambleText text={PRO_TIPS[tipIndex]} />
-              </span>
-            </div>
-          </motion.div>
+          {/* Right Column (1/3): Context & Tools */}
+          <div className="space-y-6">
+            {/* Latest Snapshot - Mini Receipt Style */}
+            <Card className="h-[200px] overflow-hidden border border-border/50 shadow-card rounded-2xl flex flex-col bg-background">
+              <div className="px-5 py-3 flex items-center justify-between">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <FileClock className="h-4 w-4 text-primary" />
+                  Latest Activity
+                </h3>
+                {latestDeal && <CopyableId id={latestDeal.publicId} className="bg-secondary/30" />}
+              </div>
+              <CardContent className="p-4 flex-1 flex flex-col justify-between">
+                {!isLoaded ? (
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                      <Skeleton className="h-3 w-32" />
+                      <Skeleton className="h-3 w-16 opacity-50" />
+                    </div>
+                  </div>
+                ) : latestDeal ? (
+                  // ...
+                  <>
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0 border border-primary/10">
+                        <Fingerprint className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <p className="font-bold text-sm truncate pr-2">{latestDeal.title}</p>
+                          <Badge
+                            variant={statusConfig[latestDeal.status].badgeVariant}
+                            className="text-[10px] h-4 px-1"
+                          >
+                            {statusConfig[latestDeal.status].label}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {latestDeal.status === "confirmed" ? "Signed by" : "Sent to"}{" "}
+                          {latestDeal.recipientName}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1 font-mono opacity-80">
+                          {formatDate(latestDeal.createdAt)}
+                        </p>
+                      </div>
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <Link href={`/d/${latestDeal.publicId}`} className="w-full">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8 text-xs rounded-lg"
+                        >
+                          View
+                        </Button>
+                      </Link>
+                      {latestDeal.status === "confirmed" ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="w-full h-8 text-xs gap-1 rounded-lg"
+                        >
+                          <Download className="h-3 w-3" /> Receipt
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="w-full h-8 text-xs rounded-lg"
+                          onClick={() => handleNudge(latestDeal)}
+                          disabled={nudgeLoading === latestDeal.id}
+                        >
+                          {nudgeLoading === latestDeal.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Nudge"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-center text-muted-foreground text-xs">
+                    No deals created yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Analytics Graph */}
+            <Card className="h-[200px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
+              <div className="px-5 py-3 flex items-center justify-between">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Volume
+                </h3>
+                <Badge variant="secondary" className="text-[10px] h-5 border-0 bg-background/50">
+                  7 Days
+                </Badge>
+              </div>
+              <CardContent className="px-5 pb-0 pt-4 flex-1 flex flex-col">
+                {!isLoaded ? (
+                  <div className="space-y-4">
+                    <div className="flex items-baseline gap-2">
+                      <Skeleton className="h-9 w-12" />
+                      <Skeleton className="h-4 w-20 opacity-50" />
+                    </div>
+                    <Skeleton className="h-16 w-full opacity-30" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-2">
+                      <div className="text-3xl font-bold tracking-tight">{storeDeals.length}</div>
+                      <span className="text-xs text-muted-foreground font-medium">total deals</span>
+                    </div>
+                    <ActivitySparkline data={sparklineData} />
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Verify */}
+            <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
+              <div className="px-5 py-3">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Quick Verify
+                </h3>
+              </div>
+              <CardContent className="p-5 flex flex-col justify-center h-full">
+                <form onSubmit={handleVerify} className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Deal ID or Hash..."
+                      className="pl-9 h-10 text-xs font-mono bg-background border-border/60 focus:bg-background transition-colors"
+                      value={verifyId}
+                      onChange={(e) => setVerifyId(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className={cn(
+                      "w-full h-9 text-xs font-medium rounded-lg shadow-sm transition-all duration-200",
+                      verifyId.trim()
+                        ? "hover:shadow-md active:scale-95"
+                        : "opacity-50 cursor-not-allowed"
+                    )}
+                    disabled={!verifyId.trim()}
+                  >
+                    Verify Authenticity
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Footer Tip */}
+        <motion.div
+          key={tipIndex}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="w-full flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:px-6 rounded-xl border border-dashed bg-muted/30 text-xs text-muted-foreground px-4 mx-auto"
+        >
+          <div className="flex items-center gap-2 shrink-0">
+            <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+            <span className="font-medium text-foreground">Pro Tip:</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="block sm:hidden leading-relaxed">{PRO_TIPS[tipIndex]}</span>
+            <span className="hidden sm:block">
+              <ScrambleText text={PRO_TIPS[tipIndex]} />
+            </span>
+          </div>
+        </motion.div>
       </div>
     </>
   );

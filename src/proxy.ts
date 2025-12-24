@@ -26,7 +26,7 @@ export async function proxy(request: NextRequest) {
   const publicPrefixes = ["/d/", "/auth/", "/api/"];
 
   const isPublicRoute = publicRoutes.includes(pathname);
-  const isPublicPrefix = publicPrefixes.some(prefix => pathname.startsWith(prefix));
+  const isPublicPrefix = publicPrefixes.some((prefix) => pathname.startsWith(prefix));
 
   // Check if Supabase is configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -45,43 +45,42 @@ export async function proxy(request: NextRequest) {
   });
 
   // Create Supabase client with cookie handling
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          // Set on request for downstream use
-          request.cookies.set({ name, value, ...options });
-          // Create new response with updated cookies
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          // Set on response to send to browser
-          response.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: "", ...options });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({ name, value: "", ...options });
-        },
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      get(name: string) {
+        return request.cookies.get(name)?.value;
       },
-    }
-  );
+      set(name: string, value: string, options: CookieOptions) {
+        // Set on request for downstream use
+        request.cookies.set({ name, value, ...options });
+        // Create new response with updated cookies
+        response = NextResponse.next({
+          request: {
+            headers: request.headers,
+          },
+        });
+        // Set on response to send to browser
+        response.cookies.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        request.cookies.set({ name, value: "", ...options });
+        response = NextResponse.next({
+          request: {
+            headers: request.headers,
+          },
+        });
+        response.cookies.set({ name, value: "", ...options });
+      },
+    },
+  });
 
   // CRITICAL: Use getUser() not getSession() for security
   // getUser() validates the JWT with Supabase Auth server
   // This also refreshes the session if needed
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
   // For public routes, allow access but still refresh session
   if (isPublicRoute || isPublicPrefix) {

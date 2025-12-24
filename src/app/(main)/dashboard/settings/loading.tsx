@@ -2,7 +2,7 @@ import {
   SettingsHeaderSkeleton,
   SettingsTabsSkeleton,
   SettingsProfileSkeleton,
-  SettingsGroupSkeleton
+  SettingsGroupSkeleton,
 } from "@/components/dashboard/shared-components";
 import { dashboardStyles } from "@/lib/dashboard-ui";
 

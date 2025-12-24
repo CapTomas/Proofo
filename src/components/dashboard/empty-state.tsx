@@ -25,14 +25,8 @@ export function EmptyState({ icon: Icon, title, description, action, className }
         <Icon className="h-8 w-8 text-muted-foreground/50" />
       </div>
       <h3 className={dashboardStyles.emptyStateTitle}>{title}</h3>
-      <p className={dashboardStyles.emptyStateDescription}>
-        {description}
-      </p>
-      {action && (
-        <div className="mt-4">
-          {action}
-        </div>
-      )}
+      <p className={dashboardStyles.emptyStateDescription}>{description}</p>
+      {action && <div className="mt-4">{action}</div>}
     </motion.div>
   );
 }

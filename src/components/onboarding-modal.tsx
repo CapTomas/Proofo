@@ -6,15 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  User,
-  ArrowRight,
-  Check,
-  Sparkles,
-  FileCheck,
-  Shield,
-  Zap,
-} from "lucide-react";
+import { User, ArrowRight, Check, Sparkles, FileCheck, Shield, Zap } from "lucide-react";
 import { useAppStore } from "@/store";
 import { updateProfileAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -32,20 +24,20 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     // If user is already logged in with Supabase, update their profile
     if (isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-")) {
       const { error: updateError } = await updateProfileAction({ name: name.trim() });
-      
+
       if (updateError) {
         setError(updateError);
         setIsSubmitting(false);
         return;
       }
-      
+
       // Update local state
       setUser({
         ...user,
@@ -60,7 +52,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
         createdAt: user?.createdAt || new Date().toISOString(),
       });
     }
-    
+
     await new Promise((resolve) => setTimeout(resolve, 300));
     setIsSubmitting(false);
     setStep(2);
@@ -196,11 +188,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={handleComplete}
-                    className="w-full"
-                    size="lg"
-                  >
+                  <Button onClick={handleComplete} className="w-full" size="lg">
                     Create My First Deal
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>

@@ -125,9 +125,11 @@ export function UpgradeModal({ isOpen, onClose, onUpgrade }: UpgradeModalProps) 
                   transition={{ delay: index * 0.05 }}
                   className="flex items-start gap-3"
                 >
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${
-                    feature.pro ? "bg-emerald-500/10" : "bg-muted"
-                  }`}>
+                  <div
+                    className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${
+                      feature.pro ? "bg-emerald-500/10" : "bg-muted"
+                    }`}
+                  >
                     {feature.pro ? (
                       <Check className="h-3.5 w-3.5 text-emerald-600" />
                     ) : (

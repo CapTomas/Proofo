@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 
 /**
@@ -9,12 +9,18 @@ export const dealTermSchema = z.object({
   label: z
     .string()
     .min(1, "Term label is required")
-    .max(LIMITS.MAX_TERM_LABEL_LENGTH, `Term label must be ${LIMITS.MAX_TERM_LABEL_LENGTH} characters or less`)
+    .max(
+      LIMITS.MAX_TERM_LABEL_LENGTH,
+      `Term label must be ${LIMITS.MAX_TERM_LABEL_LENGTH} characters or less`
+    )
     .trim(),
   value: z
     .string()
     .min(1, "Term value is required")
-    .max(LIMITS.MAX_TERM_VALUE_LENGTH, `Term value must be ${LIMITS.MAX_TERM_VALUE_LENGTH} characters or less`),
+    .max(
+      LIMITS.MAX_TERM_VALUE_LENGTH,
+      `Term value must be ${LIMITS.MAX_TERM_VALUE_LENGTH} characters or less`
+    ),
   type: z.enum(["text", "number", "date", "currency"]),
 });
 
@@ -29,7 +35,10 @@ export const createDealSchema = z.object({
     .trim(),
   description: z
     .string()
-    .max(LIMITS.MAX_DESCRIPTION_LENGTH, `Description must be ${LIMITS.MAX_DESCRIPTION_LENGTH} characters or less`)
+    .max(
+      LIMITS.MAX_DESCRIPTION_LENGTH,
+      `Description must be ${LIMITS.MAX_DESCRIPTION_LENGTH} characters or less`
+    )
     .optional()
     .default(""),
   recipientName: z
@@ -37,14 +46,8 @@ export const createDealSchema = z.object({
     .min(1, "Recipient name is required")
     .max(100, "Recipient name must be 100 characters or less")
     .trim(),
-  recipientEmail: z
-    .string()
-    .email("Invalid email address")
-    .optional()
-    .or(z.literal("")),
-  terms: z
-    .array(dealTermSchema)
-    .max(LIMITS.MAX_TERMS, `Maximum ${LIMITS.MAX_TERMS} terms allowed`),
+  recipientEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
+  terms: z.array(dealTermSchema).max(LIMITS.MAX_TERMS, `Maximum ${LIMITS.MAX_TERMS} terms allowed`),
   templateId: z.string().optional(),
 });
 

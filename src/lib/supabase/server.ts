@@ -48,7 +48,10 @@ export async function getServerUser(): Promise<User | null> {
   const supabase = await createServerSupabaseClient();
 
   // getUser() validates the JWT with Supabase - always use this for security
-  const { data: { user: authUser }, error } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+    error,
+  } = await supabase.auth.getUser();
 
   if (error || !authUser) {
     return null;
@@ -66,7 +69,11 @@ export async function getServerUser(): Promise<User | null> {
     return {
       id: authUser.id,
       email: authUser.email || "",
-      name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "User",
+      name:
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        authUser.email?.split("@")[0] ||
+        "User",
       avatarUrl: authUser.user_metadata?.avatar_url,
       createdAt: authUser.created_at,
     };
@@ -90,13 +97,18 @@ export async function getServerUser(): Promise<User | null> {
 export async function getServerSession() {
   const supabase = await createServerSupabaseClient();
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
   if (error || !user) {
     return { user: null, session: null };
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   return { user, session };
 }
@@ -105,8 +117,5 @@ export async function getServerSession() {
  * Check if Supabase is configured
  */
 export function isSupabaseConfiguredServer(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from "react";
+import { useState, useEffect, useCallback, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,11 @@ const iconMap: Record<string, LucideIcon> = {
 type Step = "template" | "details" | "review" | "share";
 
 const stepInfo = {
-  template: { number: 1, title: "Choose Template", description: "Select a template that fits your agreement" },
+  template: {
+    number: 1,
+    title: "Choose Template",
+    description: "Select a template that fits your agreement",
+  },
   details: { number: 2, title: "Fill Details", description: "Add the specifics of your agreement" },
   review: { number: 3, title: "Review", description: "Make sure everything looks correct" },
   share: { number: 4, title: "Share", description: "Send to the other party" },
@@ -78,7 +82,10 @@ function NewDealContent() {
 
   // Save form progress to localStorage for guests
   useEffect(() => {
-    if (!user && (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)) {
+    if (
+      !user &&
+      (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)
+    ) {
       const progressData = {
         selectedTemplate: selectedTemplate?.id,
         recipientName,
@@ -86,22 +93,23 @@ function NewDealContent() {
         formData,
         timestamp: Date.now(),
       };
-      localStorage.setItem('proofo-guest-form-progress', JSON.stringify(progressData));
+      localStorage.setItem("proofo-guest-form-progress", JSON.stringify(progressData));
     }
   }, [selectedTemplate, recipientName, recipientEmail, formData, user]);
 
   // Restore form progress for guests
   useEffect(() => {
     if (!user && !sourceId) {
-      const savedProgress = localStorage.getItem('proofo-guest-form-progress');
+      const savedProgress = localStorage.getItem("proofo-guest-form-progress");
       if (savedProgress) {
         try {
           const progress = JSON.parse(savedProgress);
           // Only restore if saved within last 24 hours
           if (Date.now() - progress.timestamp < 24 * 60 * 60 * 1000) {
             if (progress.selectedTemplate) {
-              const template = dealTemplates.find(t => t.id === progress.selectedTemplate);
+              const template = dealTemplates.find((t) => t.id === progress.selectedTemplate);
               if (template) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSelectedTemplate(template);
                 setCurrentStep("details");
               }
@@ -111,10 +119,10 @@ function NewDealContent() {
             if (progress.formData) setFormData(progress.formData);
           } else {
             // Clear old data
-            localStorage.removeItem('proofo-guest-form-progress');
+            localStorage.removeItem("proofo-guest-form-progress");
           }
         } catch (e) {
-          console.error('Failed to restore form progress', e);
+          console.error("Failed to restore form progress", e);
         }
       }
     }
@@ -123,7 +131,7 @@ function NewDealContent() {
   // Clear saved progress when deal is successfully created
   useEffect(() => {
     if (createdDeal && currentStep === "share") {
-      localStorage.removeItem('proofo-guest-form-progress');
+      localStorage.removeItem("proofo-guest-form-progress");
     }
   }, [createdDeal, currentStep]);
 
@@ -133,14 +141,14 @@ function NewDealContent() {
 
     const prefillFromDeal = (deal: Deal) => {
       // Find the matching template
-      const template = dealTemplates.find(t => t.id === deal.templateId);
+      const template = dealTemplates.find((t) => t.id === deal.templateId);
       if (template) {
         setSelectedTemplate(template);
         // Pre-fill form data from deal terms
         const data: Record<string, string> = {};
-        deal.terms.forEach(term => {
+        deal.terms.forEach((term) => {
           // Find matching field by label
-          const field = template.fields.find(f => f.label === term.label);
+          const field = template.fields.find((f) => f.label === term.label);
           if (field) {
             // Remove currency symbol if present
             const value = term.value.startsWith("$") ? term.value.slice(1) : term.value;
@@ -175,65 +183,16 @@ function NewDealContent() {
     loadSourceDeal();
   }, [sourceId, getDealById]);
 
-  // Handle post-authentication deal creation
-  useEffect(() => {
-    if (pendingDealCreation && user && !dealCreationInProgressRef.current) {
-      // User just authenticated (either real or demo) - trigger deal creation
-      setPendingDealCreation(false);
-      dealCreationInProgressRef.current = true;
-      handleCreateDeal();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, pendingDealCreation]);
-
-  // Keyboard shortcuts for better UX
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Escape to go back
-      if (e.key === 'Escape' && currentStep !== "template" && currentStep !== "share") {
-        handleBack();
-      }
-
-      // Enter to continue (only on template and review steps)
-      if (e.key === 'Enter' && (currentStep === "review")) {
-        if (!isCreating) {
-          handleNext();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentStep, isCreating]);
-
   // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
-  const dealLink = shareUrl || (createdDeal
-    ? typeof window !== "undefined"
-      ? `${window.location.origin}/d/${createdDeal.publicId}`
-      : `https://proofo.app/d/${createdDeal.publicId}`
-    : "");
+  const dealLink =
+    shareUrl ||
+    (createdDeal
+      ? typeof window !== "undefined"
+        ? `${window.location.origin}/d/${createdDeal.publicId}`
+        : `https://proofo.app/d/${createdDeal.publicId}`
+      : "");
 
-  const handleTemplateSelect = (template: DealTemplate) => {
-    setSelectedTemplate(template);
-    // Initialize form data with empty values
-    const initialData: Record<string, string> = {};
-    template.fields.forEach((field) => {
-      initialData[field.id] = field.defaultValue || "";
-    });
-    setFormData(initialData);
-    setCurrentStep("details");
-  };
-
-  const handleFieldChange = (fieldId: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [fieldId]: value }));
-  };
-
-  const handleCreateDeal = async () => {
+  const handleCreateDeal = useCallback(async () => {
     if (!selectedTemplate) return;
 
     setIsCreating(true);
@@ -244,9 +203,7 @@ function NewDealContent() {
       .filter((field) => formData[field.id])
       .map((field) => ({
         label: field.label,
-        value: field.type === "currency"
-          ? `$${formData[field.id]}`
-          : formData[field.id],
+        value: field.type === "currency" ? `$${formData[field.id]}` : formData[field.id],
         type: field.type === "textarea" ? "text" : field.type,
       }));
 
@@ -262,7 +219,11 @@ function NewDealContent() {
 
     if (isRealUser) {
       // Use server action for real database storage
-      const { deal, shareUrl: serverShareUrl, error } = await createDealAction({
+      const {
+        deal,
+        shareUrl: serverShareUrl,
+        error,
+      } = await createDealAction({
         title: selectedTemplate.name,
         description: `${selectedTemplate.name} agreement with ${recipientName}`,
         templateId: selectedTemplate.id,
@@ -314,9 +275,9 @@ function NewDealContent() {
 
     setIsCreating(false);
     setCurrentStep("share");
-  };
+  }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentStep === "details") {
       setCurrentStep("review");
     } else if (currentStep === "review") {
@@ -330,15 +291,66 @@ function NewDealContent() {
         handleCreateDeal();
       }
     }
-  };
+  }, [currentStep, user, handleCreateDeal]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (currentStep === "details") {
       setCurrentStep("template");
       setSelectedTemplate(null);
     } else if (currentStep === "review") {
       setCurrentStep("details");
     }
+  }, [currentStep]);
+
+  // Keyboard shortcuts for better UX
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Escape to go back
+      if (e.key === "Escape" && currentStep !== "template" && currentStep !== "share") {
+        handleBack();
+      }
+
+      // Enter to continue (only on template and review steps)
+      if (e.key === "Enter" && currentStep === "review") {
+        if (!isCreating) {
+          handleNext();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [currentStep, isCreating, handleBack, handleNext]);
+
+  // Handle post-authentication deal creation
+  useEffect(() => {
+    if (pendingDealCreation && user && !dealCreationInProgressRef.current) {
+      // User just authenticated (either real or demo) - trigger deal creation
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPendingDealCreation(false);
+      dealCreationInProgressRef.current = true;
+      handleCreateDeal();
+    }
+  }, [user, pendingDealCreation, handleCreateDeal]);
+
+  const handleTemplateSelect = (template: DealTemplate) => {
+    setSelectedTemplate(template);
+    // Initialize form data with empty values
+    const initialData: Record<string, string> = {};
+    template.fields.forEach((field) => {
+      initialData[field.id] = field.defaultValue || "";
+    });
+    setFormData(initialData);
+    setCurrentStep("details");
+  };
+
+  const handleFieldChange = (fieldId: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [fieldId]: value }));
   };
 
   const copyToClipboard = async () => {
@@ -397,7 +409,10 @@ function NewDealContent() {
       case "currency":
         return (
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium" aria-hidden="true">
+            <span
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium"
+              aria-hidden="true"
+            >
               $
             </span>
             <Input {...commonProps} type="number" step="0.01" className="pl-8" />
@@ -416,7 +431,10 @@ function NewDealContent() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group">
+          <Link
+            href={user ? "/dashboard" : "/"}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
+          >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             <span className="hidden sm:inline">{user ? "Back to Dashboard" : "Back to Home"}</span>
           </Link>
@@ -462,16 +480,14 @@ function NewDealContent() {
                         : "text-muted-foreground"
                     }`}
                   >
-                    {isCompleted ? (
-                      <Check className="h-5 w-5" />
-                    ) : (
-                      stepInfo[step].number
-                    )}
+                    {isCompleted ? <Check className="h-5 w-5" /> : stepInfo[step as Step].number}
                   </motion.div>
-                  <span className={`mt-2 text-xs font-medium hidden sm:block ${
-                    isCurrent ? "text-foreground" : "text-muted-foreground"
-                  }`}>
-                    {stepInfo[step].title}
+                  <span
+                    className={`mt-2 text-xs font-medium hidden sm:block ${
+                      isCurrent ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {stepInfo[step as Step].title}
                   </span>
                 </div>
               );
@@ -494,7 +510,9 @@ function NewDealContent() {
                   <Sparkles className="h-3 w-3 mr-1.5" />
                   Step 1 of 4
                 </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Choose a Template</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
+                  Choose a Template
+                </h1>
                 <p className="text-muted-foreground">
                   Select a template that best fits your agreement type
                 </p>
@@ -522,7 +540,7 @@ function NewDealContent() {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
+                          if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             handleTemplateSelect(template);
                           }
@@ -531,7 +549,10 @@ function NewDealContent() {
                       >
                         <CardContent className="p-6">
                           <div className="flex items-start gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform" aria-hidden="true">
+                            <div
+                              className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform"
+                              aria-hidden="true"
+                            >
                               <IconComponent className="h-6 w-6 text-primary" />
                             </div>
                             <div className="flex-1">
@@ -583,10 +604,10 @@ function NewDealContent() {
                     </Badge>
                   );
                 })()}
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Fill in the Details</h1>
-                <p className="text-muted-foreground">
-                  Provide the information for your agreement
-                </p>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
+                  Fill in the Details
+                </h1>
+                <p className="text-muted-foreground">Provide the information for your agreement</p>
               </div>
 
               <Card>
@@ -611,7 +632,8 @@ function NewDealContent() {
 
                   <div className="space-y-2">
                     <Label htmlFor="recipientEmail" className="text-sm font-medium">
-                      Recipient&apos;s Email <span className="text-muted-foreground">(Optional)</span>
+                      Recipient&apos;s Email{" "}
+                      <span className="text-muted-foreground">(Optional)</span>
                     </Label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -655,9 +677,10 @@ function NewDealContent() {
                     </Button>
                     <Button
                       onClick={handleNext}
-                      disabled={!recipientName || selectedTemplate.fields.some(
-                        (f) => f.required && !formData[f.id]
-                      )}
+                      disabled={
+                        !recipientName ||
+                        selectedTemplate.fields.some((f) => f.required && !formData[f.id])
+                      }
                       className="gap-2 shadow-lg shadow-primary/20"
                     >
                       Review Deal
@@ -683,7 +706,9 @@ function NewDealContent() {
                   <Edit3 className="h-3 w-3 mr-1.5" />
                   Step 3 of 4
                 </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Review Your Deal</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
+                  Review Your Deal
+                </h1>
                 <p className="text-muted-foreground">
                   Make sure everything looks correct before creating
                 </p>
@@ -727,7 +752,9 @@ function NewDealContent() {
                       <span className="text-muted-foreground text-sm">{field.label}</span>
                       <span className="font-medium">
                         {field.type === "currency" && formData[field.id] && "$"}
-                        {formData[field.id] || <span className="text-muted-foreground italic">Not specified</span>}
+                        {formData[field.id] || (
+                          <span className="text-muted-foreground italic">Not specified</span>
+                        )}
                       </span>
                     </motion.div>
                   ))}
@@ -737,17 +764,27 @@ function NewDealContent() {
                     <div className="text-sm">
                       <p className="font-medium text-foreground">Ready to create?</p>
                       <p className="text-muted-foreground mt-0.5">
-                        Once created, you&apos;ll get a unique link to share with {recipientName}. They can sign without creating an account.
+                        Once created, you&apos;ll get a unique link to share with {recipientName}.
+                        They can sign without creating an account.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex justify-between pt-6 gap-4">
-                    <Button variant="outline" onClick={handleBack} className="gap-2" disabled={isCreating}>
+                    <Button
+                      variant="outline"
+                      onClick={handleBack}
+                      className="gap-2"
+                      disabled={isCreating}
+                    >
                       <ArrowLeft className="h-4 w-4" />
                       Edit
                     </Button>
-                    <Button onClick={handleNext} className="gap-2 shadow-lg shadow-primary/20" disabled={isCreating}>
+                    <Button
+                      onClick={handleNext}
+                      className="gap-2 shadow-lg shadow-primary/20"
+                      disabled={isCreating}
+                    >
                       {isCreating ? (
                         <>
                           <motion.div
@@ -788,7 +825,9 @@ function NewDealContent() {
                 >
                   <CheckCircle2 className="h-10 w-10 text-white" />
                 </motion.div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Deal Created!</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
+                  Deal Created!
+                </h1>
                 <p className="text-muted-foreground">
                   Share this link with {recipientName} to get their signature
                 </p>
@@ -804,12 +843,7 @@ function NewDealContent() {
                       transition={{ delay: 0.3 }}
                       className="p-6 bg-white rounded-2xl shadow-lg border"
                     >
-                      <QRCodeSVG
-                        value={dealLink}
-                        size={180}
-                        level="H"
-                        includeMargin
-                      />
+                      <QRCodeSVG value={dealLink} size={180} level="H" includeMargin />
                     </motion.div>
                   </div>
 
@@ -923,14 +957,16 @@ function NewDealContent() {
 
 export default function NewDealPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <NewDealContent />
     </Suspense>
   );

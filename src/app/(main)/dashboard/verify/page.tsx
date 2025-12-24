@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense, useRef, useMemo } from "rea
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AuditTimeline } from "@/components/audit-timeline";
@@ -31,7 +31,6 @@ import {
   RefreshCw,
   Hash,
   XCircle,
-  Terminal,
   ScanLine,
   Link2,
   RotateCcw,
@@ -40,9 +39,7 @@ import {
 } from "lucide-react";
 import { dashboardStyles } from "@/lib/dashboard-ui";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
-import { CopyableId, statusConfig, KeyboardHint, useSearchShortcut } from "@/components/dashboard/shared-components";
-import { EmptyState } from "@/components/dashboard/empty-state";
-import Link from "next/link";
+import { KeyboardHint, useSearchShortcut } from "@/components/dashboard/shared-components";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -53,7 +50,15 @@ type VerificationStatus = "idle" | "verifying" | "valid" | "invalid" | "error";
 // --- ENGAGING MICRO COMPONENTS ---
 
 // Scramble text effect for hashes - hacker style
-const ScrambleText = ({ text, className, trigger = true }: { text: string; className?: string; trigger?: boolean }) => {
+const ScrambleText = ({
+  text,
+  className,
+  trigger = true,
+}: {
+  text: string;
+  className?: string;
+  trigger?: boolean;
+}) => {
   const [displayText, setDisplayText] = useState(text);
   const chars = "0123456789abcdef";
 
@@ -121,11 +126,13 @@ const PulsingShield = ({ status }: { status: VerificationStatus }) => {
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
-      <div className={cn(
-        "h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 shadow-lg",
-        colors[status],
-        bgColors[status]
-      )}>
+      <div
+        className={cn(
+          "h-14 w-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 shadow-lg",
+          colors[status],
+          bgColors[status]
+        )}
+      >
         {status === "verifying" ? (
           <RefreshCw className="h-6 w-6 animate-spin" />
         ) : status === "valid" ? (
@@ -149,7 +156,15 @@ const PulsingShield = ({ status }: { status: VerificationStatus }) => {
 };
 
 // Animated copyable hash with scramble effect
-const AnimatedCopyableHash = ({ hash, label, scramble = false }: { hash: string; label: string; scramble?: boolean }) => {
+const AnimatedCopyableHash = ({
+  hash,
+  label,
+  scramble = false,
+}: {
+  hash: string;
+  label: string;
+  scramble?: boolean;
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -241,11 +256,13 @@ const VerificationResultCard = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
     >
-      <Card className={cn(
-        "overflow-hidden border shadow-lg transition-all duration-500",
-        verificationStatus === "valid" && "border-emerald-500/30 shadow-emerald-500/10",
-        verificationStatus === "invalid" && "border-destructive/30 shadow-destructive/10"
-      )}>
+      <Card
+        className={cn(
+          "overflow-hidden border shadow-lg transition-all duration-500",
+          verificationStatus === "valid" && "border-emerald-500/30 shadow-emerald-500/10",
+          verificationStatus === "invalid" && "border-destructive/30 shadow-destructive/10"
+        )}
+      >
         {/* System-style Header */}
         <div className="p-4 border-b flex items-center justify-between bg-muted/30">
           <div className="flex items-center gap-3 min-w-0">
@@ -267,26 +284,35 @@ const VerificationResultCard = ({
         <div className="bg-background border-b py-4 px-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className={cn(
-                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                verificationStatus === "valid" ? "bg-emerald-500/10 text-emerald-600" :
-                verificationStatus === "invalid" ? "bg-destructive/10 text-destructive" :
-                "bg-primary/10 text-primary"
-              )}>
+              <div
+                className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                  verificationStatus === "valid"
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : verificationStatus === "invalid"
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-primary/10 text-primary"
+                )}
+              >
                 <Fingerprint className="h-5 w-5" />
               </div>
               <div className="min-w-0">
                 <CardTitle className="text-lg leading-tight truncate">{deal.title}</CardTitle>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 bg-secondary/50 border-border/50">
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] h-5 px-1.5 bg-secondary/50 border-border/50"
+                  >
                     {deal.publicId}
                   </Badge>
-                  {deal.status === 'confirmed' ? (
+                  {deal.status === "confirmed" ? (
                     <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" /> Sealed
                     </span>
                   ) : (
-                    <span className="text-[10px] text-muted-foreground font-medium capitalize">{deal.status}</span>
+                    <span className="text-[10px] text-muted-foreground font-medium capitalize">
+                      {deal.status}
+                    </span>
                   )}
                 </div>
               </div>
@@ -304,7 +330,8 @@ const VerificationResultCard = ({
               className={cn(
                 "px-5 py-3 text-sm font-medium flex items-center gap-2 border-b overflow-hidden",
                 verificationStatus === "verifying" && "bg-primary/5 text-primary",
-                verificationStatus === "valid" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                verificationStatus === "valid" &&
+                  "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
                 verificationStatus === "invalid" && "bg-destructive/10 text-destructive",
                 verificationStatus === "error" && "bg-amber-500/10 text-amber-700"
               )}
@@ -317,14 +344,13 @@ const VerificationResultCard = ({
               )}
               {verificationStatus === "valid" && (
                 <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  ✓ Document integrity verified. The cryptographic seal matches perfectly.
+                  <CheckCircle2 className="h-4 w-4" />✓ Document integrity verified. The
+                  cryptographic seal matches perfectly.
                 </>
               )}
               {verificationStatus === "invalid" && (
                 <>
-                  <AlertCircle className="h-4 w-4" />
-                  ✗ Verification failed. Hash mismatch detected.
+                  <AlertCircle className="h-4 w-4" />✗ Verification failed. Hash mismatch detected.
                 </>
               )}
               {verificationStatus === "error" && (
@@ -340,17 +366,23 @@ const VerificationResultCard = ({
         {/* Compact Metadata Grid */}
         <div className="grid grid-cols-2 divide-x border-b">
           <div className="p-4 space-y-0.5">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recipient</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              Recipient
+            </div>
             <div className="flex items-center gap-2 font-medium text-sm">
               <User className="h-3.5 w-3.5 text-primary/60" />
               <span className="truncate">{deal.recipientName || "Pending"}</span>
             </div>
           </div>
           <div className="p-4 space-y-0.5">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Sealed Date</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              Sealed Date
+            </div>
             <div className="flex items-center gap-2 font-medium text-sm">
               <Clock className="h-3.5 w-3.5 text-primary/60" />
-              <span className="truncate">{deal.confirmedAt ? formatDateTime(deal.confirmedAt) : "Not sealed"}</span>
+              <span className="truncate">
+                {deal.confirmedAt ? formatDateTime(deal.confirmedAt) : "Not sealed"}
+              </span>
             </div>
           </div>
         </div>
@@ -365,7 +397,9 @@ const VerificationResultCard = ({
               <Hash className="h-3.5 w-3.5" />
               Cryptographic Proof
             </div>
-            <ChevronDown className={cn("h-4 w-4 transition-transform", showDetails && "rotate-180")} />
+            <ChevronDown
+              className={cn("h-4 w-4 transition-transform", showDetails && "rotate-180")}
+            />
           </button>
 
           <AnimatePresence>
@@ -383,7 +417,7 @@ const VerificationResultCard = ({
                   />
                 ) : (
                   <div className="text-xs text-muted-foreground italic bg-muted/30 p-3 rounded-xl border border-dashed">
-                    No seal recorded yet. This deal hasn't been confirmed.
+                    No seal recorded yet. This deal hasn&apos;t been confirmed.
                   </div>
                 )}
 
@@ -402,7 +436,9 @@ const VerificationResultCard = ({
                     className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 px-4 py-3 rounded-xl border border-emerald-500/20"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    <span className="font-medium">Hashes match perfectly. Document integrity verified.</span>
+                    <span className="font-medium">
+                      Hashes match perfectly. Document integrity verified.
+                    </span>
                   </motion.div>
                 )}
 
@@ -413,7 +449,9 @@ const VerificationResultCard = ({
                     className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-4 py-3 rounded-xl border border-destructive/20"
                   >
                     <AlertCircle className="h-4 w-4" />
-                    <span className="font-medium">Hash mismatch! Document may have been altered.</span>
+                    <span className="font-medium">
+                      Hash mismatch! Document may have been altered.
+                    </span>
                   </motion.div>
                 )}
               </motion.div>
@@ -451,7 +489,9 @@ const VerificationResultCard = ({
                 <Sparkles className="h-3.5 w-3.5" />
                 Audit Trail ({auditLogs.length} events)
               </span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform", showAudit && "rotate-180")} />
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform", showAudit && "rotate-180")}
+              />
             </button>
             <AnimatePresence>
               {showAudit && (
@@ -527,6 +567,16 @@ function DashboardVerifyContent() {
   // Keyboard shortcuts
   useSearchShortcut(searchInputRef);
 
+  const handleClearSearch = useCallback(() => {
+    setDealId("");
+    setHasSearched(false);
+    setSearchedDeal(null);
+    setVerificationStatus("idle");
+    setCalculatedHash(null);
+    router.push("/dashboard/verify");
+    searchInputRef.current?.focus();
+  }, [router]);
+
   // Escape key to clear
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -536,13 +586,20 @@ function DashboardVerifyContent() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasSearched]);
+  }, [hasSearched, handleClearSearch]);
 
   // Recent confirmed deals for quick access
   const recentConfirmedDeals = useMemo(() => {
     return storeDeals
-      .filter(d => d.status === "confirmed" && (d.creatorId === user?.id || d.recipientEmail === user?.email))
-      .sort((a, b) => new Date(b.confirmedAt || b.createdAt).getTime() - new Date(a.confirmedAt || a.createdAt).getTime())
+      .filter(
+        (d) =>
+          d.status === "confirmed" && (d.creatorId === user?.id || d.recipientEmail === user?.email)
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.confirmedAt || b.createdAt).getTime() -
+          new Date(a.confirmedAt || a.createdAt).getTime()
+      )
       .slice(0, 3);
   }, [storeDeals, user]);
 
@@ -642,8 +699,6 @@ function DashboardVerifyContent() {
     }
   }, [initialDealId, hasSearched, performSearch]);
 
-
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     performSearch(dealId, true);
@@ -667,22 +722,12 @@ function DashboardVerifyContent() {
     }
   };
 
-  const handleClearSearch = useCallback(() => {
-    setDealId("");
-    setHasSearched(false);
-    setSearchedDeal(null);
-    setVerificationStatus("idle");
-    setCalculatedHash(null);
-    router.push("/dashboard/verify");
-    searchInputRef.current?.focus();
-  }, [router]);
-
   const handleCopyVerificationLink = () => {
     if (!searchedDeal) return;
     const url = `${window.location.origin}/dashboard/verify?id=${searchedDeal.publicId}`;
     navigator.clipboard.writeText(url);
     toast.success("Verification link copied!", {
-      description: "Share this link to let others verify this agreement."
+      description: "Share this link to let others verify this agreement.",
     });
   };
 
@@ -810,11 +855,17 @@ function DashboardVerifyContent() {
               <h3 className="text-lg font-semibold text-foreground">Deal Not Found</h3>
               <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1">
                 We couldn&apos;t find a deal with ID{" "}
-                <span className="font-mono text-foreground bg-secondary px-1.5 py-0.5 rounded">{dealId}</span>.
-                Please check the ID and try again.
+                <span className="font-mono text-foreground bg-secondary px-1.5 py-0.5 rounded">
+                  {dealId}
+                </span>
+                . Please check the ID and try again.
               </p>
             </div>
-            <Button variant="outline" onClick={handleClearSearch} className="mt-4 rounded-xl gap-1.5">
+            <Button
+              variant="outline"
+              onClick={handleClearSearch}
+              className="mt-4 rounded-xl gap-1.5"
+            >
               <RotateCcw className="h-4 w-4" />
               Try Again
             </Button>
@@ -851,7 +902,8 @@ function DashboardVerifyContent() {
               <div className="flex-1">
                 <h3 className="font-medium text-sm mb-1">Tamper Detection</h3>
                 <p className="text-xs text-muted-foreground">
-                  Any modification to the document will result in a different hash, revealing tampering.
+                  Any modification to the document will result in a different hash, revealing
+                  tampering.
                 </p>
               </div>
             </div>
@@ -909,7 +961,8 @@ function DashboardVerifyContent() {
                         {deal.title}
                       </h3>
                       <p className="text-[10px] text-muted-foreground truncate">
-                        {deal.recipientName || deal.creatorName} • {timeAgo(deal.confirmedAt || deal.createdAt)}
+                        {deal.recipientName || deal.creatorName} •{" "}
+                        {timeAgo(deal.confirmedAt || deal.createdAt)}
                       </p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
@@ -920,8 +973,6 @@ function DashboardVerifyContent() {
           </div>
         </motion.div>
       )}
-
-
     </div>
   );
 }

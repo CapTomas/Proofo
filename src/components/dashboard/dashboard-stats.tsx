@@ -1,16 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  Activity,
-  Inbox,
-  TrendingUp,
-  Timer,
-  CheckCircle2,
-  XCircle,
-  FileCheck,
-  Clock
-} from "lucide-react";
+import { Activity, Inbox, TrendingUp, Timer } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/shared-components";
 import { Deal } from "@/types";
 
@@ -38,14 +29,14 @@ function formatTimeTrend(minutes: number): string | undefined {
   const absMinutes = Math.abs(minutes);
   if (absMinutes >= 60) {
     const hours = Math.round(minutes / 60);
-    return `${minutes > 0 ? '+' : ''}${hours}h`;
+    return `${minutes > 0 ? "+" : ""}${hours}h`;
   }
-  return `${minutes > 0 ? '+' : ''}${Math.round(minutes)}m`;
+  return `${minutes > 0 ? "+" : ""}${Math.round(minutes)}m`;
 }
 
 function formatCompletionRateTrend(trend: number): string | undefined {
   if (trend === 0) return undefined;
-  return `${trend > 0 ? '+' : ''}${Math.round(trend)}%`;
+  return `${trend > 0 ? "+" : ""}${Math.round(trend)}%`;
 }
 
 export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsProps) {
@@ -53,11 +44,15 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
     if (isLoading) return null;
     const total = deals.length;
     // ... rest of useMemo logic
-    const confirmed = deals.filter(d => d.status === "confirmed").length;
-    const pending = deals.filter(d => d.status === "pending").length;
-    const inbox = deals.filter(d => d.recipientEmail === userEmail && d.status === "pending").length;
+    const confirmed = deals.filter((d) => d.status === "confirmed").length;
+    const pending = deals.filter((d) => d.status === "pending").length;
+    const inbox = deals.filter(
+      (d) => d.recipientEmail === userEmail && d.status === "pending"
+    ).length;
 
-    const signedDeals = deals.filter(d => d.status === "confirmed" && d.confirmedAt && d.createdAt);
+    const signedDeals = deals.filter(
+      (d) => d.status === "confirmed" && d.confirmedAt && d.createdAt
+    );
     let avgTimeHours = 0;
     let avgTimeMinutes = 0;
 
@@ -72,21 +67,22 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    const recentDeals = deals.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
-    const previousDeals = deals.filter(d => {
+    const recentDeals = deals.filter((d) => new Date(d.createdAt) >= sevenDaysAgo);
+    const previousDeals = deals.filter((d) => {
       const createdAt = new Date(d.createdAt);
       return createdAt >= fourteenDaysAgo && createdAt < sevenDaysAgo;
     });
 
-    const recentCompleted = recentDeals.filter(d => d.status === "confirmed").length;
-    const previousCompleted = previousDeals.filter(d => d.status === "confirmed").length;
+    const recentCompleted = recentDeals.filter((d) => d.status === "confirmed").length;
+    const previousCompleted = previousDeals.filter((d) => d.status === "confirmed").length;
 
     const recentRate = recentDeals.length > 0 ? (recentCompleted / recentDeals.length) * 100 : 0;
-    const previousRate = previousDeals.length > 0 ? (previousCompleted / previousDeals.length) * 100 : 0;
+    const previousRate =
+      previousDeals.length > 0 ? (previousCompleted / previousDeals.length) * 100 : 0;
     const completionRateTrend = recentRate - previousRate;
 
-    const sortedConfirmedDeals = signedDeals.toSorted((a, b) =>
-      new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
+    const sortedConfirmedDeals = signedDeals.toSorted(
+      (a, b) => new Date(b.confirmedAt!).getTime() - new Date(a.confirmedAt!).getTime()
     );
 
     let avgTimeMinutesTrend = 0;
@@ -95,10 +91,13 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
       const previousFive = sortedConfirmedDeals.slice(5, 10);
 
       if (recentFive.length > 0) {
-        const recentAvg = recentFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / recentFive.length;
+        const recentAvg =
+          recentFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / recentFive.length;
 
         if (previousFive.length > 0) {
-          const previousAvg = previousFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) / previousFive.length;
+          const previousAvg =
+            previousFive.reduce((sum, deal) => sum + getSignTimeMinutes(deal), 0) /
+            previousFive.length;
           avgTimeMinutesTrend = recentAvg - previousAvg;
         }
       }
@@ -112,7 +111,7 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
       avgTimeHours,
       avgTimeMinutes,
       completionRateTrend,
-      avgTimeMinutesTrend
+      avgTimeMinutesTrend,
     };
   }, [deals, userEmail, isLoading]);
 
@@ -130,7 +129,7 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <StatCard
         label="Action Required"
-// ...
+        // ...
         value={stats.inbox}
         icon={Inbox}
         trend={stats.inbox > 0 ? "Attention" : "All Clear"}
@@ -154,7 +153,9 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
         value={stats.total > 0 ? `${Math.round((stats.confirmed / stats.total) * 100)}%` : "0%"}
         icon={TrendingUp}
         trend={formatCompletionRateTrend(stats.completionRateTrend)}
-        trendDirection={stats.completionRateTrend > 0 ? "up" : stats.completionRateTrend < 0 ? "down" : "neutral"}
+        trendDirection={
+          stats.completionRateTrend > 0 ? "up" : stats.completionRateTrend < 0 ? "down" : "neutral"
+        }
         href="/dashboard/agreements"
         delay={0.2}
         colorClass="text-emerald-500"
@@ -164,7 +165,9 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
         value={formatTimeValue(stats.avgTimeHours, stats.avgTimeMinutes)}
         icon={Timer}
         trend={formatTimeTrend(stats.avgTimeMinutesTrend)}
-        trendDirection={stats.avgTimeMinutesTrend < 0 ? "up" : stats.avgTimeMinutesTrend > 0 ? "down" : "neutral"}
+        trendDirection={
+          stats.avgTimeMinutesTrend < 0 ? "up" : stats.avgTimeMinutesTrend > 0 ? "down" : "neutral"
+        }
         href="/dashboard/agreements"
         delay={0.3}
         colorClass="text-purple-500"

@@ -3,15 +3,7 @@
 import { motion } from "framer-motion";
 import { AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime } from "@/lib/crypto";
-import {
-  FileCheck,
-  Eye,
-  PenLine,
-  CheckCircle2,
-  XCircle,
-  Mail,
-  FileText,
-} from "lucide-react";
+import { FileCheck, Eye, PenLine, CheckCircle2, XCircle, Mail, FileText } from "lucide-react";
 
 interface AuditTimelineProps {
   logs: AuditLogEntry[];
@@ -86,7 +78,12 @@ function formatActorType(actorType: string): string {
   }
 }
 
-export function AuditTimeline({ logs, dealStatus, className = "", compact = false }: AuditTimelineProps) {
+export function AuditTimeline({
+  logs,
+  dealStatus,
+  className = "",
+  compact = false,
+}: AuditTimelineProps) {
   // Sort logs by date (newest first for display, but we'll reverse for timeline)
   const sortedLogs = [...logs].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -143,17 +140,17 @@ export function AuditTimeline({ logs, dealStatus, className = "", compact = fals
                   {formatDateTime(log.createdAt)} • {formatActorType(log.actorType)}
                 </p>
                 {!compact && (
-                  <p className="text-xs text-muted-foreground/70 mt-1">
-                    {config.description}
-                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">{config.description}</p>
                 )}
                 {!compact && log.metadata && Object.keys(log.metadata).length > 0 && (
                   <div className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
-                    {Object.entries(log.metadata).slice(0, 3).map(([key, value]) => (
-                      <span key={key} className="mr-3">
-                        {key}: {String(value)}
-                      </span>
-                    ))}
+                    {Object.entries(log.metadata)
+                      .slice(0, 3)
+                      .map(([key, value]) => (
+                        <span key={key} className="mr-3">
+                          {key}: {String(value)}
+                        </span>
+                      ))}
                   </div>
                 )}
               </div>
@@ -169,8 +166,8 @@ export function AuditTimeline({ logs, dealStatus, className = "", compact = fals
                 dealStatus === "confirmed"
                   ? "bg-emerald-500/20 ring-2 ring-emerald-500/30"
                   : dealStatus === "voided"
-                  ? "bg-destructive/20 ring-2 ring-destructive/30"
-                  : "bg-amber-500/20 ring-2 ring-amber-500/30"
+                    ? "bg-destructive/20 ring-2 ring-destructive/30"
+                    : "bg-amber-500/20 ring-2 ring-amber-500/30"
               }`}
             >
               {dealStatus === "confirmed" ? (
@@ -186,15 +183,15 @@ export function AuditTimeline({ logs, dealStatus, className = "", compact = fals
                 {dealStatus === "confirmed"
                   ? "Complete"
                   : dealStatus === "voided"
-                  ? "Cancelled"
-                  : "Awaiting Signature"}
+                    ? "Cancelled"
+                    : "Awaiting Signature"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {dealStatus === "confirmed"
                   ? "This deal is sealed and verified"
                   : dealStatus === "voided"
-                  ? "This deal has been voided"
-                  : "Waiting for recipient to sign"}
+                    ? "This deal has been voided"
+                    : "Waiting for recipient to sign"}
               </p>
             </div>
           </div>

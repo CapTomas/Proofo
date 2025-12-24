@@ -31,7 +31,7 @@ interface AppState {
   // UI state
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
-  
+
   // Theme
   theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
@@ -54,17 +54,14 @@ export const useAppStore = create<AppState>()(
       addDeal: (deal) => set((state) => ({ deals: [deal, ...state.deals] })),
       updateDeal: (id, updates) =>
         set((state) => ({
-          deals: state.deals.map((deal) =>
-            deal.id === id ? { ...deal, ...updates } : deal
-          ),
+          deals: state.deals.map((deal) => (deal.id === id ? { ...deal, ...updates } : deal)),
         })),
       removeDeal: (id) =>
         set((state) => ({
           deals: state.deals.filter((deal) => deal.id !== id),
         })),
       getDealById: (id) => get().deals.find((deal) => deal.id === id),
-      getDealByPublicId: (publicId) => 
-        get().deals.find((deal) => deal.publicId === publicId),
+      getDealByPublicId: (publicId) => get().deals.find((deal) => deal.publicId === publicId),
       voidDeal: (id) => {
         const state = get();
         const deal = state.deals.find((d) => d.id === id);
@@ -127,7 +124,7 @@ export const useAppStore = create<AppState>()(
           eventType: "deal_confirmed",
           actorId: null,
           actorType: "recipient",
-          metadata: { 
+          metadata: {
             dealSeal,
             hasEmail: !!recipientEmail,
           },
@@ -149,8 +146,7 @@ export const useAppStore = create<AppState>()(
             ...state.auditLogs,
           ],
         })),
-      getAuditLogsForDeal: (dealId) =>
-        get().auditLogs.filter((log) => log.dealId === dealId),
+      getAuditLogsForDeal: (dealId) => get().auditLogs.filter((log) => log.dealId === dealId),
 
       // UI state
       isLoading: false,

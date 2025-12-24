@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, RotateCcw, Check, PenLine, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { uploadProfileSignatureAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -20,7 +19,7 @@ export function SignatureEditor({
   isOpen,
   onClose,
   onSave,
-  currentSignatureUrl
+  currentSignatureUrl,
 }: SignatureEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasDrawn, setHasDrawn] = useState(false);
@@ -29,7 +28,9 @@ export function SignatureEditor({
   // Refs for drawing state (no re-renders)
   const isDrawingRef = useRef(false);
   const pointsRef = useRef<Array<{ x: number; y: number; time: number; pressure?: number }>>([]);
-  const historyRef = useRef<Array<Array<{ x: number; y: number; time: number; pressure?: number }>>>([]);
+  const historyRef = useRef<
+    Array<Array<{ x: number; y: number; time: number; pressure?: number }>>
+  >([]);
   const rafRef = useRef<number>(null);
 
   // Setup canvas for high DPI
@@ -91,7 +92,7 @@ export function SignatureEditor({
     const strokes = [...historyRef.current];
     if (pointsRef.current.length > 0) strokes.push(pointsRef.current);
 
-    strokes.forEach(points => {
+    strokes.forEach((points) => {
       if (points.length === 0) return;
 
       // Initial width
@@ -103,12 +104,12 @@ export function SignatureEditor({
         const p0 = points[0];
         ctx.lineWidth = width;
         if (points.length === 1) {
-            ctx.arc(p0.x, p0.y, width/2, 0, Math.PI * 2);
-            ctx.fill();
+          ctx.arc(p0.x, p0.y, width / 2, 0, Math.PI * 2);
+          ctx.fill();
         } else {
-            ctx.moveTo(p0.x, p0.y);
-            ctx.lineTo(points[1].x, points[1].y);
-            ctx.stroke();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(points[1].x, points[1].y);
+          ctx.stroke();
         }
         return;
       }
@@ -119,16 +120,16 @@ export function SignatureEditor({
 
       for (let i = 1; i < points.length - 1; i++) {
         const p_curr = points[i];
-        const p_next = points[i+1];
+        const p_next = points[i + 1];
 
         // Calculate velocity based on time
         // If time is the same, assume 0 velocity deviation
         let velocity = 0;
         if (i > 0) {
-           const p_prev = points[i-1];
-           const d = Math.hypot(p_curr.x - p_prev.x, p_curr.y - p_prev.y);
-           const t = p_curr.time - p_prev.time;
-           if (t > 0) velocity = d / t;
+          const p_prev = points[i - 1];
+          const d = Math.hypot(p_curr.x - p_prev.x, p_curr.y - p_prev.y);
+          const t = p_curr.time - p_prev.time;
+          if (t > 0) velocity = d / t;
         }
 
         const targetWidth = getLineWidth(velocity);
@@ -142,16 +143,16 @@ export function SignatureEditor({
 
         ctx.beginPath();
         ctx.lineWidth = width;
-        ctx.moveTo((points[i-1].x + p_curr.x)/2, (points[i-1].y + p_curr.y)/2); // Approx start
+        ctx.moveTo((points[i - 1].x + p_curr.x) / 2, (points[i - 1].y + p_curr.y) / 2); // Approx start
         if (i === 1) ctx.moveTo(points[0].x, points[0].y); // Fix start
 
         // Midpoint algo
-        const mid = { x: (p_curr.x + p_next.x)/2, y: (p_curr.y + p_next.y)/2 };
+        const mid = { x: (p_curr.x + p_next.x) / 2, y: (p_curr.y + p_next.y) / 2 };
         ctx.quadraticCurveTo(p_curr.x, p_curr.y, mid.x, mid.y);
       }
 
       // Last segment
-      const last = points[points.length-1];
+      const last = points[points.length - 1];
       ctx.lineTo(last.x, last.y);
       ctx.stroke();
     });
@@ -175,7 +176,7 @@ export function SignatureEditor({
       }, 50);
     }
     return () => {
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [isOpen, setupCanvas]);
 
@@ -187,7 +188,7 @@ export function SignatureEditor({
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
-      time: e.timeStamp
+      time: e.timeStamp,
     };
   };
 
@@ -209,11 +210,11 @@ export function SignatureEditor({
 
     // Access getCoalescedEvents from nativeEvent
     const events = (e.nativeEvent as PointerEvent).getCoalescedEvents
-        ? (e.nativeEvent as PointerEvent).getCoalescedEvents()
-        : [e.nativeEvent as PointerEvent];
+      ? (e.nativeEvent as PointerEvent).getCoalescedEvents()
+      : [e.nativeEvent as PointerEvent];
 
-    events.forEach(event => {
-        pointsRef.current.push(getPoint(event));
+    events.forEach((event) => {
+      pointsRef.current.push(getPoint(event));
     });
 
     requestRender();
@@ -247,12 +248,25 @@ export function SignatureEditor({
       const signatureBase64 = canvasRef.current.toDataURL("image/png");
       if (isSupabaseConfigured()) {
         const { signatureUrl, error } = await uploadProfileSignatureAction(signatureBase64);
-        if (error) { toast.error("Failed to save", { description: error }); return; }
-        if (signatureUrl) { onSave(signatureUrl); toast.success("Saved!"); onClose(); }
+        if (error) {
+          toast.error("Failed to save", { description: error });
+          return;
+        }
+        if (signatureUrl) {
+          onSave(signatureUrl);
+          toast.success("Saved!");
+          onClose();
+        }
       } else {
-        onSave(signatureBase64); toast.success("Saved (Demo)"); onClose();
+        onSave(signatureBase64);
+        toast.success("Saved (Demo)");
+        onClose();
       }
-    } catch { toast.error("Error saving"); } finally { setIsSaving(false); }
+    } catch {
+      toast.error("Error saving");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -288,7 +302,9 @@ export function SignatureEditor({
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Update Signature</h3>
-                  <p className="text-xs text-muted-foreground">Professional pressure-sensitive signing</p>
+                  <p className="text-xs text-muted-foreground">
+                    Professional pressure-sensitive signing
+                  </p>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose} disabled={isSaving}>
@@ -301,15 +317,20 @@ export function SignatureEditor({
               {/* Always show current signature if available - Layout Fixed */}
               {currentSignatureUrl && (
                 <div className="text-center pb-2 border-b border-border/50">
-                   <p className="text-xs text-muted-foreground mb-1">Current Signature</p>
-                   <div className="h-12 flex items-center justify-center">
-                     <img src={currentSignatureUrl} alt="Current" className="h-full object-contain opacity-70" />
-                   </div>
+                  <p className="text-xs text-muted-foreground mb-1">Current Signature</p>
+                  <div className="h-12 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URL for signature */}
+                    <img
+                      src={currentSignatureUrl}
+                      alt="Current"
+                      className="h-full object-contain opacity-70"
+                    />
+                  </div>
                 </div>
               )}
 
               <p className="text-sm text-muted-foreground text-center">
-                 {hasDrawn ? "Looks great! Ready to save?" : "Sign below using your mouse or finger"}
+                {hasDrawn ? "Looks great! Ready to save?" : "Sign below using your mouse or finger"}
               </p>
 
               {/* Canvas Container */}
@@ -323,22 +344,41 @@ export function SignatureEditor({
                   onPointerLeave={handlePointerUp}
                 />
                 {!hasDrawn && (
-                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-                     <span className="text-4xl font-serif italic text-muted-foreground">Sign Here</span>
-                   </div>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+                    <span className="text-4xl font-serif italic text-muted-foreground">
+                      Sign Here
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between p-4 bg-muted/30 border-t border-border shrink-0">
-              <Button variant="outline" size="sm" onClick={clearCanvas} disabled={!hasDrawn || isSaving} className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearCanvas}
+                disabled={!hasDrawn || isSaving}
+                className="gap-2"
+              >
                 <RotateCcw className="h-4 w-4" /> Clear
               </Button>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={onClose} disabled={isSaving}>Cancel</Button>
-                <Button size="sm" onClick={handleSave} disabled={!hasDrawn || isSaving} className="gap-2 min-w-[100px]">
-                  {isSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <Button variant="ghost" size="sm" onClick={onClose} disabled={isSaving}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={!hasDrawn || isSaving}
+                  className="gap-2 min-w-[100px]"
+                >
+                  {isSaving ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
                   {isSaving ? "Saving..." : "Save"}
                 </Button>
               </div>

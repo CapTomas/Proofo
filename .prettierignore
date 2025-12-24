@@ -1,0 +1,11 @@
+.next
+node_modules
+public
+dist
+build
+.pnpm-store
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+*.md
+.gemini

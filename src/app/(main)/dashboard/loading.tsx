@@ -92,17 +92,17 @@ export default function RootDashboardLoading() {
               <Skeleton className="h-4 w-20" />
             </div>
             <div className="space-y-4">
-               <div className="flex items-baseline gap-2">
-                  <Skeleton className="h-9 w-12" />
-                  <Skeleton className="h-4 w-20 opacity-50" />
-               </div>
-               <Skeleton className="h-12 w-full opacity-20" />
+              <div className="flex items-baseline gap-2">
+                <Skeleton className="h-9 w-12" />
+                <Skeleton className="h-4 w-20 opacity-50" />
+              </div>
+              <Skeleton className="h-12 w-full opacity-20" />
             </div>
           </div>
 
           {/* Quick Verify Skeleton */}
           <div className="bg-card border border-border/50 shadow-sm rounded-2xl p-5 h-[180px]">
-             <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-4">
               <Shield className="h-4 w-4 text-primary opacity-50" />
               <Skeleton className="h-4 w-24" />
             </div>

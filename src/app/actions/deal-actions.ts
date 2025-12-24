@@ -6,8 +6,12 @@ import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
 import { deterministicStringify } from "@/lib/crypto";
-import { createDealSchema, confirmDealSchema, voidDealSchema } from "@/lib/validations";
-import { updateProfileSchema, appearancePreferencesSchema, doNotDisturbSchema } from "@/lib/validations/user";
+import { createDealSchema } from "@/lib/validations";
+import {
+  updateProfileSchema,
+  appearancePreferencesSchema,
+  doNotDisturbSchema,
+} from "@/lib/validations/user";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 // Helper to create Supabase server client
@@ -60,7 +64,6 @@ export async function calculateDealSealServer(data: {
   signatureUrl: string;
   timestamp: string;
 }): Promise<string> {
-
   // 1. Parse terms
   let termsObj;
   try {
@@ -116,18 +119,30 @@ export async function createDealAction(data: {
   recipientName: string;
   recipientEmail?: string;
   terms: Array<{ label: string; value: string; type: string }>;
-}): Promise<{ deal: Deal | null; shareUrl: string | null; accessToken: string | null; error: string | null }> {
+}): Promise<{
+  deal: Deal | null;
+  shareUrl: string | null;
+  accessToken: string | null;
+  error: string | null;
+}> {
   try {
     // Validate input with Zod
     const validation = createDealSchema.safeParse(data);
     if (!validation.success) {
-      return { deal: null, shareUrl: null, accessToken: null, error: validation.error.issues[0]?.message || "Invalid input" };
+      return {
+        deal: null,
+        shareUrl: null,
+        accessToken: null,
+        error: validation.error.issues[0]?.message || "Invalid input",
+      };
     }
     const validatedData = validation.data;
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { deal: null, shareUrl: null, accessToken: null, error: "Not authenticated" };
     }
@@ -135,7 +150,12 @@ export async function createDealAction(data: {
     // Check rate limit (20 deals per hour per user)
     const rateLimitResult = await checkRateLimit("dealCreate", user.id);
     if (!rateLimitResult.success) {
-      return { deal: null, shareUrl: null, accessToken: null, error: "Rate limit exceeded. Please try again later." };
+      return {
+        deal: null,
+        shareUrl: null,
+        accessToken: null,
+        error: "Rate limit exceeded. Please try again later.",
+      };
     }
 
     // Generate secure IDs on the server
@@ -165,20 +185,23 @@ export async function createDealAction(data: {
 
     if (dealError || !deal) {
       logger.error("Error creating deal", dealError);
-      return { deal: null, shareUrl: null, accessToken: null, error: dealError?.message || "Failed to create deal" };
+      return {
+        deal: null,
+        shareUrl: null,
+        accessToken: null,
+        error: dealError?.message || "Failed to create deal",
+      };
     }
 
     // Create access token with 7-day expiry
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    const { error: tokenError } = await supabase
-      .from("access_tokens")
-      .insert({
-        deal_id: deal.id,
-        token: accessToken,
-        expires_at: expiresAt.toISOString(),
-      });
+    const { error: tokenError } = await supabase.from("access_tokens").insert({
+      deal_id: deal.id,
+      token: accessToken,
+      expires_at: expiresAt.toISOString(),
+    });
 
     if (tokenError) {
       logger.error("Error creating access token", tokenError);
@@ -186,18 +209,16 @@ export async function createDealAction(data: {
     }
 
     // Add audit log entry
-    await supabase
-      .from("audit_log")
-      .insert({
-        deal_id: deal.id,
-        event_type: "deal_created",
-        actor_id: user.id,
-        actor_type: "creator",
-        metadata: {
-          templateId: validatedData.templateId,
-          recipientName: validatedData.recipientName,
-        },
-      });
+    await supabase.from("audit_log").insert({
+      deal_id: deal.id,
+      event_type: "deal_created",
+      actor_id: user.id,
+      actor_type: "creator",
+      metadata: {
+        templateId: validatedData.templateId,
+        recipientName: validatedData.recipientName,
+      },
+    });
 
     // Get creator name
     const { data: profile } = await supabase
@@ -225,14 +246,15 @@ export async function createDealAction(data: {
 }
 
 // Get deal by public ID (for recipient view - doesn't require auth)
-export async function getDealByPublicIdAction(publicId: string): Promise<{ deal: Deal | null; error: string | null }> {
+export async function getDealByPublicIdAction(
+  publicId: string
+): Promise<{ deal: Deal | null; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
 
     // Use the RPC function that bypasses RLS for public access
     // This function now returns JSON with creator_name included
-    const { data, error } = await supabase
-      .rpc("get_deal_by_public_id", { p_public_id: publicId });
+    const { data, error } = await supabase.rpc("get_deal_by_public_id", { p_public_id: publicId });
 
     if (error || !data) {
       return { deal: null, error: error?.message || "Deal not found" };
@@ -250,12 +272,16 @@ export async function getDealByPublicIdAction(publicId: string): Promise<{ deal:
 }
 
 // Get deal by ID (for authenticated users - requires auth, used for duplication)
-export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | null; error: string | null }> {
+export async function getDealByIdAction(
+  dealId: string
+): Promise<{ deal: Deal | null; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
 
     // Verify user is authenticated
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { deal: null, error: "Unauthorized" };
     }
@@ -263,10 +289,12 @@ export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | 
     // Fetch the deal (RLS will ensure only creator can access)
     const { data, error } = await supabase
       .from("deals")
-      .select(`
+      .select(
+        `
         *,
         creator:profiles!creator_id(name)
-      `)
+      `
+      )
       .eq("id", dealId)
       .eq("creator_id", user.id)
       .single();
@@ -289,13 +317,14 @@ export async function getDealByIdAction(dealId: string): Promise<{ deal: Deal | 
 }
 
 // Get access token for a deal by public ID (bypasses RLS for anonymous recipients)
-export async function getAccessTokenAction(dealId: string): Promise<{ token: string | null; error: string | null }> {
+export async function getAccessTokenAction(
+  dealId: string
+): Promise<{ token: string | null; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
 
     // Use RPC function that bypasses RLS to get the token
-    const { data, error } = await supabase
-      .rpc("get_access_token_for_deal", { p_deal_id: dealId });
+    const { data, error } = await supabase.rpc("get_access_token_for_deal", { p_deal_id: dealId });
 
     if (error || !data) {
       logger.error("Error fetching access token", error);
@@ -322,15 +351,16 @@ export async function getTokenStatusAction(dealId: string): Promise<{
     const supabase = await createServerSupabaseClient();
 
     // Get the token details directly
-    const { data, error } = await supabase
-      .rpc("get_token_status_for_deal", { p_deal_id: dealId });
+    const { data, error } = await supabase.rpc("get_token_status_for_deal", { p_deal_id: dealId });
 
     if (error) {
       // If the function doesn't exist in the database, fall back to "valid"
       // to allow the deal flow to continue. This handles the case where
       // the user hasn't run the updated schema.sql yet.
       if (error.code === "PGRST202") {
-        logger.warn("get_token_status_for_deal function not found in database. Please run the updated schema.sql. Falling back to valid status.");
+        logger.warn(
+          "get_token_status_for_deal function not found in database. Please run the updated schema.sql. Falling back to valid status."
+        );
         return { status: "valid", expiresAt: null, error: null };
       }
       logger.error("Error fetching token status", error);
@@ -345,7 +375,7 @@ export async function getTokenStatusAction(dealId: string): Promise<{
     return {
       status: tokenData.status,
       expiresAt: tokenData.expires_at,
-      error: null
+      error: null,
     };
   } catch (error) {
     logger.error("Error fetching token status", error);
@@ -385,9 +415,7 @@ export async function uploadSignatureAction(
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("signatures")
-      .getPublicUrl(filename);
+    const { data: urlData } = supabase.storage.from("signatures").getPublicUrl(filename);
 
     return { signatureUrl: urlData.publicUrl, error: null };
   } catch (error) {
@@ -399,7 +427,7 @@ export async function uploadSignatureAction(
 // Update the input type to include publicId
 export async function confirmDealAction(data: {
   dealId: string;
-  publicId: string
+  publicId: string;
   token: string;
   signatureBase64: string;
   recipientEmail?: string;
@@ -408,7 +436,9 @@ export async function confirmDealAction(data: {
     const supabase = await createServerSupabaseClient();
 
     // Check if current user is logged in
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     // First upload the signature
     const { signatureUrl, error: uploadError } = await uploadSignatureAction(
@@ -427,8 +457,9 @@ export async function confirmDealAction(data: {
     const timestamp = new Date().toISOString();
 
     // CRITICAL FIX: Fetch terms using RPC to bypass RLS for anonymous users
-    const { data: dealData, error: fetchError } = await supabase
-      .rpc("get_deal_by_public_id", { p_public_id: data.publicId });
+    const { data: dealData, error: fetchError } = await supabase.rpc("get_deal_by_public_id", {
+      p_public_id: data.publicId,
+    });
 
     if (fetchError || !dealData) {
       logger.error("Error fetching deal terms for sealing", fetchError);
@@ -451,8 +482,9 @@ export async function confirmDealAction(data: {
     });
 
     // Use the confirm_deal_with_token function
-    const { data: confirmedDeal, error: confirmError } = await supabase
-      .rpc("confirm_deal_with_token", {
+    const { data: confirmedDeal, error: confirmError } = await supabase.rpc(
+      "confirm_deal_with_token",
+      {
         p_deal_id: data.dealId,
         p_token: data.token,
         p_signature_data: finalSignatureUrl,
@@ -460,7 +492,8 @@ export async function confirmDealAction(data: {
         p_recipient_email: data.recipientEmail || null,
         p_recipient_id: user?.id || null,
         p_confirmed_at: timestamp,
-      });
+      }
+    );
 
     if (confirmError) {
       logger.error("Error confirming deal", confirmError);
@@ -496,7 +529,9 @@ export async function voidDealAction(dealId: string): Promise<{ error: string | 
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
@@ -515,14 +550,12 @@ export async function voidDealAction(dealId: string): Promise<{ error: string | 
     }
 
     // Add audit log
-    await supabase
-      .from("audit_log")
-      .insert({
-        deal_id: dealId,
-        event_type: "deal_voided",
-        actor_id: user.id,
-        actor_type: "creator",
-      });
+    await supabase.from("audit_log").insert({
+      deal_id: dealId,
+      event_type: "deal_voided",
+      actor_id: user.id,
+      actor_type: "creator",
+    });
 
     return { error: null };
   } catch (error) {
@@ -537,8 +570,7 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
     const supabase = await createServerSupabaseClient();
 
     // Get the deal first
-    const { data: deal } = await supabase
-      .rpc("get_deal_by_public_id", { p_public_id: publicId });
+    const { data: deal } = await supabase.rpc("get_deal_by_public_id", { p_public_id: publicId });
 
     if (!deal) return;
 
@@ -555,20 +587,20 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
     }
 
     // Add audit log
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    await supabase
-      .from("audit_log")
-      .insert({
-        deal_id: dealData.id as string,
-        event_type: "deal_viewed",
-        actor_id: user?.id || null,
-        actor_type: "recipient",
-        metadata: {
-          isLoggedIn: !!user,
-          viewedAt: new Date().toISOString(),
-        },
-      });
+    await supabase.from("audit_log").insert({
+      deal_id: dealData.id as string,
+      event_type: "deal_viewed",
+      actor_id: user?.id || null,
+      actor_type: "recipient",
+      metadata: {
+        isLoggedIn: !!user,
+        viewedAt: new Date().toISOString(),
+      },
+    });
   } catch (error) {
     logger.error("Error marking deal viewed", error);
   }
@@ -576,13 +608,20 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
 
 // Ensure user profile exists in database (upsert)
 export async function ensureProfileExistsAction(): Promise<{
-  profile: { id: string; email: string; name: string | null; hasCompletedOnboarding: boolean } | null;
-  error: string | null
+  profile: {
+    id: string;
+    email: string;
+    name: string | null;
+    hasCompletedOnboarding: boolean;
+  } | null;
+  error: string | null;
 }> {
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { profile: null, error: "Not authenticated" };
     }
@@ -609,9 +648,7 @@ export async function ensureProfileExistsAction(): Promise<{
     }
 
     // Profile doesn't exist, create it
-    const defaultName = user.user_metadata?.full_name ||
-                        user.user_metadata?.name ||
-                        "";
+    const defaultName = user.user_metadata?.full_name || user.user_metadata?.name || "";
 
     // Check if we have a meaningful name (not just email prefix)
     const hasValidDefaultName = !!defaultName && defaultName.trim() !== "";
@@ -665,7 +702,9 @@ export async function updateProfileAction(updates: {
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
@@ -684,10 +723,7 @@ export async function updateProfileAction(updates: {
     if (validatedUpdates.location !== undefined) dbUpdates.location = validatedUpdates.location;
     if (validatedUpdates.currency !== undefined) dbUpdates.currency = validatedUpdates.currency;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(dbUpdates)
-      .eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(dbUpdates).eq("id", user.id);
 
     if (error) {
       return { error: error.message };
@@ -707,7 +743,9 @@ export async function uploadAvatarAction(
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { avatarUrl: null, error: "Not authenticated" };
     }
@@ -720,28 +758,21 @@ export async function uploadAvatarAction(
     const filename = `${user.id}/${nanoid(10)}.png`;
 
     // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filename, buffer, {
-        contentType: "image/png",
-        cacheControl: "3600",
-        upsert: true,
-      });
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(filename, buffer, {
+      contentType: "image/png",
+      cacheControl: "3600",
+      upsert: true,
+    });
 
     if (uploadError) {
       return { avatarUrl: null, error: uploadError.message };
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("avatars")
-      .getPublicUrl(filename);
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filename);
 
     // Update profile with new avatar URL
-    await supabase
-      .from("profiles")
-      .update({ avatar_url: urlData.publicUrl })
-      .eq("id", user.id);
+    await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", user.id);
 
     return { avatarUrl: urlData.publicUrl, error: null };
   } catch (error) {
@@ -755,17 +786,21 @@ export async function getUserDealsAction(): Promise<{ deals: Deal[]; error: stri
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { deals: [], error: "Not authenticated" };
     }
 
     const { data, error } = await supabase
       .from("deals")
-      .select(`
+      .select(
+        `
         *,
         creator:profiles!creator_id(name)
-      `)
+      `
+      )
       .or(`creator_id.eq.${user.id},recipient_id.eq.${user.id}`)
       .order("created_at", { ascending: false });
 
@@ -841,10 +876,12 @@ export async function sendDealReceiptAction(data: {
     // Fetch the deal
     const { data: dealData, error: fetchError } = await supabase
       .from("deals")
-      .select(`
+      .select(
+        `
         *,
         creator:profiles!creator_id(name)
-      `)
+      `
+      )
       .eq("id", data.dealId)
       .single();
 
@@ -874,18 +911,16 @@ export async function sendDealReceiptAction(data: {
     }
 
     // Add audit log entry
-    await supabase
-      .from("audit_log")
-      .insert({
-        deal_id: data.dealId,
-        event_type: "email_sent",
-        actor_type: "system",
-        metadata: {
-          emailType: "receipt",
-          recipient: data.recipientEmail,
-          hasPdfAttachment: !!data.pdfBase64,
-        },
-      });
+    await supabase.from("audit_log").insert({
+      deal_id: data.dealId,
+      event_type: "email_sent",
+      actor_type: "system",
+      metadata: {
+        emailType: "receipt",
+        recipient: data.recipientEmail,
+        hasPdfAttachment: !!data.pdfBase64,
+      },
+    });
 
     return { success: true, error: null };
   } catch (error) {
@@ -905,10 +940,12 @@ export async function sendDealInvitationAction(data: {
     // Fetch the deal with creator info
     const { data: dealData, error: fetchError } = await supabase
       .from("deals")
-      .select(`
+      .select(
+        `
         *,
         creator:profiles!creator_id(name)
-      `)
+      `
+      )
       .eq("id", data.dealId)
       .single();
 
@@ -945,17 +982,15 @@ export async function sendDealInvitationAction(data: {
     }
 
     // Add audit log entry
-    await supabase
-      .from("audit_log")
-      .insert({
-        deal_id: data.dealId,
-        event_type: "email_sent",
-        actor_type: "system",
-        metadata: {
-          emailType: "invitation",
-          recipient: data.recipientEmail,
-        },
-      });
+    await supabase.from("audit_log").insert({
+      deal_id: data.dealId,
+      event_type: "email_sent",
+      actor_type: "system",
+      metadata: {
+        emailType: "invitation",
+        recipient: data.recipientEmail,
+      },
+    });
 
     return { success: true, error: null };
   } catch (error) {
@@ -982,16 +1017,14 @@ export async function getUserProfileAction(): Promise<{
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { profile: null, error: "Not authenticated" };
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
 
     if (error || !data) {
       return { profile: null, error: error?.message || "Profile not found" };
@@ -1043,7 +1076,9 @@ export async function getNotificationPreferencesAction(): Promise<{
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { preferences: null, error: "Not authenticated" };
     }
@@ -1113,27 +1148,41 @@ export async function updateNotificationPreferencesAction(
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
 
     // Build update object with snake_case keys
     const dbUpdates: Record<string, unknown> = { user_id: user.id };
-    if (preferences.notifyDealViewed !== undefined) dbUpdates.notify_deal_viewed = preferences.notifyDealViewed;
-    if (preferences.notifyDealSigned !== undefined) dbUpdates.notify_deal_signed = preferences.notifyDealSigned;
-    if (preferences.notifyDealExpiring !== undefined) dbUpdates.notify_deal_expiring = preferences.notifyDealExpiring;
-    if (preferences.notifyDealComments !== undefined) dbUpdates.notify_deal_comments = preferences.notifyDealComments;
-    if (preferences.notifyMessages !== undefined) dbUpdates.notify_messages = preferences.notifyMessages;
-    if (preferences.notifyMentions !== undefined) dbUpdates.notify_mentions = preferences.notifyMentions;
-    if (preferences.notifyDeadlines !== undefined) dbUpdates.notify_deadlines = preferences.notifyDeadlines;
-    if (preferences.notifyFollowups !== undefined) dbUpdates.notify_followups = preferences.notifyFollowups;
-    if (preferences.notifySecurity !== undefined) dbUpdates.notify_security = preferences.notifySecurity;
-    if (preferences.notifyProductUpdates !== undefined) dbUpdates.notify_product_updates = preferences.notifyProductUpdates;
-    if (preferences.emailFrequency !== undefined) dbUpdates.email_frequency = preferences.emailFrequency;
+    if (preferences.notifyDealViewed !== undefined)
+      dbUpdates.notify_deal_viewed = preferences.notifyDealViewed;
+    if (preferences.notifyDealSigned !== undefined)
+      dbUpdates.notify_deal_signed = preferences.notifyDealSigned;
+    if (preferences.notifyDealExpiring !== undefined)
+      dbUpdates.notify_deal_expiring = preferences.notifyDealExpiring;
+    if (preferences.notifyDealComments !== undefined)
+      dbUpdates.notify_deal_comments = preferences.notifyDealComments;
+    if (preferences.notifyMessages !== undefined)
+      dbUpdates.notify_messages = preferences.notifyMessages;
+    if (preferences.notifyMentions !== undefined)
+      dbUpdates.notify_mentions = preferences.notifyMentions;
+    if (preferences.notifyDeadlines !== undefined)
+      dbUpdates.notify_deadlines = preferences.notifyDeadlines;
+    if (preferences.notifyFollowups !== undefined)
+      dbUpdates.notify_followups = preferences.notifyFollowups;
+    if (preferences.notifySecurity !== undefined)
+      dbUpdates.notify_security = preferences.notifySecurity;
+    if (preferences.notifyProductUpdates !== undefined)
+      dbUpdates.notify_product_updates = preferences.notifyProductUpdates;
+    if (preferences.emailFrequency !== undefined)
+      dbUpdates.email_frequency = preferences.emailFrequency;
     if (preferences.channelEmail !== undefined) dbUpdates.channel_email = preferences.channelEmail;
     if (preferences.channelPush !== undefined) dbUpdates.channel_push = preferences.channelPush;
-    if (preferences.channelMobile !== undefined) dbUpdates.channel_mobile = preferences.channelMobile;
+    if (preferences.channelMobile !== undefined)
+      dbUpdates.channel_mobile = preferences.channelMobile;
 
     // Upsert the preferences
     const { error } = await supabase
@@ -1156,7 +1205,9 @@ export async function deleteUserAccountAction(): Promise<{ error: string | null 
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
@@ -1166,10 +1217,7 @@ export async function deleteUserAccountAction(): Promise<{ error: string | null 
     // For client-side, we can delete the profile which will cascade, then sign out
 
     // First, delete all user's deals where they are creator
-    const { error: dealsError } = await supabase
-      .from("deals")
-      .delete()
-      .eq("creator_id", user.id);
+    const { error: dealsError } = await supabase.from("deals").delete().eq("creator_id", user.id);
 
     if (dealsError) {
       logger.error("Error deleting user deals", dealsError);
@@ -1177,22 +1225,13 @@ export async function deleteUserAccountAction(): Promise<{ error: string | null 
     }
 
     // Delete user preferences
-    await supabase
-      .from("user_preferences")
-      .delete()
-      .eq("user_id", user.id);
+    await supabase.from("user_preferences").delete().eq("user_id", user.id);
 
     // Delete contacts
-    await supabase
-      .from("contacts")
-      .delete()
-      .eq("user_id", user.id);
+    await supabase.from("contacts").delete().eq("user_id", user.id);
 
     // Delete profile (will cascade from auth.users FK constraint)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .delete()
-      .eq("id", user.id);
+    const { error: profileError } = await supabase.from("profiles").delete().eq("id", user.id);
 
     if (profileError) {
       logger.error("Error deleting profile", profileError);
@@ -1224,7 +1263,9 @@ export async function getAppearancePreferencesAction(): Promise<{
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { preferences: null, error: "Not authenticated" };
     }
@@ -1278,7 +1319,9 @@ export async function updateAppearancePreferencesAction(
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
@@ -1287,7 +1330,8 @@ export async function updateAppearancePreferencesAction(
     const dbUpdates: Record<string, unknown> = { user_id: user.id };
     if (preferences.compactMode !== undefined) dbUpdates.compact_mode = preferences.compactMode;
     if (preferences.fontScale !== undefined) dbUpdates.font_scale = preferences.fontScale;
-    if (preferences.reducedMotion !== undefined) dbUpdates.reduced_motion = preferences.reducedMotion;
+    if (preferences.reducedMotion !== undefined)
+      dbUpdates.reduced_motion = preferences.reducedMotion;
 
     // Upsert the preferences
     const { error } = await supabase
@@ -1319,7 +1363,9 @@ export async function getDoNotDisturbStatusAction(): Promise<{
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { status: null, error: "Not authenticated" };
     }
@@ -1372,7 +1418,9 @@ export async function toggleDoNotDisturbAction(
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
@@ -1386,13 +1434,14 @@ export async function toggleDoNotDisturbAction(
     }
 
     // Upsert the preferences
-    const { error } = await supabase
-      .from("user_preferences")
-      .upsert({
+    const { error } = await supabase.from("user_preferences").upsert(
+      {
         user_id: user.id,
         do_not_disturb: enabled,
         dnd_expires_at: expiresAt,
-      }, { onConflict: "user_id" });
+      },
+      { onConflict: "user_id" }
+    );
 
     if (error) {
       return { error: error.message };
@@ -1412,7 +1461,9 @@ export async function uploadProfileSignatureAction(
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { signatureUrl: null, error: "Not authenticated" };
     }
@@ -1437,11 +1488,8 @@ export async function uploadProfileSignatureAction(
       return { signatureUrl: null, error: uploadError.message };
     }
 
-
     // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("signatures")
-      .getPublicUrl(filename);
+    const { data: urlData } = supabase.storage.from("signatures").getPublicUrl(filename);
 
     // Update profile with new signature URL
     const { error: updateError } = await supabase
@@ -1462,10 +1510,15 @@ export async function uploadProfileSignatureAction(
 }
 
 // Download user data (GDPR/Backup)
-export async function downloadUserDataAction(): Promise<{ data: string | null; error: string | null }> {
+export async function downloadUserDataAction(): Promise<{
+  data: string | null;
+  error: string | null;
+}> {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return { data: null, error: "Not authenticated" };
@@ -1477,27 +1530,27 @@ export async function downloadUserDataAction(): Promise<{ data: string | null; e
       { data: prefs },
       { data: contacts },
       { data: deals },
-      { data: auditLogs }
+      { data: auditLogs },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).single(),
       supabase.from("user_preferences").select("*").eq("user_id", user.id).single(),
       supabase.from("contacts").select("*").eq("user_id", user.id),
       supabase.from("deals").select("*").eq("creator_id", user.id),
       // Fetch audit logs where user is actor
-      supabase.from("audit_log").select("*").eq("actor_id", user.id)
+      supabase.from("audit_log").select("*").eq("actor_id", user.id),
     ]);
 
     const exportData = {
       exportInfo: {
         generatedAt: new Date().toISOString(),
         environment: process.env.NODE_ENV,
-        version: "1.0"
+        version: "1.0",
       },
       user: { ...user, profile },
       preferences: prefs || {},
       contacts: contacts || [],
       deals: deals || [],
-      activityLog: auditLogs || []
+      activityLog: auditLogs || [],
     };
 
     return { data: JSON.stringify(exportData, null, 2), error: null };

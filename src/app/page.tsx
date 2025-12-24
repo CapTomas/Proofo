@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, useInView, useScroll, useTransform, useSpring, useMotionValue, AnimatePresence } from "framer-motion";
+import {
+  motion,
+  useInView,
+  useScroll,
+  useTransform,
+  useSpring,
+  useMotionValue,
+} from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { AnimatedLogo } from "@/components/animated-logo";
 import {
   Shield,
@@ -23,9 +29,7 @@ import {
   Gamepad2,
   Quote,
   Check,
-  Lock,
   Copy,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -42,7 +46,12 @@ const MagneticWrapper = ({ children }: { children: React.ReactNode }) => {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = e;
-    const { left, top, width, height } = ref.current?.getBoundingClientRect() || { left: 0, top: 0, width: 0, height: 0 };
+    const { left, top, width, height } = ref.current?.getBoundingClientRect() || {
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+    };
     const centerX = left + width / 2;
     const centerY = top + height / 2;
 
@@ -81,7 +90,7 @@ const ScrollProgress = () => {
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
     damping: 30,
-    restDelta: 0.001
+    restDelta: 0.001,
   });
 
   return (
@@ -155,7 +164,10 @@ const AnimatedDoc = () => (
     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
     <polyline points="14 2 14 8 20 8" />
     <motion.line
-      x1="8" y1="13" x2="16" y2="13"
+      x1="8"
+      y1="13"
+      x2="16"
+      y2="13"
       strokeWidth="2.5"
       initial={{ pathLength: 0, opacity: 0 }}
       whileInView={{ pathLength: 1, opacity: 1 }}
@@ -163,7 +175,10 @@ const AnimatedDoc = () => (
       viewport={{ once: false }}
     />
     <motion.line
-      x1="8" y1="17" x2="16" y2="17"
+      x1="8"
+      y1="17"
+      x2="16"
+      y2="17"
       strokeWidth="2.5"
       initial={{ pathLength: 0, opacity: 0 }}
       whileInView={{ pathLength: 1, opacity: 1 }}
@@ -171,7 +186,10 @@ const AnimatedDoc = () => (
       viewport={{ once: false }}
     />
     <motion.line
-      x1="8" y1="9" x2="10" y2="9"
+      x1="8"
+      y1="9"
+      x2="10"
+      y2="9"
       strokeWidth="2.5"
       initial={{ pathLength: 0, opacity: 0 }}
       whileInView={{ pathLength: 1, opacity: 1 }}
@@ -182,7 +200,7 @@ const AnimatedDoc = () => (
 );
 
 // 6. Animated Checkmark
-const AnimatedCheck = ({ delay = 0, className }: { delay?: number, className?: string }) => (
+const AnimatedCheck = ({ delay = 0, className }: { delay?: number; className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="14"
@@ -216,7 +234,7 @@ const ScrambleText = ({ text, className }: { text: string; className?: string })
     const chars = "0123456789abcdef";
     let iteration = 0;
     const interval = setInterval(() => {
-      setDisplayText((prev) =>
+      setDisplayText(() =>
         text
           .split("")
           .map((letter, index) => {
@@ -230,7 +248,11 @@ const ScrambleText = ({ text, className }: { text: string; className?: string })
     }, 50);
     return () => clearInterval(interval);
   }, [isInView, text]);
-  return <span ref={ref} className={className}>{displayText}</span>;
+  return (
+    <span ref={ref} className={className}>
+      {displayText}
+    </span>
+  );
 };
 
 // 8. Interactive Hash (Combines Scramble + Copy)
@@ -251,7 +273,8 @@ const InteractiveHash = () => {
     >
       <div className="flex items-center justify-between">
         <span className="truncate">
-          <ScrambleText text={text} />...
+          <ScrambleText text={text} />
+          ...
         </span>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
@@ -267,16 +290,22 @@ const AnimatedCreate = () => (
   <div className="relative w-12 h-12 flex items-center justify-center">
     {/* Document - Reacts to click */}
     <motion.svg
-      width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary"
+      width="32"
+      height="32"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="text-primary"
       animate={{
-        scale: [1, 1, 0.9, 1, 1] // Scale down at 0.5 (sync with cursor click)
+        scale: [1, 1, 0.9, 1, 1], // Scale down at 0.5 (sync with cursor click)
       }}
       transition={{
         duration: 3,
         times: [0, 0.4, 0.5, 0.6, 1],
         repeat: Infinity,
         repeatDelay: 0.5,
-        ease: "easeInOut"
+        ease: "easeInOut",
       }}
     >
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -293,17 +322,17 @@ const AnimatedCreate = () => (
       className="absolute z-10 w-4 h-4 text-primary drop-shadow-sm"
       initial={{ x: 24, y: 24, opacity: 0 }}
       animate={{
-        x: [24, 6, 6, 24],     // Move from bottom-right to center
+        x: [24, 6, 6, 24], // Move from bottom-right to center
         y: [24, 6, 6, 24],
         opacity: [0, 1, 1, 0], // Fade in/out
-        scale: [1, 1, 0.8, 1]  // Tactile click squeeze at 0.5
+        scale: [1, 1, 0.8, 1], // Tactile click squeeze at 0.5
       }}
       transition={{
         duration: 3,
         times: [0, 0.3, 0.5, 1],
         repeat: Infinity,
         repeatDelay: 0.5,
-        ease: "easeInOut"
+        ease: "easeInOut",
       }}
     >
       <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="none" />
@@ -323,7 +352,7 @@ const AnimatedQR = () => (
         duration: 3,
         repeat: Infinity,
         repeatDelay: 0.5,
-        ease: "linear"
+        ease: "linear",
       }}
     />
   </div>
@@ -335,7 +364,10 @@ const AnimatedSign = () => (
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[-5px] w-8 h-0.5 bg-border rounded-full" />
 
     {/* Drawn Signature Line - Perfectly centered, shorter path */}
-    <svg className="absolute top-1/2 left-1/2 -translate-x-2.5 -translate-y-2.5 w-8 h-8 overflow-visible" viewBox="0 0 32 32">
+    <svg
+      className="absolute top-1/2 left-1/2 -translate-x-2.5 -translate-y-2.5 w-8 h-8 overflow-visible"
+      viewBox="0 0 32 32"
+    >
       <motion.path
         d="M6,16 Q12,12 16,16 T26,16" // Start at 6, End at 26 (centered in 32)
         fill="none"
@@ -348,7 +380,7 @@ const AnimatedSign = () => (
           duration: 3,
           repeat: Infinity,
           repeatDelay: 0.5,
-          ease: "easeInOut"
+          ease: "easeInOut",
         }}
       />
     </svg>
@@ -357,27 +389,27 @@ const AnimatedSign = () => (
     <motion.div
       className="absolute top-1/2 left-1/2" // Anchor at center
       initial={{ x: -10, y: -16 }} // Start position (relative to center)
-      animate={{ x: 10 }}          // End position x (relative to center)
+      animate={{ x: 10 }} // End position x (relative to center)
       transition={{
         duration: 3,
         repeat: Infinity,
         repeatDelay: 0.5,
-        ease: "easeInOut"
+        ease: "easeInOut",
       }}
     >
       {/* Pen Tip Offset - Lower the pen so the tip touches the line */}
       <motion.div
         className="origin-bottom-left" // Rotate around tip
-        initial={{ x: 0, y: 0 }}       // Tip is at (0,0) of this container
+        initial={{ x: 0, y: 0 }} // Tip is at (0,0) of this container
         animate={{
           rotate: [0, -15, 5, -10, 0], // Writing wiggle
-          y: [0, -2, 0, -1, 0]         // Pressure
+          y: [0, -2, 0, -1, 0], // Pressure
         }}
         transition={{
           duration: 3,
           repeat: Infinity,
           repeatDelay: 0.5,
-          ease: "linear"
+          ease: "linear",
         }}
       >
         {/* Actual Icon - Translated so tip (bottom-left of icon) is at (0,0) */}
@@ -390,7 +422,15 @@ const AnimatedSign = () => (
 const AnimatedProof = () => (
   <div className="relative w-12 h-12 flex items-center justify-center">
     {/* Clock Face */}
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="text-primary"
+    >
       <circle cx="12" cy="12" r="10" />
     </svg>
 
@@ -402,7 +442,7 @@ const AnimatedProof = () => (
         duration: 3,
         repeat: Infinity,
         repeatDelay: 0.5,
-        ease: "linear"
+        ease: "linear",
       }}
     >
       <div className="w-0.5 h-3 bg-primary origin-bottom -translate-y-1.5 rounded-full" />
@@ -416,7 +456,7 @@ const AnimatedProof = () => (
         duration: 3,
         repeat: Infinity,
         repeatDelay: 0.5,
-        ease: "linear"
+        ease: "linear",
       }}
     >
       <div className="w-0.5 h-2 bg-primary origin-bottom -translate-y-1 rounded-full" />
@@ -425,19 +465,22 @@ const AnimatedProof = () => (
 );
 
 // 10. Use Case Hover Animations
-const HoverIcon = ({ children, type }: { children: React.ReactNode, type: 'shake' | 'bounce' | 'pulse' | 'rotate' }) => {
+const HoverIcon = ({
+  children,
+  type,
+}: {
+  children: React.ReactNode;
+  type: "shake" | "bounce" | "pulse" | "rotate";
+}) => {
   const animations = {
     shake: { rotate: [0, -10, 10, -10, 10, 0] },
     bounce: { y: [0, -5, 0, -3, 0] },
     pulse: { scale: [1, 1.1, 1] },
-    rotate: { rotate: [0, 15, -15, 0] }
+    rotate: { rotate: [0, 15, -15, 0] },
   };
 
   return (
-    <motion.div
-      whileHover={animations[type]}
-      transition={{ duration: 0.5 }}
-    >
+    <motion.div whileHover={animations[type]} transition={{ duration: 0.5 }}>
       {children}
     </motion.div>
   );
@@ -448,7 +491,7 @@ const ParallaxBadge = () => {
   const ref = useRef(null);
   const { scrollYProgress } = useScroll({
     target: ref,
-    offset: ["start end", "end start"]
+    offset: ["start end", "end start"],
   });
 
   const x = useTransform(scrollYProgress, [0, 1], [-50, 10]);
@@ -463,7 +506,6 @@ const ParallaxBadge = () => {
     </div>
   );
 };
-
 
 // --- SECTIONS ---
 
@@ -484,20 +526,29 @@ const BentoGrid = () => (
             </div>
             <h3 className="text-3xl font-semibold tracking-tight">Zero friction for recipients</h3>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              The core problem with other tools is that both sides need an account.
-              With Proofo, <strong>you register, they just sign.</strong>
+              The core problem with other tools is that both sides need an account. With Proofo,{" "}
+              <strong>you register, they just sign.</strong>
             </p>
           </div>
           <div className="mt-10 flex flex-wrap gap-3">
-            <Badge variant="secondary" className="px-3 py-1.5 text-sm font-normal bg-secondary/50 border-0">
+            <Badge
+              variant="secondary"
+              className="px-3 py-1.5 text-sm font-normal bg-secondary/50 border-0"
+            >
               <AnimatedCheck delay={0.2} />
               No App Download
             </Badge>
-            <Badge variant="secondary" className="px-3 py-1.5 text-sm font-normal bg-secondary/50 border-0">
+            <Badge
+              variant="secondary"
+              className="px-3 py-1.5 text-sm font-normal bg-secondary/50 border-0"
+            >
               <AnimatedCheck delay={0.6} />
               No Account Required
             </Badge>
-            <Badge variant="secondary" className="px-3 py-1.5 text-sm font-normal bg-secondary/50 border-0">
+            <Badge
+              variant="secondary"
+              className="px-3 py-1.5 text-sm font-normal bg-secondary/50 border-0"
+            >
               <AnimatedCheck delay={1.0} />
               Instant Access
             </Badge>
@@ -521,7 +572,7 @@ const BentoGrid = () => (
           </div>
           <h3 className="text-xl font-semibold mb-3">Visual Signatures</h3>
           <p className="text-muted-foreground text-sm mb-8">
-            Draw-to-sign creates psychological trust that text messages can't match.
+            Draw-to-sign creates psychological trust that text messages can&apos;t match.
           </p>
           <div className="mt-auto bg-secondary/20 rounded-xl p-4 border border-dashed border-border flex items-center justify-center h-40 relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(#00000010_1px,transparent_1px)] bg-size-[16px_16px] opacity-50"></div>
@@ -641,8 +692,8 @@ const RealWorldSection = () => (
       <div className="space-y-4">
         <h2 className="text-3xl font-bold tracking-tight">Built for the real world</h2>
         <p className="text-muted-foreground text-lg leading-relaxed">
-          Proofo is designed for the millions of agreements that happen every day outside of boardrooms.
-          It&apos;s a trust-clarifier for casual interactions.
+          Proofo is designed for the millions of agreements that happen every day outside of
+          boardrooms. It&apos;s a trust-clarifier for casual interactions.
         </p>
       </div>
 
@@ -652,26 +703,26 @@ const RealWorldSection = () => (
             icon: Smartphone,
             title: "Tech Flipping",
             desc: "Buying a used phone? Confirm condition and IMEI to avoid 'it was broken' disputes.",
-            anim: "pulse" as const
+            anim: "pulse" as const,
           },
           {
             icon: ShoppingBag,
             title: "Vintage & Fashion",
             desc: "Selling rare collectibles. Mutual acknowledgement of authenticity before shipping.",
-            anim: "bounce" as const
+            anim: "bounce" as const,
           },
           {
             icon: Wrench,
             title: "Local Services",
             desc: "Paying for a fence repair or delivery. Agree on scope and price instantly.",
-            anim: "rotate" as const
+            anim: "rotate" as const,
           },
           {
             icon: Gamepad2,
             title: "Hobby Trading",
             desc: "Exchanging cards or consoles. A digital handshake for the hobbyist economy.",
-            anim: "shake" as const
-          }
+            anim: "shake" as const,
+          },
         ].map((item, i) => (
           <motion.div
             key={i}
@@ -688,9 +739,7 @@ const RealWorldSection = () => (
             </div>
             <div>
               <h3 className="font-medium text-foreground">{item.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mt-1">
-                {item.desc}
-              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed mt-1">{item.desc}</p>
             </div>
           </motion.div>
         ))}
@@ -715,26 +764,36 @@ const RealWorldSection = () => (
           >
             <div className="bg-secondary/20 p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-xs">AJ</div>
+                <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-xs">
+                  AJ
+                </div>
                 <div>
                   <p className="font-medium text-sm">Alex Johnson</p>
                   <p className="text-xs text-muted-foreground">Created just now</p>
                 </div>
               </div>
-              <Badge variant="outline" className="bg-background/50 animate-pulse">Pending</Badge>
+              <Badge variant="outline" className="bg-background/50 animate-pulse">
+                Pending
+              </Badge>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Agreement</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
+                  Agreement
+                </p>
                 <p className="font-medium">Sale of MacBook Pro M2</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Price</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
+                    Price
+                  </p>
                   <p className="font-medium">$1,200.00</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Condition</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
+                    Condition
+                  </p>
                   <p className="font-medium">Like New</p>
                 </div>
               </div>
@@ -759,7 +818,9 @@ const RealWorldSection = () => (
             <div className="flex gap-3">
               <Quote className="h-5 w-5 text-primary/20 shrink-0" />
               <p className="text-sm text-muted-foreground italic leading-relaxed">
-                "I used to chase clients for deposit confirmations in WhatsApp. Now I just send a Proofo link. It looks professional and stops the 'I didn't agree to that' conversations."
+                &quot;I used to chase clients for deposit confirmations in WhatsApp. Now I just send
+                a Proofo link. It looks professional and stops the &apos;I didn&apos;t agree to
+                that&apos; conversations.&quot;
               </p>
             </div>
           </motion.div>
@@ -779,7 +840,9 @@ const Pricing = () => (
           <span className="text-4xl font-bold tracking-tight">$0</span>
           <span className="text-muted-foreground ml-2 text-sm">/ month</span>
         </div>
-        <CardDescription className="mt-2">Perfect for occasional deals and personal use.</CardDescription>
+        <CardDescription className="mt-2">
+          Perfect for occasional deals and personal use.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-4">
         <ul className="space-y-3 text-sm">
@@ -810,7 +873,9 @@ const Pricing = () => (
         </ul>
         <div className="pt-4">
           <Link href="/deal/new" className="block">
-            <Button variant="outline" className="w-full h-11 border-border hover:bg-secondary">Get Started</Button>
+            <Button variant="outline" className="w-full h-11 border-border hover:bg-secondary">
+              Get Started
+            </Button>
           </Link>
         </div>
       </CardContent>
@@ -820,14 +885,14 @@ const Pricing = () => (
     <Card className="relative bg-secondary/30 border-primary/20 shadow-lg hover:border-primary/30 transition-colors">
       <ParallaxBadge />
       <CardHeader>
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">
-          Pro
-        </CardTitle>
+        <CardTitle className="text-xl font-semibold flex items-center gap-2">Pro</CardTitle>
         <div className="mt-4 flex items-baseline">
           <span className="text-4xl font-bold tracking-tight">$9</span>
           <span className="text-muted-foreground ml-2 text-sm">/ month</span>
         </div>
-        <CardDescription className="mt-2 text-foreground/80">For power users and small businesses.</CardDescription>
+        <CardDescription className="mt-2 text-foreground/80">
+          For power users and small businesses.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-4">
         <ul className="space-y-3 text-sm">
@@ -879,12 +944,12 @@ export default function Home() {
     }
   }, [user, router]);
 
-return (
+  return (
     <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
       <ScrollProgress />
 
       {/* Top Right Gradient Decoration */}
-     <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-[80px] md:blur-[100px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
+      <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-[80px] md:blur-[100px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
 
       <PublicHeader currentPage="home" />
 
@@ -915,14 +980,21 @@ return (
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link href="/deal/new">
                 <MagneticWrapper>
-                  <Button size="xl" className="h-14 px-8 text-base rounded-full shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all">
+                  <Button
+                    size="xl"
+                    className="h-14 px-8 text-base rounded-full shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all"
+                  >
                     Create Your First Proof
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </MagneticWrapper>
               </Link>
               <Link href="/demo">
-                <Button size="xl" variant="outline" className="h-14 px-8 text-base rounded-full bg-background border-2 hover:bg-secondary/50">
+                <Button
+                  size="xl"
+                  variant="outline"
+                  className="h-14 px-8 text-base rounded-full bg-background border-2 hover:bg-secondary/50"
+                >
                   Try Interactive Demo
                 </Button>
               </Link>
@@ -946,7 +1018,10 @@ return (
         <section id="features" className="mb-40 scroll-mt-24">
           <div className="container mx-auto px-4 mb-16 text-center max-w-2xl">
             <h2 className="text-3xl font-bold tracking-tight mb-4">Everything you need</h2>
-            <p className="text-muted-foreground text-lg">Bridge the gap between a handshake and a lawyer with a suite of tools designed for speed and security.</p>
+            <p className="text-muted-foreground text-lg">
+              Bridge the gap between a handshake and a lawyer with a suite of tools designed for
+              speed and security.
+            </p>
           </div>
           <BentoGrid />
         </section>
@@ -956,7 +1031,9 @@ return (
           <div className="container mx-auto px-4 max-w-5xl">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight mb-4">How it works</h2>
-              <p className="text-muted-foreground">From agreement to evidence in four simple steps.</p>
+              <p className="text-muted-foreground">
+                From agreement to evidence in four simple steps.
+              </p>
             </div>
             <WorkflowSection />
           </div>
@@ -965,7 +1042,7 @@ return (
         {/* Real World Use Cases */}
         <section className="py-32">
           <div className="container mx-auto px-4 max-w-6xl">
-             <RealWorldSection />
+            <RealWorldSection />
           </div>
         </section>
 
@@ -984,19 +1061,22 @@ return (
         <section className="py-32">
           <div className="container mx-auto px-4 text-center max-w-2xl">
             <div className="bg-secondary/30 rounded-3xl p-12 border border-border relative overflow-hidden">
-               <div className="relative z-10">
-                 <h2 className="text-3xl font-bold mb-4">Ready to secure your deals?</h2>
-                 <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
-                   Join thousands of freelancers, contractors, and friends who trust Proofo.
-                 </p>
-                 <Link href="/deal/new">
-                   <MagneticWrapper>
-                     <Button size="xl" className="h-14 px-10 text-base rounded-full shadow-lg shadow-primary/10">
-                       Get Started Now
-                     </Button>
-                   </MagneticWrapper>
-                 </Link>
-               </div>
+              <div className="relative z-10">
+                <h2 className="text-3xl font-bold mb-4">Ready to secure your deals?</h2>
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
+                  Join thousands of freelancers, contractors, and friends who trust Proofo.
+                </p>
+                <Link href="/deal/new">
+                  <MagneticWrapper>
+                    <Button
+                      size="xl"
+                      className="h-14 px-10 text-base rounded-full shadow-lg shadow-primary/10"
+                    >
+                      Get Started Now
+                    </Button>
+                  </MagneticWrapper>
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -1010,14 +1090,21 @@ return (
           </div>
 
           <div className="flex gap-8 text-sm text-muted-foreground">
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
-            <Link href="mailto:support@proofo.app" className="hover:text-foreground transition-colors">Contact</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">
+              Terms of Service
+            </Link>
+            <Link
+              href="mailto:support@proofo.app"
+              className="hover:text-foreground transition-colors"
+            >
+              Contact
+            </Link>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Proofo Inc.
-          </p>
+          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Proofo Inc.</p>
         </div>
       </footer>
     </div>

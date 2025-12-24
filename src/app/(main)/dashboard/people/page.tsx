@@ -6,12 +6,10 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Users,
-  Plus,
   Search,
   LayoutGrid,
   List as ListIcon,
   History,
-  Send,
   EyeOff,
   Eye,
   UserPlus,
@@ -27,7 +25,6 @@ import {
   ArrowUpAZ,
   Sparkles,
   ChevronDown,
-  Command,
   LucideIcon,
 } from "lucide-react";
 
@@ -35,7 +32,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -53,9 +57,27 @@ import { useAppStore } from "@/store";
 import { timeAgo, formatDate } from "@/lib/crypto";
 import { cn, getUserInitials } from "@/lib/utils";
 import { Deal } from "@/types";
-import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, getToggleButtonClass, getFilterPillClass, getGridClass } from "@/lib/dashboard-ui";
-import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
-import { getContactsAction, createContactAction, updateContactAction, deleteContactAction } from "@/app/actions/contact-actions";
+import {
+  dashboardStyles,
+  containerVariants,
+  itemVariants,
+  cardFlipTransition,
+  getToggleButtonClass,
+  getFilterPillClass,
+  getGridClass,
+} from "@/lib/dashboard-ui";
+import {
+  HighlightText,
+  KeyboardHint,
+  useSearchShortcut,
+} from "@/components/dashboard/shared-components";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import {
+  getContactsAction,
+  createContactAction,
+  updateContactAction,
+  deleteContactAction,
+} from "@/app/actions/contact-actions";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -74,24 +96,27 @@ interface Contact {
 }
 
 type SortOption = "recent" | "name_asc" | "name_desc" | "deals_count";
-type ViewMode = "grid" | "list";
 
 // HighlightText imported from shared-components
 
+/**
+ * CopyableText component - uses shared useCopyToClipboard hook
+ */
 const CopyableText = ({ text, className }: { text: string; className?: string }) => {
-  const [copied, setCopied] = useState(false);
+  const { copied, copyToClipboard } = useCopyToClipboard();
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(text);
   };
 
   return (
     <div
-      className={cn("flex items-center gap-1.5 group/copy cursor-pointer hover:text-foreground transition-colors", className)}
+      className={cn(
+        "flex items-center gap-1.5 group/copy cursor-pointer hover:text-foreground transition-colors",
+        className
+      )}
       onClick={handleCopy}
       title="Click to copy"
     >
@@ -125,7 +150,13 @@ const CopyableText = ({ text, className }: { text: string; className?: string })
 };
 
 // Sort Dropdown Menu
-const SortMenu = ({ current, onChange }: { current: SortOption, onChange: (o: SortOption) => void }) => {
+const SortMenu = ({
+  current,
+  onChange,
+}: {
+  current: SortOption;
+  onChange: (o: SortOption) => void;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -146,7 +177,7 @@ const SortMenu = ({ current, onChange }: { current: SortOption, onChange: (o: So
     { id: "name_desc", label: "Name (Z-A)", icon: ArrowUpAZ },
   ];
 
-  const currentOption = options.find(o => o.id === current) || options[0];
+  const currentOption = options.find((o) => o.id === current) || options[0];
 
   return (
     <div className="relative h-full" ref={menuRef}>
@@ -154,12 +185,16 @@ const SortMenu = ({ current, onChange }: { current: SortOption, onChange: (o: So
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-1.5 px-2.5 py-1.5 h-full rounded-lg text-xs font-medium transition-all cursor-pointer select-none",
-          isOpen ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+          isOpen
+            ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
         )}
       >
         <currentOption.icon className="h-3.5 w-3.5" />
         <span className="hidden sm:inline">{currentOption.label}</span>
-        <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", isOpen && "rotate-180")} />
+        <ChevronDown
+          className={cn("h-3 w-3 transition-transform duration-200", isOpen && "rotate-180")}
+        />
       </button>
 
       <AnimatePresence>
@@ -174,7 +209,10 @@ const SortMenu = ({ current, onChange }: { current: SortOption, onChange: (o: So
             {options.map((option) => (
               <button
                 key={option.id}
-                onClick={() => { onChange(option.id); setIsOpen(false); }}
+                onClick={() => {
+                  onChange(option.id);
+                  setIsOpen(false);
+                }}
                 className={cn(
                   "flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg transition-colors w-full text-left cursor-pointer",
                   current === option.id
@@ -205,7 +243,7 @@ const ContactCard = ({
   onDelete,
   onHide,
   onUnhide,
-  isHiddenView
+  isHiddenView,
 }: {
   contact: Contact;
   viewMode: "grid" | "list";
@@ -224,11 +262,7 @@ const ContactCard = ({
   // List View
   if (viewMode === "list") {
     return (
-      <motion.div
-        variants={itemVariants}
-        layout
-        className="group relative"
-      >
+      <motion.div variants={itemVariants} layout className="group relative">
         <div
           className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-muted/40 hover:border-primary/20 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
           onClick={() => onAction("deal", contact)}
@@ -242,7 +276,10 @@ const ContactCard = ({
               <h3 className="font-semibold text-foreground truncate">
                 <HighlightText text={contact.name} query={searchQuery} />
               </h3>
-              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium border-0 bg-secondary/50 text-muted-foreground">
+              <Badge
+                variant="secondary"
+                className="text-[10px] h-5 px-1.5 font-medium border-0 bg-secondary/50 text-muted-foreground"
+              >
                 {contact.role === "both" ? "Partner" : isRecipient ? "Recipient" : "Sender"}
               </Badge>
             </div>
@@ -261,19 +298,43 @@ const ContactCard = ({
           </div>
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onAction("history", contact); }}>
-                <History className="h-4 w-4" />
-             </Button>
-             {!isHiddenView && onHide && (
-               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onHide(contact.id); }}>
-                  <EyeOff className="h-4 w-4" />
-               </Button>
-             )}
-             {isHiddenView && onUnhide && (
-               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onUnhide(contact.id); }}>
-                  <Eye className="h-4 w-4" />
-               </Button>
-             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction("history", contact);
+              }}
+            >
+              <History className="h-4 w-4" />
+            </Button>
+            {!isHiddenView && onHide && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onHide(contact.id);
+                }}
+              >
+                <EyeOff className="h-4 w-4" />
+              </Button>
+            )}
+            {isHiddenView && onUnhide && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnhide(contact.id);
+                }}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -282,13 +343,8 @@ const ContactCard = ({
 
   // Grid View with Flip
   return (
-    <motion.div
-      variants={itemVariants}
-      layout
-      className="h-full perspective-1000"
-    >
+    <motion.div variants={itemVariants} layout className="h-full perspective-1000">
       <div className="relative h-full w-full" style={{ perspective: "1000px", minHeight: "240px" }}>
-
         {/* Front */}
         <motion.div
           className={cn(
@@ -298,20 +354,25 @@ const ContactCard = ({
           initial={false}
           animate={{
             rotateY: isFlipped ? 180 : 0,
-            opacity: isFlipped ? 0 : 1
+            opacity: isFlipped ? 0 : 1,
           }}
           transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
         >
           <div className="flex flex-col h-full">
-            <div className="flex-1 p-5 pb-0 flex flex-col group cursor-pointer" onClick={() => onAction("deal", contact)}>
-
+            <div
+              className="flex-1 p-5 pb-0 flex flex-col group cursor-pointer"
+              onClick={() => onAction("deal", contact)}
+            >
               {/* Header */}
               <div className="flex justify-between items-start mb-4">
                 <div className="h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20 font-semibold">
                   {initials}
                 </div>
-                <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
+                >
                   {contact.role === "both" ? "Partner" : isRecipient ? "Recipient" : "Sender"}
                 </Badge>
               </div>
@@ -323,18 +384,28 @@ const ContactCard = ({
                 </h3>
                 <div className="text-sm text-muted-foreground flex items-center gap-1.5 min-w-0 h-5">
                   <Mail className="h-3 w-3 shrink-0" />
-                  {contact.email ? <CopyableText text={contact.email} /> : <span className="opacity-50">No email</span>}
+                  {contact.email ? (
+                    <CopyableText text={contact.email} />
+                  ) : (
+                    <span className="opacity-50">No email</span>
+                  )}
                 </div>
               </div>
 
               {/* Stats */}
               <div className="flex gap-2 mb-6">
-                <Badge variant="secondary" className="text-[10px] px-2 py-1 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors">
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-2 py-1 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors"
+                >
                   <History className="h-3 w-3 mr-1 opacity-70" />
                   {contact.dealsCount} Deals
                 </Badge>
                 {contact.lastDealDate && (
-                  <Badge variant="secondary" className="text-[10px] px-2 py-1 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-2 py-1 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors"
+                  >
                     <Clock className="h-3 w-3 mr-1 opacity-70" />
                     {timeAgo(contact.lastDealDate)}
                   </Badge>
@@ -356,7 +427,11 @@ const ContactCard = ({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onFlip(e); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onFlip(e);
+                  }}
                   title="View History"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -367,7 +442,11 @@ const ContactCard = ({
                     variant="ghost"
                     size="icon"
                     className={dashboardStyles.cardFooterDestructiveAction}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(contact.id); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onHide(contact.id);
+                    }}
                     title="Hide Contact"
                   >
                     <XCircle className="h-3.5 w-3.5" />
@@ -379,7 +458,11 @@ const ContactCard = ({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onUnhide(contact.id); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onUnhide(contact.id);
+                    }}
                     title="Unhide Contact"
                   >
                     <Eye className="h-3.5 w-3.5" />
@@ -391,7 +474,11 @@ const ContactCard = ({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(contact.id); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onDelete(contact.id);
+                    }}
                     title="Delete Contact"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -411,7 +498,7 @@ const ContactCard = ({
           initial={{ rotateY: 180 }}
           animate={{
             rotateY: isFlipped ? 0 : -180,
-            opacity: isFlipped ? 1 : 0
+            opacity: isFlipped ? 1 : 0,
           }}
           transition={cardFlipTransition}
           style={{ backfaceVisibility: "hidden" }}
@@ -426,7 +513,10 @@ const ContactCard = ({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 rounded-full -mr-2 text-muted-foreground hover:text-primary"
-                onClick={(e) => { e.preventDefault(); onFlip(e); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onFlip(e);
+                }}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -435,15 +525,22 @@ const ContactCard = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar -mr-2 pr-2 space-y-2">
               {contact.recentDeals.length > 0 ? (
                 contact.recentDeals.slice(0, 3).map((deal) => (
-                  <div key={deal.id} className="flex flex-col gap-1 p-2 rounded-lg bg-background border border-border/50 text-xs shadow-sm">
+                  <div
+                    key={deal.id}
+                    className="flex flex-col gap-1 p-2 rounded-lg bg-background border border-border/50 text-xs shadow-sm"
+                  >
                     <div className="flex justify-between items-start">
                       <span className="font-medium truncate pr-2">{deal.title}</span>
-                      <span className={cn(
-                        "px-1.5 py-0.5 rounded text-[9px] font-medium capitalize border",
-                        deal.status === 'confirmed' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                        deal.status === 'voided' ? "bg-destructive/10 text-destructive border-destructive/20" :
-                        "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                      )}>
+                      <span
+                        className={cn(
+                          "px-1.5 py-0.5 rounded text-[9px] font-medium capitalize border",
+                          deal.status === "confirmed"
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            : deal.status === "voided"
+                              ? "bg-destructive/10 text-destructive border-destructive/20"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                        )}
+                      >
                         {deal.status}
                       </span>
                     </div>
@@ -499,7 +596,10 @@ const ContactSkeleton = ({ viewMode }: { viewMode: "grid" | "list" }) => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-card border rounded-2xl p-5" style={{ minHeight: "240px" }}>
+    <div
+      className="h-full flex flex-col bg-card border rounded-2xl p-5"
+      style={{ minHeight: "240px" }}
+    >
       <div className="flex justify-between items-start mb-4">
         <Skeleton className="h-10 w-10 rounded-lg" />
         <Skeleton className="h-5 w-16" />
@@ -541,22 +641,13 @@ export default function PeoplePage() {
   const [hiddenContactIds, setHiddenContactIds] = useState<string[]>([]);
   const [flippedId, setFlippedId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [_isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Keyboard shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement !== searchInputRef.current) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  // Keyboard shortcut - using shared hook
+  useSearchShortcut(searchInputRef);
 
   // Load contacts from server
   useEffect(() => {
@@ -565,17 +656,17 @@ export default function PeoplePage() {
       const { contacts, error } = await getContactsAction();
       if (!error && contacts.length > 0) {
         // Transform server contacts to local format
-        const serverContacts: Contact[] = contacts.map(c => ({
+        const serverContacts: Contact[] = contacts.map((c) => ({
           id: c.id,
           name: c.name,
           email: c.email || undefined,
           dealsCount: 0,
           role: "recipient" as const,
           isCustom: true,
-          recentDeals: []
+          recentDeals: [],
         }));
         // Get hidden contact IDs from server contacts
-        const hiddenIds = contacts.filter(c => c.isHidden).map(c => c.id);
+        const hiddenIds = contacts.filter((c) => c.isHidden).map((c) => c.id);
         setCustomContacts(serverContacts);
         setHiddenContactIds(hiddenIds);
       } else {
@@ -583,10 +674,18 @@ export default function PeoplePage() {
         const savedContacts = localStorage.getItem("proofo-custom-contacts");
         const savedHidden = localStorage.getItem("proofo-hidden-contacts");
         if (savedContacts) {
-          try { setCustomContacts(JSON.parse(savedContacts)); } catch { /* ignore */ }
+          try {
+            setCustomContacts(JSON.parse(savedContacts));
+          } catch {
+            /* ignore */
+          }
         }
         if (savedHidden) {
-          try { setHiddenContactIds(JSON.parse(savedHidden)); } catch { /* ignore */ }
+          try {
+            setHiddenContactIds(JSON.parse(savedHidden));
+          } catch {
+            /* ignore */
+          }
         }
       }
       setIsLoaded(true);
@@ -607,7 +706,7 @@ export default function PeoplePage() {
     const contactMap = new Map<string, Contact>();
 
     // 1. Add Custom Contacts
-    customContacts.forEach(c => {
+    customContacts.forEach((c) => {
       contactMap.set(c.id, { ...c, dealsCount: 0, recentDeals: [] });
     });
 
@@ -619,16 +718,20 @@ export default function PeoplePage() {
       // Case 1: I am the Creator -> Recipient is the contact
       if (deal.recipientName && deal.recipientName !== user?.name) {
         let key = recipientEmail ? `email-${recipientEmail}` : `name-${deal.recipientName}`;
-        const customMatch = customContacts.find(c =>
-          (recipientEmail && c.email?.toLowerCase() === recipientEmail) ||
-          c.name === deal.recipientName
+        const customMatch = customContacts.find(
+          (c) =>
+            (recipientEmail && c.email?.toLowerCase() === recipientEmail) ||
+            c.name === deal.recipientName
         );
         if (customMatch) key = customMatch.id;
 
         const existing = contactMap.get(key);
         if (existing) {
           existing.dealsCount++;
-          if (!existing.lastDealDate || new Date(deal.createdAt) > new Date(existing.lastDealDate)) {
+          if (
+            !existing.lastDealDate ||
+            new Date(deal.createdAt) > new Date(existing.lastDealDate)
+          ) {
             existing.lastDealDate = deal.createdAt;
           }
           existing.recentDeals.push(deal);
@@ -640,7 +743,7 @@ export default function PeoplePage() {
             dealsCount: 1,
             lastDealDate: deal.createdAt,
             role: "recipient",
-            recentDeals: [deal]
+            recentDeals: [deal],
           });
         }
       }
@@ -653,7 +756,10 @@ export default function PeoplePage() {
         if (existing) {
           existing.dealsCount++;
           if (existing.role === "recipient") existing.role = "both";
-          if (!existing.lastDealDate || new Date(deal.createdAt) > new Date(existing.lastDealDate)) {
+          if (
+            !existing.lastDealDate ||
+            new Date(deal.createdAt) > new Date(existing.lastDealDate)
+          ) {
             existing.lastDealDate = deal.createdAt;
           }
           existing.recentDeals.push(deal);
@@ -664,7 +770,7 @@ export default function PeoplePage() {
             dealsCount: 1, // Start with 1
             lastDealDate: deal.createdAt,
             role: "creator",
-            recentDeals: [deal]
+            recentDeals: [deal],
           });
         }
       }
@@ -676,23 +782,25 @@ export default function PeoplePage() {
     // Filter Hidden - Mutually Exclusive Logic
     if (showHidden) {
       // Show ONLY hidden contacts
-      result = result.filter(c => hiddenContactIds.includes(c.id));
+      result = result.filter((c) => hiddenContactIds.includes(c.id));
     } else {
       // Show ONLY visible (non-hidden) contacts
-      result = result.filter(c => !hiddenContactIds.includes(c.id));
+      result = result.filter((c) => !hiddenContactIds.includes(c.id));
     }
 
     // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(c => c.name.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q));
+      result = result.filter(
+        (c) => c.name.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q)
+      );
     }
 
     // Role Filter
     if (roleFilter === "recipient") {
-      result = result.filter(c => c.role === "recipient" || c.role === "both");
+      result = result.filter((c) => c.role === "recipient" || c.role === "both");
     } else if (roleFilter === "creator") {
-      result = result.filter(c => c.role === "creator" || c.role === "both");
+      result = result.filter((c) => c.role === "creator" || c.role === "both");
     }
 
     // Sort
@@ -711,12 +819,23 @@ export default function PeoplePage() {
     });
 
     // Sort deals within contacts
-    result.forEach(c => {
-      c.recentDeals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    result.forEach((c) => {
+      c.recentDeals.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     });
 
     return result;
-  }, [storeDeals, user, customContacts, searchQuery, hiddenContactIds, roleFilter, showHidden, sortOrder]);
+  }, [
+    storeDeals,
+    user,
+    customContacts,
+    searchQuery,
+    hiddenContactIds,
+    roleFilter,
+    showHidden,
+    sortOrder,
+  ]);
 
   const hasHiddenContacts = hiddenContactIds.length > 0;
 
@@ -745,9 +864,9 @@ export default function PeoplePage() {
       dealsCount: 0,
       role: "recipient",
       isCustom: true,
-      recentDeals: []
+      recentDeals: [],
     };
-    setCustomContacts(prev => [...prev, contact]);
+    setCustomContacts((prev) => [...prev, contact]);
     setNewContact({ name: "", email: "" });
     setShowAddModal(false);
     setIsSaving(false);
@@ -766,7 +885,7 @@ export default function PeoplePage() {
       return;
     }
 
-    setCustomContacts(prev => prev.filter(c => c.id !== id));
+    setCustomContacts((prev) => prev.filter((c) => c.id !== id));
     toast.success("Contact deleted");
   };
 
@@ -776,7 +895,7 @@ export default function PeoplePage() {
     if (error) {
       // If server fails, still update locally (may be demo user)
     }
-    setHiddenContactIds(prev => [...prev, id]);
+    setHiddenContactIds((prev) => [...prev, id]);
   };
 
   const handleUnhideContact = async (id: string) => {
@@ -785,7 +904,7 @@ export default function PeoplePage() {
     if (error) {
       // If server fails, still update locally (may be demo user)
     }
-    setHiddenContactIds(prev => prev.filter(hid => hid !== id));
+    setHiddenContactIds((prev) => prev.filter((hid) => hid !== id));
   };
 
   const handleAction = (type: "deal" | "history", contact: Contact) => {
@@ -801,7 +920,6 @@ export default function PeoplePage() {
 
   return (
     <div className={dashboardStyles.pageContainer}>
-
       {/* Header */}
       <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
@@ -818,14 +936,18 @@ export default function PeoplePage() {
           <UserPlus className={dashboardStyles.iconMd} />
           Add Contact
         </Button>
-        <Button onClick={() => setShowAddModal(true)} size="icon" variant="outline" className="sm:hidden rounded-xl shadow-sm">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          size="icon"
+          variant="outline"
+          className="sm:hidden rounded-xl shadow-sm"
+        >
           <UserPlus className={dashboardStyles.iconMd} />
         </Button>
       </div>
 
       {/* Filter Toolbar - Sticky & Glassmorphic */}
       <div className={dashboardStyles.filterBar}>
-
         {/* Left: Search (Grows) */}
         <div className={dashboardStyles.searchInputContainer}>
           <Search className={dashboardStyles.searchIcon} />
@@ -841,9 +963,13 @@ export default function PeoplePage() {
 
         {/* Right: Controls (Fixed, No Overflow) */}
         <div className="flex items-center gap-2 shrink-0">
-
           {/* Middle: Role Filters (Scrollable on small screens) */}
-          <div className={cn(dashboardStyles.toggleGroup, "items-center overflow-x-auto no-scrollbar max-w-[200px] sm:max-w-none")}>
+          <div
+            className={cn(
+              dashboardStyles.toggleGroup,
+              "items-center overflow-x-auto no-scrollbar max-w-[200px] sm:max-w-none"
+            )}
+          >
             {["all", "recipient", "creator"].map((role) => (
               <button
                 key={role}
@@ -873,7 +999,11 @@ export default function PeoplePage() {
                         )}
                         onClick={() => setShowHidden(!showHidden)}
                       >
-                        {showHidden ? <Eye className={dashboardStyles.iconMd} /> : <EyeOff className={dashboardStyles.iconMd} />}
+                        {showHidden ? (
+                          <Eye className={dashboardStyles.iconMd} />
+                        ) : (
+                          <EyeOff className={dashboardStyles.iconMd} />
+                        )}
                       </button>
                     </div>
                   </TooltipTrigger>
@@ -888,7 +1018,6 @@ export default function PeoplePage() {
 
           {/* Right: Fixed Action Group (Sort, View) */}
           <div className={cn(dashboardStyles.toggleGroup, "gap-1 h-10 items-center")}>
-
             <SortMenu current={sortOrder} onChange={setSortOrder} />
 
             <div className="w-px h-4 bg-border/50 my-auto" />
@@ -942,7 +1071,10 @@ export default function PeoplePage() {
                   viewMode={viewMode}
                   searchQuery={searchQuery}
                   isFlipped={flippedId === contact.id}
-                  onFlip={(e) => { e.preventDefault(); setFlippedId(flippedId === contact.id ? null : contact.id); }}
+                  onFlip={(e) => {
+                    e.preventDefault();
+                    setFlippedId(flippedId === contact.id ? null : contact.id);
+                  }}
                   onAction={handleAction}
                   onDelete={contact.isCustom ? () => setDeleteConfirmId(contact.id) : undefined}
                   onHide={() => handleHideContact(contact.id)}
@@ -954,17 +1086,21 @@ export default function PeoplePage() {
               <EmptyState
                 icon={showHidden ? EyeOff : Users}
                 title={showHidden ? "No hidden contacts" : "No contacts found"}
-                description={searchQuery
-                  ? "Try adjusting your search terms."
-                  : showHidden
-                    ? "You haven't hidden any contacts."
-                    : "Add people or create deals to see them here."}
-                action={!showHidden && (
-                  <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
-                    <UserPlus className={cn(dashboardStyles.iconMd, "mr-2")} />
-                    Add First Contact
-                  </Button>
-                )}
+                description={
+                  searchQuery
+                    ? "Try adjusting your search terms."
+                    : showHidden
+                      ? "You haven't hidden any contacts."
+                      : "Add people or create deals to see them here."
+                }
+                action={
+                  !showHidden && (
+                    <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
+                      <UserPlus className={cn(dashboardStyles.iconMd, "mr-2")} />
+                      Add First Contact
+                    </Button>
+                  )
+                }
                 className="col-span-full"
               />
             )}
@@ -994,7 +1130,9 @@ export default function PeoplePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+              <Label htmlFor="email">
+                Email <span className="text-muted-foreground font-normal">(Optional)</span>
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -1006,14 +1144,25 @@ export default function PeoplePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddModal(false)} className="rounded-xl">Cancel</Button>
-            <Button onClick={handleAddContact} disabled={!newContact.name.trim()} className="rounded-xl">Save Contact</Button>
+            <Button variant="outline" onClick={() => setShowAddModal(false)} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddContact}
+              disabled={!newContact.name.trim()}
+              className="rounded-xl"
+            >
+              Save Contact
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+      <AlertDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this contact?</AlertDialogTitle>
@@ -1032,7 +1181,6 @@ export default function PeoplePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }

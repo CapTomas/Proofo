@@ -69,7 +69,7 @@ export interface ConfirmDealInput {
   recipientEmail?: string;
 }
 
-export type AuditEventType = 
+export type AuditEventType =
   | "deal_created"
   | "deal_viewed"
   | "deal_signed"

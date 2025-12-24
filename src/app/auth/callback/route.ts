@@ -73,7 +73,10 @@ export async function GET(request: NextRequest) {
 
     // Verify the user is properly authenticated using getUser()
     // This validates the JWT with Supabase Auth server
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
       console.error("Auth callback: User verification failed", userError?.message);
@@ -83,12 +86,15 @@ export async function GET(request: NextRequest) {
     // Ensure user profile exists (fire-and-forget, don't block redirect)
     supabase
       .from("profiles")
-      .upsert({
-        id: user.id,
-        email: user.email || "",
-        name: user.user_metadata?.full_name || user.user_metadata?.name || null,
-        avatar_url: user.user_metadata?.avatar_url || null,
-      }, { onConflict: "id" })
+      .upsert(
+        {
+          id: user.id,
+          email: user.email || "",
+          name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+          avatar_url: user.user_metadata?.avatar_url || null,
+        },
+        { onConflict: "id" }
+      )
       .then(({ error }) => {
         if (error) console.error("Profile upsert error:", error);
       });
@@ -96,7 +102,6 @@ export async function GET(request: NextRequest) {
     // Session is valid, redirect to dashboard
     // Cookies are already set via the cookie handler above
     return NextResponse.redirect(redirectUrl);
-
   } catch (err) {
     console.error("Auth callback exception:", err);
     return NextResponse.redirect(`${origin}/login?error=callback_exception`);

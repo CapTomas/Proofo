@@ -48,7 +48,15 @@ type HashVerificationStatus = "pending" | "verifying" | "valid" | "invalid" | "e
 
 // --- MICRO-COMPONENTS ---
 
-const ScrambleText = ({ text, className, trigger = true }: { text: string; className?: string; trigger?: boolean }) => {
+const ScrambleText = ({
+  text,
+  className,
+  trigger = true,
+}: {
+  text: string;
+  className?: string;
+  trigger?: boolean;
+}) => {
   const [displayText, setDisplayText] = useState(text);
   const chars = "0123456789abcdef";
 
@@ -99,7 +107,9 @@ const PulsingShield = ({ status }: { status: HashVerificationStatus }) => {
           />
         </>
       )}
-      <div className={`h-10 w-10 rounded-xl border-2 ${colors[status]} flex items-center justify-center bg-background transition-colors duration-300 shadow-sm`}>
+      <div
+        className={`h-10 w-10 rounded-xl border-2 ${colors[status]} flex items-center justify-center bg-background transition-colors duration-300 shadow-sm`}
+      >
         {status === "verifying" ? (
           <RefreshCw className="h-4 w-4 animate-spin" />
         ) : status === "valid" ? (
@@ -116,7 +126,15 @@ const PulsingShield = ({ status }: { status: HashVerificationStatus }) => {
   );
 };
 
-const CopyableHash = ({ hash, label, scramble = false }: { hash: string; label: string; scramble?: boolean }) => {
+const CopyableHash = ({
+  hash,
+  label,
+  scramble = false,
+}: {
+  hash: string;
+  label: string;
+  scramble?: boolean;
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -199,55 +217,59 @@ function VerifyContent() {
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Hash verification state
-  const [hashVerificationStatus, setHashVerificationStatus] = useState<HashVerificationStatus>("pending");
+  const [hashVerificationStatus, setHashVerificationStatus] =
+    useState<HashVerificationStatus>("pending");
   const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
 
-  const performSearch = useCallback(async (searchId: string, updateUrl: boolean = false) => {
-    if (!searchId) return;
+  const performSearch = useCallback(
+    async (searchId: string, updateUrl: boolean = false) => {
+      if (!searchId) return;
 
-    setIsSearching(true);
-    setHashVerificationStatus("pending");
-    setCalculatedHash(null);
-    setShowTerms(false);
+      setIsSearching(true);
+      setHashVerificationStatus("pending");
+      setCalculatedHash(null);
+      setShowTerms(false);
 
-    if (updateUrl) {
-      router.push(`/verify?id=${searchId}`, { scroll: false });
-    }
+      if (updateUrl) {
+        router.push(`/verify?id=${searchId}`, { scroll: false });
+      }
 
-    // First try local store
-    const localDeal = getDealByPublicId(searchId);
-    if (localDeal) {
-      setSearchedDeal(localDeal);
-      const localLogs = getAuditLogsForDeal(localDeal.id);
-      setAuditLogs(localLogs);
-    } else if (isSupabaseConfigured()) {
-      // Try Supabase
-      const { deal, error } = await getDealByPublicIdAction(searchId);
-      if (deal && !error) {
-        setSearchedDeal(deal);
-        const { logs } = await getAuditLogsAction(deal.id);
-        const transformedLogs: AuditLogEntry[] = logs.map((log) => ({
-          id: log.id,
-          dealId: log.dealId,
-          eventType: log.eventType as AuditLogEntry["eventType"],
-          actorId: log.actorId,
-          actorType: log.actorType as AuditLogEntry["actorType"],
-          metadata: log.metadata || {},
-          createdAt: log.createdAt,
-        }));
-        setAuditLogs(transformedLogs);
+      // First try local store
+      const localDeal = getDealByPublicId(searchId);
+      if (localDeal) {
+        setSearchedDeal(localDeal);
+        const localLogs = getAuditLogsForDeal(localDeal.id);
+        setAuditLogs(localLogs);
+      } else if (isSupabaseConfigured()) {
+        // Try Supabase
+        const { deal, error } = await getDealByPublicIdAction(searchId);
+        if (deal && !error) {
+          setSearchedDeal(deal);
+          const { logs } = await getAuditLogsAction(deal.id);
+          const transformedLogs: AuditLogEntry[] = logs.map((log) => ({
+            id: log.id,
+            dealId: log.dealId,
+            eventType: log.eventType as AuditLogEntry["eventType"],
+            actorId: log.actorId,
+            actorType: log.actorType as AuditLogEntry["actorType"],
+            metadata: log.metadata || {},
+            createdAt: log.createdAt,
+          }));
+          setAuditLogs(transformedLogs);
+        } else {
+          setSearchedDeal(null);
+          setAuditLogs([]);
+        }
       } else {
         setSearchedDeal(null);
         setAuditLogs([]);
       }
-    } else {
-      setSearchedDeal(null);
-      setAuditLogs([]);
-    }
 
-    setHasSearched(true);
-    setIsSearching(false);
-  }, [getDealByPublicId, getAuditLogsForDeal, router]);
+      setHasSearched(true);
+      setIsSearching(false);
+    },
+    [getDealByPublicId, getAuditLogsForDeal, router]
+  );
 
   // Handle URL changes and initial load
   useEffect(() => {
@@ -271,7 +293,7 @@ function VerifyContent() {
         setHashVerificationStatus("verifying");
 
         // Simulate calculation delay for effect
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
 
         try {
           const hash = await calculateDealSeal({
@@ -329,24 +351,24 @@ function VerifyContent() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
-
       {/* Top Right Gradient Decoration */}
       <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-[80px] md:blur-[100px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
 
       <PublicHeader currentPage="verify" />
 
       <main className="relative pt-28 pb-20 container mx-auto px-4 max-w-6xl z-10">
-
         {/* Back Navigation */}
         <div className="mb-8">
-          <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group">
+          <Link
+            href="/"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group"
+          >
             <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             Back to Home
           </Link>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
-
           {/* LEFT COLUMN: Context & CTA */}
           <div className="lg:sticky lg:top-32 space-y-12">
             <motion.div
@@ -354,7 +376,10 @@ function VerifyContent() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Badge variant="secondary" className="mb-6 px-4 py-1.5 bg-secondary/50 border-0 text-foreground">
+              <Badge
+                variant="secondary"
+                className="mb-6 px-4 py-1.5 bg-secondary/50 border-0 text-foreground"
+              >
                 <Shield className="h-3.5 w-3.5 mr-1.5 text-primary" />
                 Deal Verification
               </Badge>
@@ -365,7 +390,9 @@ function VerifyContent() {
               </h1>
 
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                Ensure the integrity of your agreements with our cryptographic verification tool. Enter a Deal ID to audit the full history, view the agreed terms, and validate the digital seal.
+                Ensure the integrity of your agreements with our cryptographic verification tool.
+                Enter a Deal ID to audit the full history, view the agreed terms, and validate the
+                digital seal.
               </p>
             </motion.div>
 
@@ -377,18 +404,21 @@ function VerifyContent() {
               className="hidden lg:block pt-4"
             >
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm">
-                 <div className="relative z-10">
-                   <h3 className="text-2xl font-bold mb-3">Ready to create real deals?</h3>
-                   <p className="text-muted-foreground mb-8 text-base">
-                     Start creating enforceable agreements in seconds.
-                   </p>
-                   <Link href="/dashboard">
-                     <Button size="xl" className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14">
-                       Create Your First Proof
-                       <ArrowRight className="ml-2 h-5 w-5" />
-                     </Button>
-                   </Link>
-                 </div>
+                <div className="relative z-10">
+                  <h3 className="text-2xl font-bold mb-3">Ready to create real deals?</h3>
+                  <p className="text-muted-foreground mb-8 text-base">
+                    Start creating enforceable agreements in seconds.
+                  </p>
+                  <Link href="/dashboard">
+                    <Button
+                      size="xl"
+                      className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
+                    >
+                      Create Your First Proof
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -441,7 +471,9 @@ function VerifyContent() {
                         </div>
                         <div>
                           <CardTitle className="text-lg leading-tight">Secure Lookup</CardTitle>
-                          <p className="text-muted-foreground text-xs mt-0.5">Enter Deal ID to retrieve proof</p>
+                          <p className="text-muted-foreground text-xs mt-0.5">
+                            Enter Deal ID to retrieve proof
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -449,7 +481,12 @@ function VerifyContent() {
                     <CardContent className="p-6 sm:p-8">
                       <form onSubmit={handleSearch} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="deal-id" className="text-xs font-medium uppercase tracking-wider text-muted-foreground ml-1">Deal ID</Label>
+                          <Label
+                            htmlFor="deal-id"
+                            className="text-xs font-medium uppercase tracking-wider text-muted-foreground ml-1"
+                          >
+                            Deal ID
+                          </Label>
                           <div className="relative group/input pt-2">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
                             <Input
@@ -503,7 +540,9 @@ function VerifyContent() {
                           {searchedDeal.creatorName.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate">{searchedDeal.creatorName}</p>
+                          <p className="font-semibold text-sm truncate">
+                            {searchedDeal.creatorName}
+                          </p>
                           <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
                             <Calendar className="h-3 w-3 shrink-0" />
                             Created {formatDate(searchedDeal.createdAt)}
@@ -523,15 +562,24 @@ function VerifyContent() {
                             <Fingerprint className="h-5 w-5 text-primary" />
                           </div>
                           <div className="min-w-0">
-                            <CardTitle className="text-lg leading-tight truncate">{searchedDeal.title}</CardTitle>
+                            <CardTitle className="text-lg leading-tight truncate">
+                              {searchedDeal.title}
+                            </CardTitle>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 bg-background border-border/50">
+                              <Badge
+                                variant="outline"
+                                className="font-mono text-[10px] h-5 px-1.5 bg-background border-border/50"
+                              >
                                 {searchedDeal.publicId}
                               </Badge>
-                              {searchedDeal.status === 'confirmed' ? (
-                                <span className="text-[10px] text-emerald-600 font-medium">Sealed</span>
+                              {searchedDeal.status === "confirmed" ? (
+                                <span className="text-[10px] text-emerald-600 font-medium">
+                                  Sealed
+                                </span>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground font-medium capitalize">{searchedDeal.status}</span>
+                                <span className="text-[10px] text-muted-foreground font-medium capitalize">
+                                  {searchedDeal.status}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -543,17 +591,27 @@ function VerifyContent() {
                       {/* Compact Metadata Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x border-b bg-card/50">
                         <div className="p-3 sm:p-4 space-y-0.5 min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Recipient</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                            Recipient
+                          </div>
                           <div className="flex items-center gap-2 font-medium text-sm truncate">
                             <User className="h-3.5 w-3.5 text-primary/60 shrink-0" />
-                            <span className="truncate">{searchedDeal.recipientName || "Pending"}</span>
+                            <span className="truncate">
+                              {searchedDeal.recipientName || "Pending"}
+                            </span>
                           </div>
                         </div>
                         <div className="p-3 sm:p-4 space-y-0.5 min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Sealed Date</div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                            Sealed Date
+                          </div>
                           <div className="flex items-center gap-2 font-medium text-sm truncate">
                             <Clock className="h-3.5 w-3.5 text-primary/60 shrink-0" />
-                            <span className="truncate">{searchedDeal.confirmedAt ? formatDateTime(searchedDeal.confirmedAt) : "Not sealed"}</span>
+                            <span className="truncate">
+                              {searchedDeal.confirmedAt
+                                ? formatDateTime(searchedDeal.confirmedAt)
+                                : "Not sealed"}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -593,7 +651,9 @@ function VerifyContent() {
                                 className="flex items-center gap-2 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 mt-2"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span className="font-medium">Hashes match perfectly. Integrity verified.</span>
+                                <span className="font-medium">
+                                  Hashes match perfectly. Integrity verified.
+                                </span>
                               </motion.div>
                             )}
 
@@ -604,7 +664,9 @@ function VerifyContent() {
                                 className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg border border-destructive/20 mt-2"
                               >
                                 <AlertCircle className="h-3.5 w-3.5" />
-                                <span className="font-medium">Hash mismatch! Document may have been altered.</span>
+                                <span className="font-medium">
+                                  Hash mismatch! Document may have been altered.
+                                </span>
                               </motion.div>
                             )}
                           </div>
@@ -620,7 +682,11 @@ function VerifyContent() {
                               <FileText className="h-3.5 w-3.5" />
                               Agreement Details
                             </div>
-                            {showTerms ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            {showTerms ? (
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            )}
                           </button>
 
                           <AnimatePresence>
@@ -634,8 +700,12 @@ function VerifyContent() {
                                 <div className="bg-muted/30 rounded-lg p-3 space-y-2 border text-sm mt-1">
                                   {searchedDeal.terms.map((term, i) => (
                                     <div key={i} className="grid grid-cols-3 gap-2">
-                                      <span className="text-muted-foreground col-span-1 text-xs font-medium">{term.label}</span>
-                                      <span className="font-medium col-span-2 text-xs">{term.value}</span>
+                                      <span className="text-muted-foreground col-span-1 text-xs font-medium">
+                                        {term.label}
+                                      </span>
+                                      <span className="font-medium col-span-2 text-xs">
+                                        {term.value}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>
@@ -659,7 +729,7 @@ function VerifyContent() {
                   </Card>
 
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    {searchedDeal.status === 'confirmed' && (
+                    {searchedDeal.status === "confirmed" && (
                       <Button
                         variant="outline"
                         onClick={handleDownloadPDF}
@@ -698,8 +768,11 @@ function VerifyContent() {
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Deal Not Found</h3>
                     <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1">
-                      We couldn&apos;t find a deal with ID <span className="font-mono text-foreground bg-secondary px-1 rounded">{dealId}</span>.
-                      Please check the ID and try again.
+                      We couldn&apos;t find a deal with ID{" "}
+                      <span className="font-mono text-foreground bg-secondary px-1 rounded">
+                        {dealId}
+                      </span>
+                      . Please check the ID and try again.
                     </p>
                   </div>
                   <Button variant="outline" onClick={handleReset} className="mt-4 rounded-xl">
@@ -713,21 +786,23 @@ function VerifyContent() {
           {/* Mobile Only CTA (Bottom) */}
           <div className="lg:hidden pb-12">
             <div className="bg-secondary/30 rounded-3xl p-6 border border-border relative overflow-hidden">
-               <div className="relative z-10 text-center">
-                 <h3 className="text-xl font-bold mb-2">Ready to create real deals?</h3>
-                 <p className="text-muted-foreground mb-4 text-sm">
-                   Start creating enforceable agreements in seconds.
-                 </p>
-                 <Link href="/dashboard">
-                   <Button size="lg" className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12">
-                     Create Your First Proof
-                     <ArrowRight className="ml-2 h-4 w-4" />
-                   </Button>
-                 </Link>
-               </div>
+              <div className="relative z-10 text-center">
+                <h3 className="text-xl font-bold mb-2">Ready to create real deals?</h3>
+                <p className="text-muted-foreground mb-4 text-sm">
+                  Start creating enforceable agreements in seconds.
+                </p>
+                <Link href="/dashboard">
+                  <Button
+                    size="lg"
+                    className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
+                  >
+                    Create Your First Proof
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
-
         </div>
       </main>
     </div>

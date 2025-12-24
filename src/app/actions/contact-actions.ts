@@ -1,6 +1,6 @@
 "use server";
 
-import { z } from "zod/v4";
+import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { createServerSupabaseClient, isSupabaseConfiguredServer } from "@/lib/supabase/server";
 import { Database } from "@/lib/supabase/types";
@@ -50,7 +50,7 @@ export interface Contact {
  */
 export async function getContactsAction(): Promise<{
   contacts: Contact[];
-  error: string | null
+  error: string | null;
 }> {
   try {
     // Check if Supabase is configured
@@ -60,7 +60,9 @@ export async function getContactsAction(): Promise<{
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { contacts: [], error: "Not authenticated" };
     }
@@ -118,7 +120,9 @@ export async function createContactAction(data: {
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { contact: null, error: "Not authenticated" };
     }
@@ -190,7 +194,9 @@ export async function updateContactAction(data: {
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }
@@ -236,7 +242,9 @@ export async function deleteContactAction(contactId: string): Promise<{ error: s
 
     const supabase = await createServerSupabaseClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { error: "Not authenticated" };
     }

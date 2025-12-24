@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,8 +12,6 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
-  Copy,
-  Check,
   Inbox,
   Send,
   ArrowUpRight,
@@ -26,11 +24,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Deal, DealStatus } from "@/types";
+import { Deal } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { getUserDealsAction, voidDealAction, sendDealInvitationAction } from "@/app/actions/deal-actions";
+import {
+  getUserDealsAction,
+  voidDealAction,
+  sendDealInvitationAction,
+} from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -42,8 +44,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint, StatCardSkeleton, DealRowSkeleton, CardSkeleton } from "@/components/dashboard/shared-components";
+import {
+  dashboardStyles,
+  containerVariants,
+  itemVariants,
+  getToggleButtonClass,
+  getTabButtonClass,
+  getGridClass,
+} from "@/lib/dashboard-ui";
+import {
+  CopyableId,
+  StatCard,
+  statusConfig,
+  useSearchShortcut,
+  KeyboardHint,
+  StatCardSkeleton,
+  DealRowSkeleton,
+  CardSkeleton,
+} from "@/components/dashboard/shared-components";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
 // statusConfig imported from shared-components
@@ -62,7 +80,7 @@ const DealCard = ({
   onVerify,
   isVoiding,
   isNudging,
-  nudgeSuccess
+  nudgeSuccess,
 }: {
   deal: Deal;
   userId?: string;
@@ -80,15 +98,11 @@ const DealCard = ({
   const Icon = config.icon;
 
   return (
-    <motion.div
-      variants={itemVariants}
-      layout
-      className="group relative"
-    >
+    <motion.div variants={itemVariants} layout className="group relative">
       <Card
         className={cn(
           dashboardStyles.cardBase,
-          deal.status === 'voided' && "opacity-60 grayscale-[0.5]"
+          deal.status === "voided" && "opacity-60 grayscale-[0.5]"
         )}
         onClick={() => onNavigate(deal.publicId)}
       >
@@ -97,28 +111,47 @@ const DealCard = ({
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className={cn(
-                  "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
-                  config.bg, config.border, config.color
-                )}>
+                <div
+                  className={cn(
+                    "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+                    config.bg,
+                    config.border,
+                    config.color
+                  )}
+                >
                   <Icon className="h-4.5 w-4.5" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
-                    <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+                    <span className="font-semibold text-sm text-foreground truncate">
+                      {deal.title}
+                    </span>
+                    <Badge
+                      variant={config.badgeVariant}
+                      className="h-5 px-1.5 text-[10px] font-medium border"
+                    >
                       {config.label}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
-                    {isCreator ? <Send className="h-3 w-3 shrink-0" /> : <Inbox className="h-3 w-3 shrink-0" />}
-                    <span className="truncate">{isCreator ? `To ${deal.recipientName}` : `From ${deal.creatorName}`}</span>
+                    {isCreator ? (
+                      <Send className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <Inbox className="h-3 w-3 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {isCreator ? `To ${deal.recipientName}` : `From ${deal.creatorName}`}
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                >
                   <ArrowUpRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -137,7 +170,10 @@ const DealCard = ({
                   </Badge>
                 ))}
                 {deal.terms.length > 3 && (
-                  <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
+                  <Badge
+                    variant="outline"
+                    className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground"
+                  >
                     +{deal.terms.length - 3}
                   </Badge>
                 )}
@@ -156,7 +192,7 @@ const DealCard = ({
 
             <div className={dashboardStyles.cardFooterActions} onClick={(e) => e.stopPropagation()}>
               {/* 1. Nudge (Only if pending & creator) */}
-              {deal.status === 'pending' && isCreator && (
+              {deal.status === "pending" && isCreator && (
                 <Button
                   size="sm"
                   variant={nudgeSuccess === deal.id ? "default" : "secondary"}
@@ -196,7 +232,7 @@ const DealCard = ({
               </Button>
 
               {/* 3. Void (Only if pending & creator) */}
-              {deal.status === 'pending' && isCreator && (
+              {deal.status === "pending" && isCreator && (
                 <Button
                   size="sm"
                   variant="ghost"
@@ -217,7 +253,7 @@ const DealCard = ({
               )}
 
               {/* Sealed/Verify Button (Only if confirmed) */}
-              {deal.status === 'confirmed' && (
+              {deal.status === "confirmed" && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -270,51 +306,56 @@ export default function AgreementsPage() {
   };
 
   // Sync Data
-  const refreshDeals = async (showLoading = false) => {
-    if (!isSupabaseConfigured()) {
-      setIsLoaded(true);
-      return;
-    }
-    if (showLoading) setIsRefreshing(true);
-    const { deals } = await getUserDealsAction();
-    if (deals) setDeals(deals);
+  const refreshDeals = useCallback(
+    async (showLoading = false) => {
+      if (!isSupabaseConfigured()) {
+        setIsLoaded(true);
+        return;
+      }
+      if (showLoading) setIsRefreshing(true);
+      const { deals } = await getUserDealsAction();
+      if (deals) setDeals(deals);
 
-    setIsLoaded(true);
-    if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
-  };
+      setIsLoaded(true);
+      if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
+    },
+    [setDeals]
+  );
 
   useEffect(() => {
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals();
     }
-  }, []);
+  }, [refreshDeals]);
 
   // Filtering
   const filteredDeals = useMemo(() => {
-    let deals = storeDeals.filter(deal =>
-      deal.creatorId === user?.id || deal.recipientEmail === user?.email
+    let deals = storeDeals.filter(
+      (deal) => deal.creatorId === user?.id || deal.recipientEmail === user?.email
     );
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      deals = deals.filter(d =>
-        d.title.toLowerCase().includes(q) ||
-        d.recipientName?.toLowerCase().includes(q) ||
-        d.creatorName?.toLowerCase().includes(q) ||
-        d.publicId.toLowerCase().includes(q)
+      deals = deals.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.recipientName?.toLowerCase().includes(q) ||
+          d.creatorName?.toLowerCase().includes(q) ||
+          d.publicId.toLowerCase().includes(q)
       );
     }
 
     // Apply Filter Type
-    if (filterType === 'active') {
-      deals = deals.filter(d => d.status === 'pending' || d.status === 'sealing');
-    } else if (filterType === 'completed') {
-      deals = deals.filter(d => d.status === 'confirmed');
-    } else if (filterType === 'voided') {
-      deals = deals.filter(d => d.status === 'voided');
-    } else if (filterType === 'all') {
-      deals = deals.filter(d => d.status === 'confirmed' || d.status === 'voided');
+    if (filterType === "active") {
+      deals = deals.filter((d) => d.status === "pending" || d.status === "sealing");
+    } else if (filterType === "completed") {
+      deals = deals.filter((d) => d.status === "confirmed");
+    } else if (filterType === "voided") {
+      deals = deals.filter((d) => d.status === "voided");
+    } else if (filterType === "all") {
+      deals = deals.filter((d) => d.status === "confirmed" || d.status === "voided");
     }
 
     return deals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -322,9 +363,11 @@ export default function AgreementsPage() {
 
   // Stats
   const stats = useMemo(() => {
-    const active = storeDeals.filter(d => d.status === 'pending' || d.status === 'sealing').length;
-    const completed = storeDeals.filter(d => d.status === 'confirmed').length;
-    const voided = storeDeals.filter(d => d.status === 'voided').length;
+    const active = storeDeals.filter(
+      (d) => d.status === "pending" || d.status === "sealing"
+    ).length;
+    const completed = storeDeals.filter((d) => d.status === "confirmed").length;
+    const voided = storeDeals.filter((d) => d.status === "voided").length;
     const totalHistory = completed + voided;
     return { active, completed, voided, totalHistory };
   }, [storeDeals]);
@@ -332,20 +375,20 @@ export default function AgreementsPage() {
   // Handlers
   const handleStatClick = (type: "active" | "completed" | "voided" | "all") => {
     setFilterType(type);
-    if (type === 'active') {
-      setActiveTab('active');
+    if (type === "active") {
+      setActiveTab("active");
     } else {
-      setActiveTab('history');
+      setActiveTab("history");
     }
   };
 
   const handleTabChange = (tab: "active" | "history") => {
     setActiveTab(tab);
     // Sync filter type with tab
-    if (tab === 'active') {
-      setFilterType('active');
+    if (tab === "active") {
+      setFilterType("active");
     } else {
-      setFilterType('all');
+      setFilterType("all");
     }
   };
 
@@ -389,12 +432,13 @@ export default function AgreementsPage() {
 
   return (
     <div className={dashboardStyles.pageContainer}>
-
       {/* Header */}
       <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
           <h1 className={dashboardStyles.pageTitle}>Agreements</h1>
-          <p className={dashboardStyles.pageDescription}>Manage and track your digital handshakes</p>
+          <p className={dashboardStyles.pageDescription}>
+            Manage and track your digital handshakes
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
@@ -404,7 +448,9 @@ export default function AgreementsPage() {
             disabled={isRefreshing}
             className={dashboardStyles.syncButton}
           >
-            <RefreshCw className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")} />
+            <RefreshCw
+              className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")}
+            />
             <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
           </Button>
         </div>
@@ -421,8 +467,8 @@ export default function AgreementsPage() {
               value={stats.active}
               icon={Clock}
               colorClass="text-amber-500"
-              isActive={activeTab === 'active'}
-              onClick={() => handleStatClick('active')}
+              isActive={activeTab === "active"}
+              onClick={() => handleStatClick("active")}
               delay={0}
             />
             <StatCard
@@ -430,8 +476,8 @@ export default function AgreementsPage() {
               value={stats.completed}
               icon={CheckCircle2}
               colorClass="text-emerald-500"
-              isActive={activeTab === 'history' && filterType === 'completed'}
-              onClick={() => handleStatClick('completed')}
+              isActive={activeTab === "history" && filterType === "completed"}
+              onClick={() => handleStatClick("completed")}
               delay={0.1}
             />
             <StatCard
@@ -439,8 +485,8 @@ export default function AgreementsPage() {
               value={stats.voided}
               icon={XCircle}
               colorClass="text-destructive"
-              isActive={activeTab === 'history' && filterType === 'voided'}
-              onClick={() => handleStatClick('voided')}
+              isActive={activeTab === "history" && filterType === "voided"}
+              onClick={() => handleStatClick("voided")}
               delay={0.2}
             />
             <StatCard
@@ -448,8 +494,8 @@ export default function AgreementsPage() {
               value={stats.totalHistory}
               icon={FileCheck}
               colorClass="text-primary"
-              isActive={activeTab === 'history' && filterType === 'all'}
-              onClick={() => handleStatClick('all')}
+              isActive={activeTab === "history" && filterType === "all"}
+              onClick={() => handleStatClick("all")}
               delay={0.3}
             />
           </>
@@ -517,9 +563,9 @@ export default function AgreementsPage() {
             animate="show"
             className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
           >
-            {[...Array(6)].map((_, i) => (
+            {[...Array(6)].map((_, i) =>
               viewMode === "grid" ? <CardSkeleton key={i} /> : <DealRowSkeleton key={i} />
-            ))}
+            )}
           </motion.div>
         ) : filteredDeals.length > 0 ? (
           <motion.div
@@ -547,19 +593,24 @@ export default function AgreementsPage() {
             ))}
           </motion.div>
         ) : (
-// ...
+          // ...
           <EmptyState
             icon={FileCheck}
             title="No agreements found"
-            description={searchQuery ? "Try adjusting your search terms." :
-                         activeTab === 'active' ? "You have no active deals." : "You have no deal history."}
-            action={!searchQuery && activeTab === 'active' ? (
-              <Link href="/deal/new">
-                <Button>
-                  Create New Deal
-                </Button>
-              </Link>
-            ) : undefined}
+            description={
+              searchQuery
+                ? "Try adjusting your search terms."
+                : activeTab === "active"
+                  ? "You have no active deals."
+                  : "You have no deal history."
+            }
+            action={
+              !searchQuery && activeTab === "active" ? (
+                <Link href="/deal/new">
+                  <Button>Create New Deal</Button>
+                </Link>
+              ) : undefined
+            }
           />
         )}
       </AnimatePresence>
@@ -570,8 +621,8 @@ export default function AgreementsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Void this deal?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The deal will be permanently voided
-              and the recipient will no longer be able to sign it.
+              This action cannot be undone. The deal will be permanently voided and the recipient
+              will no longer be able to sign it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

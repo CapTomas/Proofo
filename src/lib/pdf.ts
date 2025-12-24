@@ -94,21 +94,32 @@ interface GeneratePDFOptions {
 }
 
 /**
- * Generate a PDF receipt for a sealed deal
- * @param options - Configuration options for PDF generation
- * @returns Base64 encoded PDF data or blob URL
+ * Generate a legal-grade PDF receipt for a sealed deal.
+ *
+ * This function constructs a multi-section PDF containing Branding, Deal Overview,
+ * Terms and Conditions, and the Recipient Signature. It also embeds a
+ * cryptographic seal (SHA-256 hash) and a verification link.
+ *
+ * Supports:
+ * - Light and Dark themes.
+ * - Pro vs. Free branding (Free includes "PROOFO FREE" watermark).
+ * - Automatic page breaks for long terms.
+ * - Base64 and Blob outputs.
+ *
+ * @param {GeneratePDFOptions} options - Configuration options for the PDF.
+ * @param {Deal} options.deal - The deal object containing terms and metadata.
+ * @param {string} [options.signatureDataUrl] - The base64 signature image.
+ * @param {boolean} [options.isPro] - Whether to remove watermarks for Pro users.
+ * @param {string} [options.verificationUrl] - Custom URL for the "Verify" link.
+ * @param {ThemeType} [options.theme] - "light" or "dark" theme (default: light).
+ *
+ * @returns {Promise<{ pdfBlob: Blob, pdfBase64: string }>} The generated PDF as both Blob and Base64.
  */
 export async function generateDealPDF(options: GeneratePDFOptions): Promise<{
   pdfBlob: Blob;
   pdfBase64: string;
 }> {
-  const {
-    deal,
-    signatureDataUrl,
-    isPro = false,
-    verificationUrl,
-    theme = "light",
-  } = options;
+  const { deal, signatureDataUrl, isPro = false, verificationUrl, theme = "light" } = options;
 
   const colors = THEMES[theme];
 
@@ -172,12 +183,7 @@ export async function generateDealPDF(options: GeneratePDFOptions): Promise<{
 /**
  * Draw the minimal header
  */
-function drawHeader(
-  doc: jsPDF,
-  y: number,
-  isPro: boolean,
-  colors: ThemeColors
-): number {
+function drawHeader(doc: jsPDF, y: number, isPro: boolean, colors: ThemeColors): number {
   // Logo / Brand Name
   doc.setTextColor(colors.primary);
   doc.setFontSize(FONTS.header.size);
@@ -198,14 +204,7 @@ function drawHeader(
 /**
  * Draw the Deal Overview Card
  */
-function drawDealCard(
-  doc: jsPDF,
-  y: number,
-  deal: Deal,
-  colors: ThemeColors
-): number {
-  const cardStart = y;
-
+function drawDealCard(doc: jsPDF, y: number, deal: Deal, colors: ThemeColors): number {
   // Title Label
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -269,7 +268,6 @@ function drawDealCard(
 
   currentY += 16;
 
-
   // --- Draw Card Rect ---
   const cardHeight = currentY - contentStartY;
   doc.setFillColor(colors.card);
@@ -332,12 +330,7 @@ function drawDealCard(
 /**
  * Draw Terms Card
  */
-function drawTermsCard(
-  doc: jsPDF,
-  y: number,
-  deal: Deal,
-  colors: ThemeColors
-): number {
+function drawTermsCard(doc: jsPDF, y: number, deal: Deal, colors: ThemeColors): number {
   // Label area
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -391,9 +384,9 @@ function drawTermsCard(
 
     // Divider line below (unless last)
     if (idx < deal.terms.length - 1) {
-       doc.setDrawColor(colors.border);
-       doc.setLineWidth(0.1);
-       //  doc.line(PAGE.margin + 6, currentY + h - 3, PAGE.width - PAGE.margin - 6, currentY + h - 3);
+      doc.setDrawColor(colors.border);
+      doc.setLineWidth(0.1);
+      //  doc.line(PAGE.margin + 6, currentY + h - 3, PAGE.width - PAGE.margin - 6, currentY + h - 3);
     }
 
     currentY += h;
@@ -434,22 +427,30 @@ async function drawSignatureCard(
 
   try {
     if (signatureUrl.startsWith("data:image")) {
-       // Embed image
-       doc.addImage(signatureUrl, "PNG", boxX, boxY, boxW < 100 ? boxW : 100, boxH, undefined, "FAST");
+      // Embed image
+      doc.addImage(
+        signatureUrl,
+        "PNG",
+        boxX,
+        boxY,
+        boxW < 100 ? boxW : 100,
+        boxH,
+        undefined,
+        "FAST"
+      );
     } else if (signatureUrl) {
-       // URL or placeholder
-       doc.setFontSize(9);
-       doc.setFont("helvetica", "italic");
-       doc.setTextColor(colors.textMuted);
-       doc.text("Digital Signature Recorded", boxX, boxY + 10);
+      // URL or placeholder
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(colors.textMuted);
+      doc.text("Digital Signature Recorded", boxX, boxY + 10);
     }
   } catch (e) {
-      console.warn("Signature embed error", e);
+    console.warn("Signature embed error", e);
   }
 
   return y + cardHeight + 12;
 }
-
 
 /**
  * Draw Bottom Seal & Footer
@@ -482,7 +483,7 @@ function drawSealAndFooter(
   doc.text(`ID: ${deal.publicId}`, startX, footerY);
 
   if (deal.dealSeal) {
-      doc.text(`HASH: ${deal.dealSeal.substring(0, 32)}...`, startX, footerY + 4);
+    doc.text(`HASH: ${deal.dealSeal.substring(0, 32)}...`, startX, footerY + 4);
   }
 
   const dateStr = deal.confirmedAt
@@ -495,20 +496,18 @@ function drawSealAndFooter(
   doc.setTextColor(colors.primary);
   doc.textWithLink("VERIFY DOCUMENT ->", startX, footerY + 14, { url: verifyUrl });
 
-
   // Big PROOFO watermark if not pro
   if (!isPro) {
-      // center page
-      doc.saveGraphicsState();
-      doc.setGState(new (doc as any).GState({ opacity: 0.05 }));
-      doc.setFontSize(60);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(colors.text);
-      doc.text("PROOFO FREE", PAGE.width/2, PAGE.height/2, { align: 'center', angle: 45 });
-      doc.restoreGraphicsState();
+    doc.saveGraphicsState();
+    // Use the GState function from jsPDF to create a graphics state for transparency
+    doc.setGState(doc.GState({ opacity: 0.05 }));
+    doc.setFontSize(60);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(colors.text);
+    doc.text("PROOFO FREE", PAGE.width / 2, PAGE.height / 2, { align: "center", angle: 45 });
+    doc.restoreGraphicsState();
   }
 }
-
 
 export function downloadPDF(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);

@@ -5,7 +5,10 @@ import { Database } from "./types";
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 // Sign in with email (magic link + OTP)
-export async function signInWithEmail(email: string, redirectTo?: string): Promise<{ error: Error | null }> {
+export async function signInWithEmail(
+  email: string,
+  redirectTo?: string
+): Promise<{ error: Error | null }> {
   if (!isSupabaseConfigured()) {
     return { error: new Error("Supabase is not configured. Please set up environment variables.") };
   }
@@ -14,7 +17,9 @@ export async function signInWithEmail(email: string, redirectTo?: string): Promi
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: redirectTo || `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
+      emailRedirectTo:
+        redirectTo ||
+        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
       shouldCreateUser: true,
       // This doesn't generate a 6-digit code by default in Supabase
       // The 6-digit code feature needs to be enabled in Supabase Dashboard:
@@ -26,20 +31,26 @@ export async function signInWithEmail(email: string, redirectTo?: string): Promi
 }
 
 // Verify OTP token
-export async function verifyOtp(email: string, token: string): Promise<{ error: Error | null; session: unknown }> {
+export async function verifyOtp(
+  email: string,
+  token: string
+): Promise<{ error: Error | null; session: unknown }> {
   if (!isSupabaseConfigured()) {
-    return { error: new Error("Supabase is not configured. Please set up environment variables."), session: null };
+    return {
+      error: new Error("Supabase is not configured. Please set up environment variables."),
+      session: null,
+    };
   }
 
   const { data, error } = await supabase.auth.verifyOtp({
     email,
     token,
-    type: 'email',
+    type: "email",
   });
 
   return {
     error: error ? new Error(error.message) : null,
-    session: data.session
+    session: data.session,
   };
 }
 
@@ -52,7 +63,9 @@ export async function signInWithGoogle(redirectTo?: string): Promise<{ error: Er
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: redirectTo || `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
+      redirectTo:
+        redirectTo ||
+        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
     },
   });
 
@@ -85,7 +98,10 @@ export async function getSession() {
 
   // SECURITY: Use getUser() instead of getSession() because getSession()
   // only reads cookies without validating the JWT server-side
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
   if (error || !user) {
     return { session: null, user: null };
@@ -101,7 +117,9 @@ export async function getCurrentUser(): Promise<User | null> {
     return null;
   }
 
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
   if (!authUser) {
     return null;
@@ -118,7 +136,11 @@ export async function getCurrentUser(): Promise<User | null> {
     return {
       id: authUser.id,
       email: authUser.email || "",
-      name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "User",
+      name:
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        authUser.email?.split("@")[0] ||
+        "User",
       avatarUrl: authUser.user_metadata?.avatar_url,
       createdAt: authUser.created_at,
     };
@@ -136,23 +158,29 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 // Update user profile
-export async function updateProfile(updates: Partial<Pick<User, "name" | "avatarUrl">>): Promise<{ error: Error | null }> {
+export async function updateProfile(
+  updates: Partial<Pick<User, "name" | "avatarUrl">>
+): Promise<{ error: Error | null }> {
   if (!isSupabaseConfigured()) {
     return { error: new Error("Supabase is not configured") };
   }
 
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
   if (!authUser) {
     return { error: new Error("Not authenticated") };
   }
 
+  // We use a broader cast here because the generated Database types are not being
+  // correctly inferred by the Supabase client in this context, leading to 'never' type errors.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from("profiles")
     .update({
-      name: updates.name,
-      avatar_url: updates.avatarUrl,
+      name: updates.name ?? null,
+      avatar_url: updates.avatarUrl ?? null,
     })
     .eq("id", authUser.id);
 
@@ -165,7 +193,9 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
     return { unsubscribe: () => {} };
   }
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === "SIGNED_IN" && session?.user) {
       const user = await getCurrentUser();
       callback(user);

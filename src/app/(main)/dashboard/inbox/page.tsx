@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Search,
-  Clock,
   CheckCircle2,
   XCircle,
   RefreshCw,
-  Copy,
-  Check,
   User,
   ArrowUpRight,
   FileSignature,
@@ -22,19 +19,32 @@ import {
   List as ListIcon,
   Inbox as InboxIcon,
   PenLine,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
-import Link from "next/link";
-import { Deal, DealStatus } from "@/types";
+import { Deal } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
-import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint, StatCardSkeleton, DealRowSkeleton, CardSkeleton } from "@/components/dashboard/shared-components";
-
-// statusConfig imported from shared-components
+import {
+  dashboardStyles,
+  containerVariants,
+  itemVariants,
+  getToggleButtonClass,
+  getTabButtonClass,
+  getGridClass,
+} from "@/lib/dashboard-ui";
+import {
+  CopyableId,
+  StatCard,
+  statusConfig,
+  useSearchShortcut,
+  KeyboardHint,
+  StatCardSkeleton,
+  DealRowSkeleton,
+  CardSkeleton,
+} from "@/components/dashboard/shared-components";
 // Note: Inbox uses "To Sign" label for pending instead of "Pending"
 const inboxStatusConfig = {
   ...statusConfig,
@@ -46,27 +56,17 @@ const inboxStatusConfig = {
 
 // StatCard imported from shared-components
 
-const InboxCard = ({
-  deal,
-  onNavigate,
-}: {
-  deal: Deal;
-  onNavigate: (dealId: string) => void;
-}) => {
+const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: string) => void }) => {
   const config = inboxStatusConfig[deal.status];
   const Icon = config.icon;
-  const isPending = deal.status === 'pending';
+  const isPending = deal.status === "pending";
 
   return (
-    <motion.div
-      variants={itemVariants}
-      layout
-      className="group relative"
-    >
+    <motion.div variants={itemVariants} layout className="group relative">
       <Card
         className={cn(
           dashboardStyles.cardBase,
-          deal.status === 'voided' && "opacity-60 grayscale-[0.5]",
+          deal.status === "voided" && "opacity-60 grayscale-[0.5]",
           isPending && "ring-1 ring-amber-500/20 border-amber-500/20"
         )}
         onClick={() => onNavigate(deal.publicId)}
@@ -76,16 +76,25 @@ const InboxCard = ({
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className={cn(
-                  "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
-                  config.bg, config.border, config.color
-                )}>
+                <div
+                  className={cn(
+                    "h-9 w-9 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+                    config.bg,
+                    config.border,
+                    config.color
+                  )}
+                >
                   <Icon className="h-4.5 w-4.5" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground truncate">{deal.title}</span>
-                    <Badge variant={config.badgeVariant} className="h-5 px-1.5 text-[10px] font-medium border">
+                    <span className="font-semibold text-sm text-foreground truncate">
+                      {deal.title}
+                    </span>
+                    <Badge
+                      variant={config.badgeVariant}
+                      className="h-5 px-1.5 text-[10px] font-medium border"
+                    >
                       {config.label}
                     </Badge>
                   </div>
@@ -97,7 +106,11 @@ const InboxCard = ({
               </div>
 
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                >
                   <ArrowUpRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -116,7 +129,10 @@ const InboxCard = ({
                   </Badge>
                 ))}
                 {deal.terms.length > 3 && (
-                  <Badge variant="outline" className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground">
+                  <Badge
+                    variant="outline"
+                    className="font-normal text-[10px] px-2 py-0.5 text-muted-foreground"
+                  >
                     +{deal.terms.length - 3}
                   </Badge>
                 )}
@@ -185,25 +201,29 @@ export default function InboxPage() {
   };
 
   // Sync Data
-  const refreshDeals = async (showLoading = false) => {
-    if (!isSupabaseConfigured()) {
-      setIsLoaded(true);
-      return;
-    }
-    if (showLoading) setIsRefreshing(true);
-    const { deals } = await getUserDealsAction();
-    if (deals) setDeals(deals);
+  const refreshDeals = useCallback(
+    async (showLoading = false) => {
+      if (!isSupabaseConfigured()) {
+        setIsLoaded(true);
+        return;
+      }
+      if (showLoading) setIsRefreshing(true);
+      const { deals } = await getUserDealsAction();
+      if (deals) setDeals(deals);
 
-    setIsLoaded(true);
-    if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
-  };
+      setIsLoaded(true);
+      if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
+    },
+    [setDeals]
+  );
 
   useEffect(() => {
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals();
     }
-  }, []);
+  }, [refreshDeals]);
 
   // Data Logic
   const inboxDeals = useMemo(() => {
@@ -211,10 +231,11 @@ export default function InboxPage() {
 
     // Filter deals where the user is the recipient (by email)
     return storeDeals.filter(
-      deal => deal.recipientEmail?.toLowerCase() === user.email.toLowerCase() &&
-              deal.creatorId !== user.id
+      (deal) =>
+        deal.recipientEmail?.toLowerCase() === user.email.toLowerCase() &&
+        deal.creatorId !== user.id
     );
-  }, [storeDeals, user?.email, user?.id]);
+  }, [storeDeals, user]);
 
   // Filtering
   const filteredDeals = useMemo(() => {
@@ -222,22 +243,23 @@ export default function InboxPage() {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      deals = deals.filter(d =>
-        d.title.toLowerCase().includes(q) ||
-        d.creatorName?.toLowerCase().includes(q) ||
-        d.publicId.toLowerCase().includes(q)
+      deals = deals.filter(
+        (d) =>
+          d.title.toLowerCase().includes(q) ||
+          d.creatorName?.toLowerCase().includes(q) ||
+          d.publicId.toLowerCase().includes(q)
       );
     }
 
     // Apply Filter Type
-    if (filterType === 'pending') {
-      deals = deals.filter(d => d.status === 'pending' || d.status === 'sealing');
-    } else if (filterType === 'signed') {
-      deals = deals.filter(d => d.status === 'confirmed');
-    } else if (filterType === 'voided') {
-      deals = deals.filter(d => d.status === 'voided');
-    } else if (filterType === 'all') {
-      deals = deals.filter(d => d.status === 'confirmed' || d.status === 'voided');
+    if (filterType === "pending") {
+      deals = deals.filter((d) => d.status === "pending" || d.status === "sealing");
+    } else if (filterType === "signed") {
+      deals = deals.filter((d) => d.status === "confirmed");
+    } else if (filterType === "voided") {
+      deals = deals.filter((d) => d.status === "voided");
+    } else if (filterType === "all") {
+      deals = deals.filter((d) => d.status === "confirmed" || d.status === "voided");
     }
 
     return deals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -245,9 +267,11 @@ export default function InboxPage() {
 
   // Stats
   const stats = useMemo(() => {
-    const pending = inboxDeals.filter(d => d.status === 'pending' || d.status === 'sealing').length;
-    const signed = inboxDeals.filter(d => d.status === 'confirmed').length;
-    const voided = inboxDeals.filter(d => d.status === 'voided').length;
+    const pending = inboxDeals.filter(
+      (d) => d.status === "pending" || d.status === "sealing"
+    ).length;
+    const signed = inboxDeals.filter((d) => d.status === "confirmed").length;
+    const voided = inboxDeals.filter((d) => d.status === "voided").length;
     const total = inboxDeals.length;
     return { pending, signed, voided, total };
   }, [inboxDeals]);
@@ -255,25 +279,24 @@ export default function InboxPage() {
   // Handlers
   const handleStatClick = (type: "pending" | "signed" | "voided" | "all") => {
     setFilterType(type);
-    if (type === 'pending') {
-      setActiveTab('to_sign');
+    if (type === "pending") {
+      setActiveTab("to_sign");
     } else {
-      setActiveTab('history');
+      setActiveTab("history");
     }
   };
 
   const handleTabChange = (tab: "to_sign" | "history") => {
     setActiveTab(tab);
-    if (tab === 'to_sign') {
-      setFilterType('pending');
+    if (tab === "to_sign") {
+      setFilterType("pending");
     } else {
-      setFilterType('all');
+      setFilterType("all");
     }
   };
 
   return (
     <div className={dashboardStyles.pageContainer}>
-
       {/* Header */}
       <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
@@ -288,7 +311,9 @@ export default function InboxPage() {
             disabled={isRefreshing}
             className={dashboardStyles.syncButton}
           >
-            <RefreshCw className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")} />
+            <RefreshCw
+              className={cn(dashboardStyles.iconMd, "sm:mr-1.5", isRefreshing && "animate-spin")}
+            />
             <span className="hidden sm:inline">{isRefreshing ? "Syncing..." : "Sync"}</span>
           </Button>
         </div>
@@ -305,8 +330,8 @@ export default function InboxPage() {
               value={stats.pending}
               icon={PenLine}
               colorClass="text-amber-500"
-              isActive={activeTab === 'to_sign'}
-              onClick={() => handleStatClick('pending')}
+              isActive={activeTab === "to_sign"}
+              onClick={() => handleStatClick("pending")}
               delay={0}
             />
             <StatCard
@@ -314,8 +339,8 @@ export default function InboxPage() {
               value={stats.signed}
               icon={CheckCircle2}
               colorClass="text-emerald-500"
-              isActive={activeTab === 'history' && filterType === 'signed'}
-              onClick={() => handleStatClick('signed')}
+              isActive={activeTab === "history" && filterType === "signed"}
+              onClick={() => handleStatClick("signed")}
               delay={0.1}
             />
             <StatCard
@@ -323,8 +348,8 @@ export default function InboxPage() {
               value={stats.voided}
               icon={XCircle}
               colorClass="text-destructive"
-              isActive={activeTab === 'history' && filterType === 'voided'}
-              onClick={() => handleStatClick('voided')}
+              isActive={activeTab === "history" && filterType === "voided"}
+              onClick={() => handleStatClick("voided")}
               delay={0.2}
             />
             <StatCard
@@ -332,8 +357,8 @@ export default function InboxPage() {
               value={stats.total}
               icon={InboxIcon}
               colorClass="text-primary"
-              isActive={activeTab === 'history' && filterType === 'all'}
-              onClick={() => handleStatClick('all')}
+              isActive={activeTab === "history" && filterType === "all"}
+              onClick={() => handleStatClick("all")}
               delay={0.3}
             />
           </>
@@ -401,9 +426,9 @@ export default function InboxPage() {
             animate="show"
             className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
           >
-            {[...Array(6)].map((_, i) => (
+            {[...Array(6)].map((_, i) =>
               viewMode === "grid" ? <CardSkeleton key={i} /> : <DealRowSkeleton key={i} />
-            ))}
+            )}
           </motion.div>
         ) : filteredDeals.length > 0 ? (
           <motion.div
@@ -415,15 +440,11 @@ export default function InboxPage() {
             className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
           >
             {filteredDeals.map((deal) => (
-              <InboxCard
-                key={deal.id}
-                deal={deal}
-                onNavigate={handleNavigate}
-              />
+              <InboxCard key={deal.id} deal={deal} onNavigate={handleNavigate} />
             ))}
           </motion.div>
         ) : (
-// ...
+          // ...
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -434,8 +455,11 @@ export default function InboxPage() {
             </div>
             <h3 className={dashboardStyles.emptyStateTitle}>No inbox items</h3>
             <p className={dashboardStyles.emptyStateDescription}>
-              {searchQuery ? "Try adjusting your search terms." :
-               activeTab === 'to_sign' ? "You're all caught up! No deals waiting for you." : "No history found."}
+              {searchQuery
+                ? "Try adjusting your search terms."
+                : activeTab === "to_sign"
+                  ? "You're all caught up! No deals waiting for you."
+                  : "No history found."}
             </p>
           </motion.div>
         )}

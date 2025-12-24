@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardStyles } from "@/lib/dashboard-ui";
 import { CardSkeleton } from "@/components/dashboard/skeleton-components";
-import { Search, LayoutGrid, List as ListIcon, Users, RefreshCw, UserPlus } from "lucide-react";
+import { Search, LayoutGrid, List as ListIcon, RefreshCw, UserPlus } from "lucide-react";
 
 export default function PeopleLoading() {
   return (
@@ -31,17 +31,21 @@ export default function PeopleLoading() {
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
           <div className={dashboardStyles.toggleGroup}>
-             <Skeleton className="h-8 w-24 rounded-lg opacity-20" />
-             <Skeleton className="h-8 w-24 rounded-lg opacity-10" />
+            <Skeleton className="h-8 w-24 rounded-lg opacity-20" />
+            <Skeleton className="h-8 w-24 rounded-lg opacity-10" />
           </div>
 
           <div className={dashboardStyles.divider} />
 
           <div className={dashboardStyles.toggleGroup}>
-            <div className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonActive} opacity-50`}>
+            <div
+              className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonActive} opacity-50`}
+            >
               <LayoutGrid className="h-4 w-4" />
             </div>
-            <div className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonInactive} opacity-30`}>
+            <div
+              className={`${dashboardStyles.toggleButton} ${dashboardStyles.toggleButtonInactive} opacity-30`}
+            >
               <ListIcon className="h-4 w-4" />
             </div>
           </div>

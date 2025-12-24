@@ -6,13 +6,23 @@ import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Proofo - Digital Handshake",
-  description: "Create enforceable proof of any deal in 30 seconds. No signup required for the other party. Evidence that holds up.",
-  keywords: ["digital agreement", "handshake", "contract", "signature", "proof", "legal", "enforceable"],
+  description:
+    "Create enforceable proof of any deal in 30 seconds. No signup required for the other party. Evidence that holds up.",
+  keywords: [
+    "digital agreement",
+    "handshake",
+    "contract",
+    "signature",
+    "proof",
+    "legal",
+    "enforceable",
+  ],
   authors: [{ name: "Proofo" }],
   creator: "Proofo",
   openGraph: {
     title: "Proofo - Digital Handshake",
-    description: "Create enforceable proof of any deal in 30 seconds. No signup required for the other party.",
+    description:
+      "Create enforceable proof of any deal in 30 seconds. No signup required for the other party.",
     type: "website",
     siteName: "Proofo",
   },
@@ -26,12 +36,8 @@ export const metadata: Metadata = {
     follow: true,
   },
   icons: {
-    icon: [
-      { url: "/favicon.ico" },
-    ],
-    apple: [
-      { url: "/favicon.ico" },
-    ],
+    icon: [{ url: "/favicon.ico" }],
+    apple: [{ url: "/favicon.ico" }],
   },
 };
 
@@ -55,13 +61,11 @@ export default function RootLayout({
       <body className="min-h-screen font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
           <Toaster richColors position="bottom-right" theme="system" />
         </ThemeProvider>
       </body>

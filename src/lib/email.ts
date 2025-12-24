@@ -7,9 +7,7 @@ import { logger } from "./logger";
 
 // Initialize Resend client
 // Note: RESEND_API_KEY should be set in environment variables
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Email configuration
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Proofo <onboarding@resend.dev>";
@@ -108,24 +106,34 @@ function generateReceiptEmailHTML(deal: Deal): string {
               </table>
 
               <!-- Terms Section -->
-              ${deal.terms.length > 0 ? `
+              ${
+                deal.terms.length > 0
+                  ? `
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
                 <tr>
                   <td>
                     <h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">Terms</h3>
-                    ${deal.terms.map((term, index) => `
+                    ${deal.terms
+                      .map(
+                        (term, index) => `
                     <div style="padding: 8px 0; ${index < deal.terms.length - 1 ? "border-bottom: 1px solid #e5e7eb;" : ""}">
                       <span style="color: #6b7280; font-size: 13px;">${escapeHtml(term.label)}:</span>
                       <span style="color: #1f2937; font-size: 13px; font-weight: 500; margin-left: 8px;">${escapeHtml(term.value)}</span>
                     </div>
-                    `).join("")}
+                    `
+                      )
+                      .join("")}
                   </td>
                 </tr>
               </table>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <!-- SHA-256 Hash -->
-              ${deal.dealSeal ? `
+              ${
+                deal.dealSeal
+                  ? `
               <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
                 <tr>
                   <td style="background-color: #f3f4f6; border-radius: 6px; padding: 12px;">
@@ -134,7 +142,9 @@ function generateReceiptEmailHTML(deal: Deal): string {
                   </td>
                 </tr>
               </table>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <!-- CTA Buttons -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -194,12 +204,20 @@ Creator: ${deal.creatorName}
 Deal ID: ${deal.publicId}
 Sealed At: ${deal.confirmedAt ? formatDateTime(deal.confirmedAt) : "N/A"}
 
-${deal.terms.length > 0 ? `TERMS
+${
+  deal.terms.length > 0
+    ? `TERMS
 -----
-${deal.terms.map(term => `${term.label}: ${term.value}`).join("\n")}` : ""}
+${deal.terms.map((term) => `${term.label}: ${term.value}`).join("\n")}`
+    : ""
+}
 
-${deal.dealSeal ? `CRYPTOGRAPHIC SEAL (SHA-256)
-${deal.dealSeal}` : ""}
+${
+  deal.dealSeal
+    ? `CRYPTOGRAPHIC SEAL (SHA-256)
+${deal.dealSeal}`
+    : ""
+}
 
 VIEW YOUR AGREEMENT:
 ${APP_URL}/d/${deal.publicId}

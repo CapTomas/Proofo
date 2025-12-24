@@ -10,11 +10,9 @@ import {
   Bell,
   Palette,
   CreditCard,
-  Check,
   Camera,
   Monitor,
   Smartphone,
-  Globe,
   Trash2,
   Moon,
   Sun,
@@ -22,7 +20,6 @@ import {
   RefreshCw,
   Fingerprint,
   Zap,
-  ChevronRight,
   LogOut,
   Mail,
   AlertTriangle,
@@ -32,9 +29,6 @@ import {
   Type,
   MousePointer2,
   Download,
-  Receipt,
-  CreditCard as CardIcon,
-  PieChart,
   DollarSign,
   Clock,
   Languages,
@@ -42,35 +36,48 @@ import {
   MessageSquare,
   FileText,
   Calendar,
-  Volume2,
   VolumeX,
-  BellRing,
   BellOff,
   AtSign,
   Send,
-  Activity
+  Activity,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useAppStore } from "@/store";
-import { dashboardStyles, containerVariants, itemVariants, getTabButtonClass } from "@/lib/dashboard-ui";
+import {
+  dashboardStyles,
+  containerVariants,
+  itemVariants,
+  getTabButtonClass,
+} from "@/lib/dashboard-ui";
 import { cn, getUserInitials } from "@/lib/utils";
 import {
-  SettingsHeaderSkeleton,
-  SettingsTabsSkeleton,
-  SettingsCardSkeleton,
   SettingsGroupSkeleton,
-  SettingsProfileSkeleton
+  SettingsProfileSkeleton,
 } from "@/components/dashboard/shared-components";
 import {
   updateProfileAction,
@@ -83,7 +90,7 @@ import {
   toggleDoNotDisturbAction,
   NotificationPreferences,
   DoNotDisturbStatus,
-  downloadUserDataAction
+  downloadUserDataAction,
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { CopyableId } from "@/components/dashboard/shared-components";
@@ -121,17 +128,21 @@ const CURRENCIES = [
 
 // --- SUB-COMPONENTS ---
 
-const SettingGroup = ({ title, description, children }: { title: string, description?: string, children: React.ReactNode }) => (
+const SettingGroup = ({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) => (
   <div className="space-y-4">
     <div className="flex flex-col gap-1">
-      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-        {title}
-      </h3>
+      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">{title}</h3>
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
     </div>
-    <div className="grid gap-4">
-      {children}
-    </div>
+    <div className="grid gap-4">{children}</div>
   </div>
 );
 
@@ -142,15 +153,15 @@ const SettingCard = ({
   children,
   action,
   variant = "default",
-  onClick
+  onClick,
 }: {
-  icon?: LucideIcon,
-  title: string,
-  description?: string,
-  children?: React.ReactNode,
-  action?: React.ReactNode,
-  variant?: "default" | "danger" | "highlight",
-  onClick?: () => void
+  icon?: LucideIcon;
+  title: string;
+  description?: string;
+  children?: React.ReactNode;
+  action?: React.ReactNode;
+  variant?: "default" | "danger" | "highlight";
+  onClick?: () => void;
 }) => (
   <Card
     className={cn(
@@ -165,22 +176,39 @@ const SettingCard = ({
     <CardContent className="p-4 sm:p-5">
       <div className="flex items-start gap-4">
         {Icon && (
-          <div className={cn(
-            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm transition-colors",
-            variant === "danger" ? "bg-destructive/10 text-destructive border-destructive/20" :
-            variant === "highlight" ? "bg-primary/10 text-primary border-primary/20" :
-            "bg-background border-border/50 text-muted-foreground"
-          )}>
+          <div
+            className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border shadow-sm transition-colors",
+              variant === "danger"
+                ? "bg-destructive/10 text-destructive border-destructive/20"
+                : variant === "highlight"
+                  ? "bg-primary/10 text-primary border-primary/20"
+                  : "bg-background border-border/50 text-muted-foreground"
+            )}
+          >
             <Icon className="h-5 w-5" />
           </div>
         )}
         <div className="flex-1 min-w-0 space-y-1 py-0.5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h4 className={cn("font-semibold text-sm text-foreground", variant === "danger" && "text-destructive")}>{title}</h4>
-              {description && <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>}
+              <h4
+                className={cn(
+                  "font-semibold text-sm text-foreground",
+                  variant === "danger" && "text-destructive"
+                )}
+              >
+                {title}
+              </h4>
+              {description && (
+                <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
+              )}
             </div>
-            {action && <div className="shrink-0" onClick={e => e.stopPropagation()}>{action}</div>}
+            {action && (
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                {action}
+              </div>
+            )}
           </div>
           {children && <div className="pt-3">{children}</div>}
         </div>
@@ -191,7 +219,13 @@ const SettingCard = ({
 
 // --- TAB CONTENTS ---
 
-const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: SettingsUser) => void }) => {
+const ProfileTab = ({
+  user,
+  setUser,
+}: {
+  user: SettingsUser;
+  setUser: (user: SettingsUser) => void;
+}) => {
   const [name, setName] = useState(user?.name || "");
   const [jobTitle, setJobTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -334,13 +368,16 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
 
         // Save to LocalStorage if demo mode
         if (!isSupabaseConfigured() || user.id.startsWith("demo-")) {
-           localStorage.setItem("proofo-demo-profile", JSON.stringify({
+          localStorage.setItem(
+            "proofo-demo-profile",
+            JSON.stringify({
               name: name.trim(),
               jobTitle: jobTitle.trim(),
               location: location.trim(),
               currency,
-              signatureUrl
-           }));
+              signatureUrl,
+            })
+          );
         }
       }
       toast.success("Profile saved successfully");
@@ -399,18 +436,23 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
                 {/* Signature Preview */}
                 <div className="w-full bg-secondary/30 rounded-xl p-4 border border-dashed border-border/60">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Stored Signature</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                      Stored Signature
+                    </span>
                     <PenLine className="h-3 w-3 text-muted-foreground" />
                   </div>
                   <div className="h-16 flex items-center justify-center bg-white rounded-lg">
                     {signatureUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- base64 data URL for signature
                       <img
                         src={signatureUrl}
                         alt="Your signature"
                         className="h-14 object-contain"
                       />
                     ) : (
-                      <p className="text-xs text-muted-foreground italic opacity-50">No signature saved yet</p>
+                      <p className="text-xs text-muted-foreground italic opacity-50">
+                        No signature saved yet
+                      </p>
                     )}
                   </div>
                   <Button
@@ -433,7 +475,10 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
                 <span className="font-medium text-primary">{profileCompletion}%</span>
               </div>
               <div className="h-1.5 w-full bg-secondary rounded-full mt-2 overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${profileCompletion}%` }} />
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  style={{ width: `${profileCompletion}%` }}
+                />
               </div>
             </div>
           )}
@@ -496,7 +541,9 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
               <>
                 {/* Personal Info Group */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Personal Information</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Personal Information
+                  </h4>
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <Label htmlFor="name">Display Name</Label>
@@ -560,7 +607,9 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
 
                 {/* Regional Preferences Group */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Regional Preferences</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Regional Preferences
+                  </h4>
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <Label htmlFor="currency">Default Currency</Label>
@@ -573,11 +622,15 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
                         </SelectTrigger>
                         <SelectContent>
                           {CURRENCIES.map((c) => (
-                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            <SelectItem key={c.value} value={c.value}>
+                              {c.label}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-[10px] text-muted-foreground">Used as the default for new deals.</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Used as the default for new deals.
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -593,7 +646,9 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
                           <SelectItem value="en">English (US)</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-[10px] text-muted-foreground">More languages coming soon.</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        More languages coming soon.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -657,7 +712,7 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `proofo-export-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `proofo-export-${new Date().toISOString().split("T")[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -713,7 +768,12 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
             description="Secure your account with 2FA."
             action={
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border"
+                >
+                  Coming Soon
+                </Badge>
                 <Switch disabled />
               </div>
             }
@@ -724,7 +784,12 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
             description="Enable biometric login."
             action={
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border">Coming Soon</Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] h-4 px-1.5 bg-muted text-muted-foreground border-border"
+                >
+                  Coming Soon
+                </Badge>
                 <Switch disabled />
               </div>
             }
@@ -758,7 +823,9 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">User ID</p>
-                  <p className="font-mono text-xs text-muted-foreground">{user?.id?.slice(0, 8)}...{user?.id?.slice(-4)}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {user?.id?.slice(0, 8)}...{user?.id?.slice(-4)}
+                  </p>
                 </div>
               </div>
               <CopyableId id={user?.id || ""} className="h-7" />
@@ -781,7 +848,7 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
                 variant="outline"
                 size="sm"
                 className="h-8 text-xs"
-                onClick={() => window.location.href = "/login"}
+                onClick={() => (window.location.href = "/login")}
               >
                 Sign Out
               </Button>
@@ -804,7 +871,11 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
                 onClick={handleExportData}
                 disabled={isDownloading}
               >
-                {isDownloading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                {isDownloading ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
                 Export Data
               </Button>
             </div>
@@ -831,7 +902,10 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
         >
           <div className="flex items-start gap-2 mt-2 p-3 bg-destructive/10 rounded-lg text-xs text-destructive">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>Warning: This action is irreversible. All your deals, templates, and history will be lost forever.</p>
+            <p>
+              Warning: This action is irreversible. All your deals, templates, and history will be
+              lost forever.
+            </p>
           </div>
         </SettingCard>
       </SettingGroup>
@@ -864,8 +938,8 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
-                This will permanently delete your account, all your deals, contacts, and preferences.
-                Type <strong className="text-destructive">DELETE</strong> to confirm.
+                This will permanently delete your account, all your deals, contacts, and
+                preferences. Type <strong className="text-destructive">DELETE</strong> to confirm.
               </p>
 
               <Input
@@ -923,14 +997,21 @@ const AppearancePreview = ({ compact }: { compact: boolean }) => (
     </div>
     <div className={cn("p-4 space-y-3", compact ? "space-y-2" : "space-y-4")}>
       <div className="flex items-center gap-3">
-        <div className={cn("rounded-lg bg-primary/10 flex items-center justify-center text-primary", compact ? "h-8 w-8" : "h-10 w-10")}>
+        <div
+          className={cn(
+            "rounded-lg bg-primary/10 flex items-center justify-center text-primary",
+            compact ? "h-8 w-8" : "h-10 w-10"
+          )}
+        >
           <Zap className={cn(compact ? "h-4 w-4" : "h-5 w-5")} />
         </div>
         <div className="space-y-1 flex-1">
           <div className="h-2 w-24 bg-foreground/20 rounded-full" />
           <div className="h-1.5 w-16 bg-muted-foreground/30 rounded-full" />
         </div>
-        <Badge variant="outline" className="text-[10px]">Preview</Badge>
+        <Badge variant="outline" className="text-[10px]">
+          Preview
+        </Badge>
       </div>
       <div className="h-16 bg-secondary/30 rounded-lg border border-dashed border-border/50 w-full flex items-center justify-center">
         <div className="h-1.5 w-32 bg-muted-foreground/10 rounded-full" />
@@ -956,10 +1037,11 @@ const AppearanceTab = () => {
     isLoading: appearanceLoading,
     setCompactMode,
     setFontScale,
-    setReducedMotion
+    setReducedMotion,
   } = useAppearance();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -1008,15 +1090,24 @@ const AppearanceTab = () => {
                       : "border-border bg-card hover:border-primary/50 hover:bg-secondary/40 hover:shadow-md"
                   )}
                 >
-                  <div className={cn(
-                    "h-14 w-14 rounded-full flex items-center justify-center transition-all duration-200 border-2 shadow-md",
-                    isActive
-                      ? "bg-primary text-primary-foreground border-primary shadow-primary/25"
-                      : "bg-secondary/80 border-border/80 text-foreground group-hover:bg-secondary group-hover:border-primary/30 group-hover:scale-105"
-                  )}>
+                  <div
+                    className={cn(
+                      "h-14 w-14 rounded-full flex items-center justify-center transition-all duration-200 border-2 shadow-md",
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary shadow-primary/25"
+                        : "bg-secondary/80 border-border/80 text-foreground group-hover:bg-secondary group-hover:border-primary/30 group-hover:scale-105"
+                    )}
+                  >
                     <Icon className="h-7 w-7" strokeWidth={2} />
                   </div>
-                  <span className={cn("text-sm font-semibold", isActive ? "text-primary" : "text-foreground")}>{t.label}</span>
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      isActive ? "text-primary" : "text-foreground"
+                    )}
+                  >
+                    {t.label}
+                  </span>
                   {isActive && (
                     <motion.div
                       layoutId="active-theme-indicator"
@@ -1089,8 +1180,12 @@ const AppearanceTab = () => {
       <div className="lg:col-span-1">
         <div className="sticky top-24 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Live Preview</h3>
-            <Badge variant="outline" className="text-[10px]">Active</Badge>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Live Preview
+            </h3>
+            <Badge variant="outline" className="text-[10px]">
+              Active
+            </Badge>
           </div>
           <AppearancePreview compact={compactMode} />
           <p className="text-xs text-muted-foreground text-center">
@@ -1098,155 +1193,6 @@ const AppearanceTab = () => {
           </p>
         </div>
       </div>
-    </div>
-  );
-};
-
-
-// --- BILLING COMPONENTS ---
-
-const VisualCreditCard = ({ isPro }: { isPro: boolean }) => (
-  <div className={cn(
-    "relative w-full aspect-[1.586] rounded-2xl p-6 flex flex-col justify-between overflow-hidden text-white shadow-xl transition-all duration-500",
-    isPro
-      ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700"
-      : "bg-gradient-to-br from-slate-400 to-slate-500 grayscale opacity-80"
-  )}>
-    {/* Background Pattern */}
-    <div className="absolute inset-0 opacity-20">
-      <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white blur-3xl" />
-      <div className="absolute -left-10 -bottom-10 w-40 h-40 rounded-full bg-primary blur-3xl" />
-    </div>
-
-    <div className="relative z-10 flex justify-between items-start">
-      <div className="flex gap-2 items-center">
-        <div className="w-8 h-5 rounded bg-yellow-200/80" /> {/* Chip */}
-        <Zap className="h-4 w-4 text-white/50" />
-      </div>
-      <span className="font-bold tracking-wider text-lg italic">VISA</span>
-    </div>
-
-    <div className="relative z-10 space-y-4">
-      <div className="font-mono text-lg tracking-widest text-shadow-sm">
-        {isPro ? "•••• •••• •••• 4242" : "•••• •••• •••• ••••"}
-      </div>
-      <div className="flex justify-between items-end">
-        <div className="space-y-0.5">
-          <div className="text-[8px] uppercase tracking-widest text-white/60">Card Holder</div>
-          <div className="font-medium tracking-wide text-sm">ALEX JOHNSON</div>
-        </div>
-        <div className="space-y-0.5">
-          <div className="text-[8px] uppercase tracking-widest text-white/60">Expires</div>
-          <div className="font-medium tracking-wide text-sm">12/28</div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// --- BILLING TAB ---
-
-const BillingTabLegacy = ({ user }: { user: SettingsUser }) => {
-  const isPro = user?.isPro || false;
-
-  return (
-    <div className="space-y-8">
-      {/* Current Plan Status */}
-      <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default overflow-hidden relative")}>
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <CardContent className="p-6 md:p-8">
-          <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-primary uppercase tracking-wider flex items-center gap-2">
-                <Sparkles className="h-4 w-4" /> Current Plan
-              </h3>
-              <div className="space-y-1">
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {isPro ? "Professional Plan" : "Free Plan"}
-                </h2>
-                <p className="text-muted-foreground max-w-md">
-                  {isPro
-                    ? "You have full access to all features."
-                    : "You're on the free plan. Upgrade to Pro when it launches for premium features."}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-3 shrink-0 w-full md:w-auto">
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">{isPro ? "$9" : "$0"}</span>
-                <span className="text-muted-foreground text-sm">/month</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pro Plan Coming Soon */}
-      <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default border-dashed border-2 border-primary/30")}>
-        <CardContent className="p-8 text-center">
-          <div className="max-w-md mx-auto space-y-6">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-              <Sparkles className="h-8 w-8 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold">Pro Plan Coming Soon</h3>
-              <p className="text-muted-foreground">
-                We're working on premium features that will help you close more deals faster.
-              </p>
-            </div>
-
-            {/* Feature comparison */}
-            <div className="grid grid-cols-2 gap-4 pt-4 text-left">
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Free</h4>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span>5 deals per month</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span>Basic templates</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span>Email receipts</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    <span>30-day history</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">Pro</h4>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <span>Unlimited deals</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <span>Custom templates</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <span>No watermarks</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <span>Unlimited history</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground pt-4">
-              Billing features will be available when Stripe integration is complete.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
@@ -1269,7 +1215,10 @@ const NotificationsTab = () => {
     channelPush: true,
     channelMobile: false,
   });
-  const [dndStatus, setDndStatus] = useState<DoNotDisturbStatus>({ enabled: false, expiresAt: null });
+  const [dndStatus, setDndStatus] = useState<DoNotDisturbStatus>({
+    enabled: false,
+    expiresAt: null,
+  });
   const [isMuting, setIsMuting] = useState(false);
 
   // Load preferences on mount
@@ -1337,31 +1286,54 @@ const NotificationsTab = () => {
     <div className="grid gap-8 lg:grid-cols-3">
       {/* Left: Notification Settings */}
       <div className="lg:col-span-2 space-y-8">
-        <SettingGroup title="Deal Notifications" description="Stay updated on your deals and agreements">
+        <SettingGroup
+          title="Deal Notifications"
+          description="Stay updated on your deals and agreements"
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <SettingCard
               icon={FileText}
               title="Deal Viewed"
               description="When someone opens your deal."
-              action={<Switch checked={prefs.notifyDealViewed} onCheckedChange={(v) => updatePref("notifyDealViewed", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyDealViewed}
+                  onCheckedChange={(v) => updatePref("notifyDealViewed", v)}
+                />
+              }
             />
             <SettingCard
               icon={PenLine}
               title="Deal Signed"
               description="When a deal is signed by all parties."
-              action={<Switch checked={prefs.notifyDealSigned} onCheckedChange={(v) => updatePref("notifyDealSigned", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyDealSigned}
+                  onCheckedChange={(v) => updatePref("notifyDealSigned", v)}
+                />
+              }
             />
             <SettingCard
               icon={AlertTriangle}
               title="Deal Expiring"
               description="When a deal is about to expire."
-              action={<Switch checked={prefs.notifyDealExpiring} onCheckedChange={(v) => updatePref("notifyDealExpiring", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyDealExpiring}
+                  onCheckedChange={(v) => updatePref("notifyDealExpiring", v)}
+                />
+              }
             />
             <SettingCard
               icon={Activity}
               title="Deal Comments"
               description="When someone comments on a deal."
-              action={<Switch checked={prefs.notifyDealComments} onCheckedChange={(v) => updatePref("notifyDealComments", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyDealComments}
+                  onCheckedChange={(v) => updatePref("notifyDealComments", v)}
+                />
+              }
             />
           </div>
         </SettingGroup>
@@ -1372,13 +1344,23 @@ const NotificationsTab = () => {
               icon={MessageSquare}
               title="In-App Messages"
               description="Messages from other users."
-              action={<Switch checked={prefs.notifyMessages} onCheckedChange={(v) => updatePref("notifyMessages", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyMessages}
+                  onCheckedChange={(v) => updatePref("notifyMessages", v)}
+                />
+              }
             />
             <SettingCard
               icon={AtSign}
               title="Mentions"
               description="When you're mentioned in a deal."
-              action={<Switch checked={prefs.notifyMentions} onCheckedChange={(v) => updatePref("notifyMentions", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyMentions}
+                  onCheckedChange={(v) => updatePref("notifyMentions", v)}
+                />
+              }
             />
           </div>
         </SettingGroup>
@@ -1389,13 +1371,23 @@ const NotificationsTab = () => {
               icon={Calendar}
               title="Upcoming Deadlines"
               description="Reminder before deal deadlines."
-              action={<Switch checked={prefs.notifyDeadlines} onCheckedChange={(v) => updatePref("notifyDeadlines", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyDeadlines}
+                  onCheckedChange={(v) => updatePref("notifyDeadlines", v)}
+                />
+              }
             />
             <SettingCard
               icon={Clock}
               title="Follow-up Reminders"
               description="Remind to follow up on pending deals."
-              action={<Switch checked={prefs.notifyFollowups} onCheckedChange={(v) => updatePref("notifyFollowups", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyFollowups}
+                  onCheckedChange={(v) => updatePref("notifyFollowups", v)}
+                />
+              }
             />
           </div>
         </SettingGroup>
@@ -1413,7 +1405,12 @@ const NotificationsTab = () => {
               icon={Sparkles}
               title="Product Updates"
               description="New features and improvements."
-              action={<Switch checked={prefs.notifyProductUpdates} onCheckedChange={(v) => updatePref("notifyProductUpdates", v)} />}
+              action={
+                <Switch
+                  checked={prefs.notifyProductUpdates}
+                  onCheckedChange={(v) => updatePref("notifyProductUpdates", v)}
+                />
+              }
             />
           </div>
         </SettingGroup>
@@ -1428,17 +1425,25 @@ const NotificationsTab = () => {
                 <Send className="h-4 w-4 text-primary" />
                 Delivery Preferences
               </CardTitle>
-              <CardDescription className="text-xs">Choose how to receive notifications</CardDescription>
+              <CardDescription className="text-xs">
+                Choose how to receive notifications
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Email Frequency */}
               <div className="space-y-3">
-                <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Email Frequency</Label>
+                <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Email Frequency
+                </Label>
                 <div className="space-y-2">
                   {[
                     { id: "instant" as const, label: "Instant", desc: "Get notified immediately" },
                     { id: "daily" as const, label: "Daily Digest", desc: "Once per day summary" },
-                    { id: "weekly" as const, label: "Weekly Digest", desc: "Once per week summary" },
+                    {
+                      id: "weekly" as const,
+                      label: "Weekly Digest",
+                      desc: "Once per week summary",
+                    },
                   ].map((option) => (
                     <button
                       key={option.id}
@@ -1450,10 +1455,14 @@ const NotificationsTab = () => {
                           : "border-border/50 hover:border-primary/30 hover:bg-secondary/30"
                       )}
                     >
-                      <div className={cn(
-                        "h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors",
-                        prefs.emailFrequency === option.id ? "border-primary bg-primary" : "border-muted-foreground/40"
-                      )}>
+                      <div
+                        className={cn(
+                          "h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors",
+                          prefs.emailFrequency === option.id
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground/40"
+                        )}
+                      >
                         {prefs.emailFrequency === option.id && (
                           <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
                         )}
@@ -1471,28 +1480,39 @@ const NotificationsTab = () => {
 
               {/* Channels */}
               <div className="space-y-3">
-                <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Channels</Label>
+                <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Channels
+                </Label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
                     <div className="flex items-center gap-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Email</span>
                     </div>
-                    <Switch checked={prefs.channelEmail} onCheckedChange={(v) => updatePref("channelEmail", v)} />
+                    <Switch
+                      checked={prefs.channelEmail}
+                      onCheckedChange={(v) => updatePref("channelEmail", v)}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
                     <div className="flex items-center gap-3">
                       <Bell className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Push</span>
                     </div>
-                    <Switch checked={prefs.channelPush} onCheckedChange={(v) => updatePref("channelPush", v)} />
+                    <Switch
+                      checked={prefs.channelPush}
+                      onCheckedChange={(v) => updatePref("channelPush", v)}
+                    />
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border/50">
                     <div className="flex items-center gap-3">
                       <Smartphone className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">Mobile</span>
                     </div>
-                    <Switch checked={prefs.channelMobile} onCheckedChange={(v) => updatePref("channelMobile", v)} />
+                    <Switch
+                      checked={prefs.channelMobile}
+                      onCheckedChange={(v) => updatePref("channelMobile", v)}
+                    />
                   </div>
                 </div>
               </div>
@@ -1502,7 +1522,9 @@ const NotificationsTab = () => {
           {/* Quick Actions */}
           <Card className={cn(dashboardStyles.cardBase, "h-auto cursor-default")}>
             <CardContent className="p-4 space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Quick Actions
+              </h4>
 
               {/* Show DND status if active */}
               {dndStatus.enabled && (
@@ -1512,7 +1534,12 @@ const NotificationsTab = () => {
                     Do Not Disturb is active
                     {dndStatus.expiresAt && (
                       <span className="text-amber-500/80">
-                        {" "}until {new Date(dndStatus.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {" "}
+                        until{" "}
+                        {new Date(dndStatus.expiresAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </span>
                     )}
                   </span>
@@ -1537,13 +1564,20 @@ const NotificationsTab = () => {
                   setIsMuting(false);
                 }}
               >
-                {isMuting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BellOff className="h-4 w-4" />}
+                {isMuting ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <BellOff className="h-4 w-4" />
+                )}
                 <span className="text-sm">Mute All for 1 Hour</span>
               </Button>
 
               <Button
                 variant={dndStatus.enabled ? "default" : "outline"}
-                className={cn("w-full justify-start gap-2 h-9", dndStatus.enabled && "bg-amber-500 hover:bg-amber-600")}
+                className={cn(
+                  "w-full justify-start gap-2 h-9",
+                  dndStatus.enabled && "bg-amber-500 hover:bg-amber-600"
+                )}
                 disabled={isMuting}
                 onClick={async () => {
                   setIsMuting(true);
@@ -1559,7 +1593,9 @@ const NotificationsTab = () => {
                 }}
               >
                 <VolumeX className="h-4 w-4" />
-                <span className="text-sm">{dndStatus.enabled ? "Turn Off Do Not Disturb" : "Do Not Disturb"}</span>
+                <span className="text-sm">
+                  {dndStatus.enabled ? "Turn Off Do Not Disturb" : "Do Not Disturb"}
+                </span>
               </Button>
             </CardContent>
           </Card>
@@ -1577,7 +1613,6 @@ export default function SettingsPage() {
 
   return (
     <div className={dashboardStyles.pageContainer}>
-
       {/* Header */}
       <div className={dashboardStyles.pageHeader}>
         <div className="min-w-0">
@@ -1586,7 +1621,9 @@ export default function SettingsPage() {
         </div>
         {user && (
           <div className="hidden sm:flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-lg border border-border/50">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">User ID</span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              User ID
+            </span>
             <CopyableId id={user.id} className="bg-background border-border/50 h-5" />
           </div>
         )}
@@ -1594,7 +1631,12 @@ export default function SettingsPage() {
 
       {/* Navigation Tabs - Standardized Filter Bar */}
       <div className={dashboardStyles.filterBar}>
-        <div className={cn(dashboardStyles.toggleGroup, "w-full overflow-x-auto no-scrollbar flex items-center")}>
+        <div
+          className={cn(
+            dashboardStyles.toggleGroup,
+            "w-full overflow-x-auto no-scrollbar flex items-center"
+          )}
+        >
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1607,7 +1649,9 @@ export default function SettingsPage() {
                   "inline-flex flex-1 sm:flex-none min-w-[100px] justify-center sm:justify-start items-center gap-2"
                 )}
               >
-                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "opacity-70")} />
+                <Icon
+                  className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "opacity-70")}
+                />
                 <span>{tab.label}</span>
               </button>
             );
@@ -1637,11 +1681,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-// Icon helper for Add Method button
-const PlusIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);

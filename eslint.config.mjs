@@ -19,6 +19,14 @@ const eslintConfig = defineConfig([
       // Warn on console statements - use proper logging in production
       // Set to "warn" during migration, change to "error" after cleanup
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
 ]);

@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 
 /**
  * Validation schema for updating a user profile
@@ -10,29 +10,11 @@ export const updateProfileSchema = z.object({
     .max(100, "Name must be 100 characters or less")
     .trim()
     .optional(),
-  avatarUrl: z
-    .string()
-    .url("Invalid avatar URL")
-    .optional()
-    .or(z.literal("")),
-  jobTitle: z
-    .string()
-    .max(100, "Job title must be 100 characters or less")
-    .trim()
-    .optional(),
-  location: z
-    .string()
-    .max(100, "Location must be 100 characters or less")
-    .trim()
-    .optional(),
-  currency: z
-    .enum(["USD", "EUR", "GBP", "CAD", "AUD", "CHF", "JPY", "CNY", "CZK"])
-    .optional(),
-  signatureUrl: z
-    .string()
-    .url("Invalid signature URL")
-    .optional()
-    .or(z.literal("")),
+  avatarUrl: z.string().url("Invalid avatar URL").optional().or(z.literal("")),
+  jobTitle: z.string().max(100, "Job title must be 100 characters or less").trim().optional(),
+  location: z.string().max(100, "Location must be 100 characters or less").trim().optional(),
+  currency: z.enum(["USD", "EUR", "GBP", "CAD", "AUD", "CHF", "JPY", "CNY", "CZK"]).optional(),
+  signatureUrl: z.string().url("Invalid signature URL").optional().or(z.literal("")),
 });
 
 /**
@@ -77,4 +59,3 @@ export type EmailInput = z.infer<typeof emailSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type AppearancePreferencesInput = z.infer<typeof appearancePreferencesSchema>;
 export type DoNotDisturbInput = z.infer<typeof doNotDisturbSchema>;
-

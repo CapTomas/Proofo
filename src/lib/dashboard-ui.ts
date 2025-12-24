@@ -36,14 +36,14 @@ export const itemVariants: Variants = {
     transition: {
       type: "spring",
       stiffness: 400,
-      damping: 25
-    }
+      damping: 25,
+    },
   },
   exit: {
     opacity: 0,
     scale: 0.95,
-    transition: { duration: 0.15 }
-  }
+    transition: { duration: 0.15 },
+  },
 };
 
 /**
@@ -64,8 +64,8 @@ export const cardHoverVariants: Variants = {
     y: -4,
     transition: {
       duration: 0.2,
-      ease: "easeOut"
-    }
+      ease: "easeOut",
+    },
   },
 };
 
@@ -90,7 +90,7 @@ export const enhancedItemVariants: Variants = {
   hidden: {
     opacity: 0,
     y: 8,
-    scale: 0.98
+    scale: 0.98,
   },
   show: {
     opacity: 1,
@@ -99,14 +99,14 @@ export const enhancedItemVariants: Variants = {
     transition: {
       type: "spring",
       stiffness: 300,
-      damping: 24
-    }
+      damping: 24,
+    },
   },
   exit: {
     opacity: 0,
     scale: 0.96,
-    transition: { duration: 0.15 }
-  }
+    transition: { duration: 0.15 },
+  },
 };
 
 // =============================================================================
@@ -126,12 +126,15 @@ export const dashboardStyles = {
   pageDescription: "text-muted-foreground text-xs sm:text-sm",
 
   // Filter bar container
-  filterBar: "bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 flex flex-col sm:flex-row gap-2 sticky top-0 z-20 backdrop-blur-xl",
+  filterBar:
+    "bg-background/50 border border-border/50 shadow-sm rounded-2xl p-2 flex flex-col sm:flex-row gap-2 sticky top-0 z-20 backdrop-blur-xl",
 
   // Search input within filter bar
   searchInputContainer: "relative flex-1 group",
-  searchInput: "pl-9 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl",
-  searchIcon: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors",
+  searchInput:
+    "pl-9 h-10 border-transparent bg-secondary/50 focus:bg-background transition-colors rounded-xl",
+  searchIcon:
+    "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors",
 
   // Toggle button groups (view mode, filters)
   toggleGroup: "flex bg-secondary/50 p-1 rounded-xl shrink-0",
@@ -156,27 +159,36 @@ export const dashboardStyles = {
   gridCols1: "grid-cols-1",
 
   // Card styling
-  cardBase: "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card rounded-2xl cursor-pointer",
+  cardBase:
+    "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card rounded-2xl cursor-pointer",
   cardContent: "p-4 flex flex-col h-full",
-  cardFooter: "mt-auto p-4 pt-3 flex items-center justify-between gap-2 bg-background dark:bg-background/50",
+  cardFooter:
+    "mt-auto p-4 pt-3 flex items-center justify-between gap-2 bg-background dark:bg-background/50",
   cardFooterActions: "flex items-center gap-1",
-  cardFooterActionButton: "h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors",
-  cardFooterPrimaryAction: "h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors",
-  cardFooterDestructiveAction: "h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors",
+  cardFooterActionButton:
+    "h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors",
+  cardFooterPrimaryAction:
+    "h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors",
+  cardFooterDestructiveAction:
+    "h-7 w-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors",
 
   // Empty state container
-  emptyState: "flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/10",
+  emptyState:
+    "flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/10",
   emptyStateIcon: "h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4",
   emptyStateTitle: "text-lg font-semibold",
   emptyStateDescription: "text-muted-foreground text-sm max-w-xs mx-auto mt-1 mb-6",
 
   // Stat cards
-  statCard: "group relative h-full bg-card hover:bg-card/80 border transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer",
+  statCard:
+    "group relative h-full bg-card hover:bg-card/80 border transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer",
   statCardActive: "border-primary/50 shadow-md ring-1 ring-primary/10",
   statCardInactive: "border-border/50 hover:border-primary/20 shadow-sm hover:shadow-md",
   statCardIcon: "p-2 rounded-xl transition-colors",
-  statCardValue: "text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform",
-  statCardLabel: "text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate",
+  statCardValue:
+    "text-2xl font-bold tracking-tight text-foreground group-hover:translate-x-0.5 transition-transform",
+  statCardLabel:
+    "text-xs text-muted-foreground font-medium mt-0.5 group-hover:text-foreground/80 transition-colors truncate",
 
   // Action buttons
   syncButton: "text-muted-foreground hover:text-foreground h-9 px-2 sm:px-3 rounded-xl",
@@ -190,11 +202,12 @@ export const dashboardStyles = {
   divider: "w-px h-6 bg-border/50 hidden sm:block shrink-0",
 
   // Badge styling
-  categoryBadge: "text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50",
+  categoryBadge:
+    "text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50",
 
   // Keyboard shortcut hint
-  keyboardHint: "h-5 px-1.5 bg-background border border-border/50 rounded text-[10px] font-mono text-muted-foreground flex items-center shadow-sm",
-
+  keyboardHint:
+    "h-5 px-1.5 bg-background border border-border/50 rounded text-[10px] font-mono text-muted-foreground flex items-center shadow-sm",
 } as const;
 
 // =============================================================================
