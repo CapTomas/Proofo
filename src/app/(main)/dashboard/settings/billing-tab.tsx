@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 import { Sparkles, Check, Zap, PieChart, RefreshCw, Receipt, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,8 +70,39 @@ const SettingGroup = ({ title, children, description }: { title: string; childre
   </div>
 );
 
+import {
+  SettingsCardSkeleton,
+  SettingsGroupSkeleton,
+  SettingsProfileSkeleton
+} from "@/components/dashboard/shared-components";
+import { Skeleton } from "@/components/ui/skeleton";
+
 export const BillingTab = ({ user }: { user: SettingsUser }) => {
+  const [isLoading, setIsLoading] = useState(true);
   const isPro = user?.isPro || false;
+
+  useEffect(() => {
+    // Simulate initial load for smooth transition
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="bg-card border border-border/50 rounded-2xl h-[200px] animate-pulse shadow-sm" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+             <div className="bg-card border border-border/50 rounded-2xl h-[400px] animate-pulse shadow-sm" />
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <SettingsGroupSkeleton count={2} />
+            <div className="bg-card border border-border/50 rounded-2xl h-[200px] animate-pulse shadow-sm" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

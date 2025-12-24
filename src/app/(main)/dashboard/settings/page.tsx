@@ -60,10 +60,18 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { useAppStore } from "@/store";
 import { dashboardStyles, containerVariants, itemVariants, getTabButtonClass } from "@/lib/dashboard-ui";
 import { cn, getUserInitials } from "@/lib/utils";
+import {
+  SettingsHeaderSkeleton,
+  SettingsTabsSkeleton,
+  SettingsCardSkeleton,
+  SettingsGroupSkeleton,
+  SettingsProfileSkeleton
+} from "@/components/dashboard/shared-components";
 import {
   updateProfileAction,
   getUserProfileAction,
@@ -349,78 +357,92 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
       <motion.div variants={itemVariants} className="lg:col-span-1 flex flex-col gap-6">
         <Card className={cn(dashboardStyles.cardBase, "h-full flex flex-col cursor-default")}>
           <CardContent className="p-6 flex flex-col items-center text-center space-y-6 flex-1">
-            <div className="relative group">
-              {/* Hidden file input for avatar upload */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                className="hidden"
-              />
-              <Avatar
-                className="h-32 w-32 border-4 border-background shadow-xl ring-1 ring-border/50 cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <AvatarImage src={avatarUrl || user?.avatarUrl} className="object-cover" />
-                <AvatarFallback className="text-3xl bg-linear-to-br from-primary to-primary/80 text-primary-foreground">
-                  {getUserInitials(user?.name, user?.email)}
-                </AvatarFallback>
-              </Avatar>
-              <div
-                className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-[1px]"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {isUploadingAvatar ? (
-                  <RefreshCw className="h-8 w-8 text-white animate-spin" />
-                ) : (
-                  <Camera className="h-8 w-8 text-white" />
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="font-bold text-xl">{user?.name || "User"}</h3>
-              <p className="text-sm text-muted-foreground">{jobTitle || "Add a job title"}</p>
-            </div>
-
-            {/* Signature Preview */}
-            <div className="w-full bg-secondary/30 rounded-xl p-4 border border-dashed border-border/60">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Stored Signature</span>
-                <PenLine className="h-3 w-3 text-muted-foreground" />
-              </div>
-              <div className="h-16 flex items-center justify-center bg-white rounded-lg">
-                {signatureUrl ? (
-                  <img
-                    src={signatureUrl}
-                    alt="Your signature"
-                    className="h-14 object-contain"
+            {isLoading ? (
+              <SettingsProfileSkeleton />
+            ) : (
+              <>
+                <div className="relative group">
+                  {/* Hidden file input for avatar upload */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
                   />
-                ) : (
-                  <p className="text-xs text-muted-foreground italic opacity-50">No signature saved yet</p>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-7 text-xs mt-2"
-                onClick={() => setIsSignatureEditorOpen(true)}
-              >
-                {signatureUrl ? "Update Signature" : "Add Signature"}
-              </Button>
-            </div>
+                  <Avatar
+                    className="h-32 w-32 border-4 border-background shadow-xl ring-1 ring-border/50 cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <AvatarImage src={avatarUrl || user?.avatarUrl} className="object-cover" />
+                    <AvatarFallback className="text-3xl bg-linear-to-br from-primary to-primary/80 text-primary-foreground">
+                      {getUserInitials(user?.name, user?.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div
+                    className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-[1px]"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {isUploadingAvatar ? (
+                      <RefreshCw className="h-8 w-8 text-white animate-spin" />
+                    ) : (
+                      <Camera className="h-8 w-8 text-white" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="font-bold text-xl">{user?.name || "User"}</h3>
+                  <p className="text-sm text-muted-foreground">{jobTitle || "Add a job title"}</p>
+                </div>
+
+                {/* Signature Preview */}
+                <div className="w-full bg-secondary/30 rounded-xl p-4 border border-dashed border-border/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Stored Signature</span>
+                    <PenLine className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <div className="h-16 flex items-center justify-center bg-white rounded-lg">
+                    {signatureUrl ? (
+                      <img
+                        src={signatureUrl}
+                        alt="Your signature"
+                        className="h-14 object-contain"
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic opacity-50">No signature saved yet</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-7 text-xs mt-2"
+                    onClick={() => setIsSignatureEditorOpen(true)}
+                  >
+                    {signatureUrl ? "Update Signature" : "Add Signature"}
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
 
-          <div className="p-4 bg-muted/30 border-t border-border/50">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-muted-foreground">Profile Completion</span>
-              <span className="font-medium text-primary">{profileCompletion}%</span>
+          {!isLoading && (
+            <div className="p-4 bg-muted/30 border-t border-border/50">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Profile Completion</span>
+                <span className="font-medium text-primary">{profileCompletion}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-secondary rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${profileCompletion}%` }} />
+              </div>
             </div>
-            <div className="h-1.5 w-full bg-secondary rounded-full mt-2 overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${profileCompletion}%` }} />
+          )}
+          {isLoading && (
+            <div className="p-4 border-t border-border/50">
+              <Skeleton className="h-3 w-20 mb-2" />
+              <Skeleton className="h-1.5 w-full rounded-full" />
             </div>
-          </div>
+          )}
         </Card>
 
         {/* Signature Editor Modal */}
@@ -441,109 +463,142 @@ const ProfileTab = ({ user, setUser }: { user: SettingsUser, setUser: (user: Set
           </CardHeader>
 
           <CardContent className="space-y-6 flex-1">
-            {/* Personal Info Group */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Personal Information</h4>
-              <div className="grid sm:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Display Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pl-9 bg-background"
-                    />
+            {isLoading ? (
+              <div className="space-y-8">
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-32 rounded-md" />
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24 rounded-md" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24 rounded-md" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="job">Job Title</Label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="job"
-                      value={jobTitle}
-                      onChange={(e) => setJobTitle(e.target.value)}
-                      placeholder="e.g. Freelancer"
-                      className="pl-9 bg-background"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      value={user?.email || ""}
-                      disabled
-                      className="pl-9 bg-muted/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="e.g. New York, USA"
-                      className="pl-9 bg-background"
-                    />
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-40 rounded-md" />
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24 rounded-md" />
+                      <Skeleton className="h-10 w-full rounded-lg opacity-50" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24 rounded-md" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <Separator />
-
-            {/* Regional Preferences Group */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Regional Preferences</h4>
-              <div className="grid sm:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Default Currency</Label>
-                  <Select value={currency} onValueChange={setCurrency}>
-                    <SelectTrigger className="bg-background">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <SelectValue placeholder="Select currency" />
+            ) : (
+              <>
+                {/* Personal Info Group */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Personal Information</h4>
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Display Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="pl-9 bg-background"
+                        />
                       </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground">Used as the default for new deals.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="job">Job Title</Label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="job"
+                          value={jobTitle}
+                          onChange={(e) => setJobTitle(e.target.value)}
+                          placeholder="e.g. Freelancer"
+                          className="pl-9 bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          value={user?.email || ""}
+                          disabled
+                          className="pl-9 bg-muted/50"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Location</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="location"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="e.g. New York, USA"
+                          className="pl-9 bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="language">Language</Label>
-                  <Select defaultValue="en">
-                    <SelectTrigger className="bg-background" disabled>
-                      <div className="flex items-center gap-2">
-                        <Languages className="h-4 w-4 text-muted-foreground" />
-                        <SelectValue placeholder="Select language" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English (US)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground">More languages coming soon.</p>
+                <Separator />
+
+                {/* Regional Preferences Group */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Regional Preferences</h4>
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="currency">Default Currency</Label>
+                      <Select value={currency} onValueChange={setCurrency}>
+                        <SelectTrigger className="bg-background">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Select currency" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground">Used as the default for new deals.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="language">Language</Label>
+                      <Select defaultValue="en">
+                        <SelectTrigger className="bg-background" disabled>
+                          <div className="flex items-center gap-2">
+                            <Languages className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Select language" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">English (US)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground">More languages coming soon.</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </CardContent>
 
           <CardFooter className="bg-muted/30 border-t p-4 flex justify-between items-center mt-auto">
@@ -571,6 +626,13 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate initial load for smooth transition
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleExportData = async () => {
     setIsDownloading(true);
@@ -631,6 +693,15 @@ const AccountTab = ({ user }: { user: SettingsUser }) => {
       setIsDeleting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <SettingsGroupSkeleton count={2} />
+        <SettingsGroupSkeleton count={1} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -902,6 +973,21 @@ const AppearanceTab = () => {
   // Font scale display value (e.g., "100%", "80%", "120%")
   const fontScalePercent = Math.round(fontScale * 100);
 
+  if (appearanceLoading) {
+    return (
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-8">
+          <SettingsGroupSkeleton count={3} />
+          <SettingsGroupSkeleton count={1} />
+          <SettingsGroupSkeleton count={2} />
+        </div>
+        <div className="lg:col-span-1">
+          <div className="bg-card border border-border/50 rounded-2xl h-[400px] animate-pulse shadow-sm" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       {/* Left: Settings Controls */}
@@ -933,6 +1019,7 @@ const AppearanceTab = () => {
                   <span className={cn("text-sm font-semibold", isActive ? "text-primary" : "text-foreground")}>{t.label}</span>
                   {isActive && (
                     <motion.div
+                      layoutId="active-theme-indicator"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="absolute top-3 right-3 h-3 w-3 rounded-full bg-primary shadow-sm ring-2 ring-background"
@@ -1233,8 +1320,15 @@ const NotificationsTab = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-8">
+          <SettingsGroupSkeleton count={4} />
+          <SettingsGroupSkeleton count={2} />
+          <SettingsGroupSkeleton count={2} />
+        </div>
+        <div className="lg:col-span-1">
+          <div className="bg-card border border-border/50 rounded-2xl h-[400px] animate-pulse shadow-sm" />
+        </div>
       </div>
     );
   }

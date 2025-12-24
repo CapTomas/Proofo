@@ -45,7 +45,7 @@ import { toast } from "sonner";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
 import { dashboardStyles } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard, statusConfig } from "@/components/dashboard/shared-components";
+import { CopyableId, StatCard, statusConfig, DealRowSkeleton, StatCardSkeleton } from "@/components/dashboard/shared-components";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 
 // Deadline item type for upcoming deadlines widget
@@ -316,6 +316,7 @@ export default function DashboardPage() {
   const [tipIndex, setTipIndex] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const hasInitializedRef = useRef(false);
 
   useEffect(() => {
@@ -348,6 +349,7 @@ export default function DashboardPage() {
     const { deals } = await getUserDealsAction();
     if (deals) setDeals(deals);
 
+    setIsLoaded(true);
     if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
   }, [setDeals]);
 
@@ -450,59 +452,7 @@ export default function DashboardPage() {
     if (verifyId.trim()) router.push(`/dashboard/verify?id=${verifyId.trim()}`);
   };
 
-  if (!user) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/40">
-          <div className="min-w-0 space-y-2">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="p-4 sm:p-5 rounded-2xl">
-              <div className="flex justify-between items-start mb-2">
-                <Skeleton className="h-8 w-8 rounded-lg" />
-              </div>
-              <Skeleton className="h-8 w-16 mb-2" />
-              <Skeleton className="h-3 w-24" />
-            </Card>
-          ))}
-        </div>
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Card className="h-[424px] rounded-2xl">
-              <div className="p-4 border-b border-border/40">
-                <Skeleton className="h-5 w-32" />
-              </div>
-              <div className="p-4 space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3">
-                    <Skeleton className="h-9 w-9 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-28" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-          <div className="space-y-6">
-            <Card className="p-5 rounded-2xl">
-              <Skeleton className="h-5 w-24 mb-3" />
-              <div className="space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-4 w-full" />
-                ))}
-              </div>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // No early return for !user, we use isLoaded instead
 
   return (
     <>
@@ -514,7 +464,7 @@ export default function DashboardPage() {
           <div className={dashboardStyles.pageHeader}>
             <div className="min-w-0">
               <h1 className={dashboardStyles.pageTitle}>
-                Welcome back, <span className="text-muted-foreground">{user.name?.split(" ")[0]}</span>
+                Welcome back, <span className="text-muted-foreground">{user?.name?.split(" ")[0] || "there"}</span>
               </h1>
               <p className={cn(dashboardStyles.pageDescription, "flex items-center gap-2")}>
                 {isMounted && currentDate ? (
@@ -545,7 +495,7 @@ export default function DashboardPage() {
           <MobileCreateAction />
 
           {/* KPI Grid */}
-          <DashboardStats deals={storeDeals} userEmail={user?.email} />
+          <DashboardStats deals={storeDeals} userEmail={user?.email} isLoading={!isLoaded} />
 
           {/* Main Dashboard Area */}
           <div className="grid lg:grid-cols-3 gap-6">
@@ -588,8 +538,21 @@ export default function DashboardPage() {
 
                 <CardContent className="p-3 flex-1 overflow-y-auto custom-scrollbar min-h-[300px] lg:min-h-0">
                   <AnimatePresence mode="wait">
-                    {activeTab === "priority" ? (
+                    {!isLoaded ? (
                       <motion.div
+                        key="skeleton"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="space-y-1"
+                      >
+                        {[...Array(5)].map((_, i) => (
+                          <DealRowSkeleton key={i} />
+                        ))}
+                      </motion.div>
+                    ) : activeTab === "priority" ? (
+                      <motion.div
+// ...
                         key="priority"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -600,7 +563,7 @@ export default function DashboardPage() {
                             <DealRow
                               key={deal.id}
                               deal={deal}
-                              userId={user.id}
+                              userId={user?.id || ""}
                               type={deal.queueType as "inbox" | "pending"}
                               onAction={deal.queueType === "pending" ? () => handleNudge(deal) : undefined}
                               isActionLoading={nudgeLoading === deal.id}
@@ -627,7 +590,7 @@ export default function DashboardPage() {
                           <DealRow
                             key={deal.id}
                             deal={deal}
-                            userId={user.id}
+                            userId={user?.id || ""}
                             type="recent"
                             onAction={() => handleDuplicate(deal)}
                           />
@@ -646,7 +609,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* Deadlines Widget */}
-              {upcomingDeadlines.length > 0 && (
+              {(upcomingDeadlines.length > 0 || !isLoaded) && (
                 <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
                   <div className="px-5 py-3">
                     <h3 className="text-sm font-medium flex items-center gap-2">
@@ -655,27 +618,44 @@ export default function DashboardPage() {
                     </h3>
                   </div>
                   <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-0 pr-2 pl-2">
-                    <div>
-                      {upcomingDeadlines.map((item: DeadlineItem) => (
-                        <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
-                          <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
+                    {!isLoaded ? (
+                      <div className="p-3 space-y-3">
+                        {[...Array(2)].map((_, i) => (
+                          <div key={i} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
-                              <div>
-                                <p className="font-semibold text-foreground text-sm">{item.deal.title}</p>
-                                <p className="text-xs text-muted-foreground">{item.label}: {formatDate(item.date)}</p>
+                              <Skeleton className="h-8 w-1 rounded-full" />
+                              <div className="space-y-1">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-24 opacity-50" />
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="font-mono text-[10px] whitespace-nowrap border-border bg-background">
-                                {getRelativeTime(item.date)}
-                              </Badge>
-                              <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
+                            <Skeleton className="h-5 w-16" />
                           </div>
-                        </Link>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div>
+                        {upcomingDeadlines.map((item: DeadlineItem) => (
+                          <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
+                            <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
+                              <div className="flex items-center gap-3">
+                                <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
+                                <div>
+                                  <p className="font-semibold text-foreground text-sm">{item.deal.title}</p>
+                                  <p className="text-xs text-muted-foreground">{item.label}: {formatDate(item.date)}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="font-mono text-[10px] whitespace-nowrap border-border bg-background">
+                                  {getRelativeTime(item.date)}
+                                </Badge>
+                                <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -694,7 +674,20 @@ export default function DashboardPage() {
                   {latestDeal && <CopyableId id={latestDeal.publicId} className="bg-secondary/30" />}
                 </div>
                 <CardContent className="p-4 flex-1 flex flex-col justify-between">
-                  {latestDeal ? (
+                  {!isLoaded ? (
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="flex justify-between">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-12" />
+                        </div>
+                        <Skeleton className="h-3 w-32" />
+                        <Skeleton className="h-3 w-16 opacity-50" />
+                      </div>
+                    </div>
+                  ) : latestDeal ? (
+// ...
                     <>
                       <div className="flex items-start gap-3">
                         <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center shrink-0 border border-primary/10">
@@ -755,11 +748,23 @@ export default function DashboardPage() {
                   <Badge variant="secondary" className="text-[10px] h-5 border-0 bg-background/50">7 Days</Badge>
                 </div>
                 <CardContent className="px-5 pb-0 pt-4 flex-1 flex flex-col">
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-bold tracking-tight">{storeDeals.length}</div>
-                    <span className="text-xs text-muted-foreground font-medium">total deals</span>
-                  </div>
-                  <ActivitySparkline data={sparklineData} />
+                  {!isLoaded ? (
+                    <div className="space-y-4">
+                      <div className="flex items-baseline gap-2">
+                        <Skeleton className="h-9 w-12" />
+                        <Skeleton className="h-4 w-20 opacity-50" />
+                      </div>
+                      <Skeleton className="h-16 w-full opacity-30" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-2">
+                        <div className="text-3xl font-bold tracking-tight">{storeDeals.length}</div>
+                        <span className="text-xs text-muted-foreground font-medium">total deals</span>
+                      </div>
+                      <ActivitySparkline data={sparklineData} />
+                    </>
+                  )}
                 </CardContent>
               </Card>
 

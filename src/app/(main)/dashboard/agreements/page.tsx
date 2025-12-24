@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint } from "@/components/dashboard/shared-components";
+import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint, StatCardSkeleton, DealRowSkeleton, CardSkeleton } from "@/components/dashboard/shared-components";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
 // statusConfig imported from shared-components
@@ -248,6 +248,7 @@ export default function AgreementsPage() {
   const [filterType, setFilterType] = useState<"all" | "active" | "completed" | "voided">("active");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
@@ -269,20 +270,25 @@ export default function AgreementsPage() {
   };
 
   // Sync Data
-  const refreshDeals = async () => {
-    if (!isSupabaseConfigured()) return;
-    setIsRefreshing(true);
+  const refreshDeals = async (showLoading = false) => {
+    if (!isSupabaseConfigured()) {
+      setIsLoaded(true);
+      return;
+    }
+    if (showLoading) setIsRefreshing(true);
     const { deals } = await getUserDealsAction();
     if (deals) setDeals(deals);
-    setTimeout(() => setIsRefreshing(false), 500);
+
+    setIsLoaded(true);
+    if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
   };
 
   useEffect(() => {
-    if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
+    if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
       refreshDeals();
     }
-  }, [user]);
+  }, []);
 
   // Filtering
   const filteredDeals = useMemo(() => {
@@ -394,7 +400,7 @@ export default function AgreementsPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={refreshDeals}
+            onClick={() => refreshDeals(true)}
             disabled={isRefreshing}
             className={dashboardStyles.syncButton}
           >
@@ -406,42 +412,48 @@ export default function AgreementsPage() {
 
       {/* Interactive Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard
-          label="Active Deals"
-          value={stats.active}
-          icon={Clock}
-          colorClass="text-amber-500"
-          isActive={activeTab === 'active'}
-          onClick={() => handleStatClick('active')}
-          delay={0}
-        />
-        <StatCard
-          label="Completed"
-          value={stats.completed}
-          icon={CheckCircle2}
-          colorClass="text-emerald-500"
-          isActive={activeTab === 'history' && filterType === 'completed'}
-          onClick={() => handleStatClick('completed')}
-          delay={0.1}
-        />
-        <StatCard
-          label="Voided"
-          value={stats.voided}
-          icon={XCircle}
-          colorClass="text-destructive"
-          isActive={activeTab === 'history' && filterType === 'voided'}
-          onClick={() => handleStatClick('voided')}
-          delay={0.2}
-        />
-        <StatCard
-          label="Total History"
-          value={stats.totalHistory}
-          icon={FileCheck}
-          colorClass="text-primary"
-          isActive={activeTab === 'history' && filterType === 'all'}
-          onClick={() => handleStatClick('all')}
-          delay={0.3}
-        />
+        {!isLoaded ? (
+          [...Array(4)].map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard
+              label="Active Deals"
+              value={stats.active}
+              icon={Clock}
+              colorClass="text-amber-500"
+              isActive={activeTab === 'active'}
+              onClick={() => handleStatClick('active')}
+              delay={0}
+            />
+            <StatCard
+              label="Completed"
+              value={stats.completed}
+              icon={CheckCircle2}
+              colorClass="text-emerald-500"
+              isActive={activeTab === 'history' && filterType === 'completed'}
+              onClick={() => handleStatClick('completed')}
+              delay={0.1}
+            />
+            <StatCard
+              label="Voided"
+              value={stats.voided}
+              icon={XCircle}
+              colorClass="text-destructive"
+              isActive={activeTab === 'history' && filterType === 'voided'}
+              onClick={() => handleStatClick('voided')}
+              delay={0.2}
+            />
+            <StatCard
+              label="Total History"
+              value={stats.totalHistory}
+              icon={FileCheck}
+              colorClass="text-primary"
+              isActive={activeTab === 'history' && filterType === 'all'}
+              onClick={() => handleStatClick('all')}
+              delay={0.3}
+            />
+          </>
+        )}
       </div>
 
       {/* Filter Bar */}
@@ -497,7 +509,19 @@ export default function AgreementsPage() {
 
       {/* Content */}
       <AnimatePresence mode="popLayout">
-        {filteredDeals.length > 0 ? (
+        {!isLoaded ? (
+          <motion.div
+            key="skeleton"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
+          >
+            {[...Array(6)].map((_, i) => (
+              viewMode === "grid" ? <CardSkeleton key={i} /> : <DealRowSkeleton key={i} />
+            ))}
+          </motion.div>
+        ) : filteredDeals.length > 0 ? (
           <motion.div
             key={`${activeTab}-${filterType}-${viewMode}`}
             variants={containerVariants}
@@ -523,6 +547,7 @@ export default function AgreementsPage() {
             ))}
           </motion.div>
         ) : (
+// ...
           <EmptyState
             icon={FileCheck}
             title="No agreements found"

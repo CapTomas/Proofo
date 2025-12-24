@@ -8,6 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, getStatCardClass } from "@/lib/dashboard-ui";
 import { DealStatus } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
+export {
+  StatCardSkeleton,
+  DealRowSkeleton,
+  CardSkeleton,
+  SettingsHeaderSkeleton,
+  SettingsTabsSkeleton,
+  SettingsCardSkeleton,
+  SettingsGroupSkeleton,
+  SettingsProfileSkeleton
+} from "./skeleton-components";
 
 // =============================================================================
 // SHARED CONFIGURATION
@@ -230,6 +241,8 @@ export const StatCard = ({
 
   return cardContent;
 };
+
+// Skeletons are now re-exported from ./skeleton-components.tsx
 
 /**
  * HighlightText - Highlights search query matches in text

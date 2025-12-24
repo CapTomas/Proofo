@@ -32,7 +32,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, containerVariants, itemVariants, cardHoverVariants, getStatCardClass, getToggleButtonClass, getTabButtonClass, getGridClass } from "@/lib/dashboard-ui";
-import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint } from "@/components/dashboard/shared-components";
+import { CopyableId, StatCard, statusConfig, useSearchShortcut, KeyboardHint, StatCardSkeleton, DealRowSkeleton, CardSkeleton } from "@/components/dashboard/shared-components";
 
 // statusConfig imported from shared-components
 // Note: Inbox uses "To Sign" label for pending instead of "Pending"
@@ -172,6 +172,7 @@ export default function InboxPage() {
   const [filterType, setFilterType] = useState<"all" | "pending" | "signed" | "voided">("pending");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const hasInitializedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -184,20 +185,25 @@ export default function InboxPage() {
   };
 
   // Sync Data
-  const refreshDeals = async () => {
-    if (!isSupabaseConfigured()) return;
-    setIsRefreshing(true);
+  const refreshDeals = async (showLoading = false) => {
+    if (!isSupabaseConfigured()) {
+      setIsLoaded(true);
+      return;
+    }
+    if (showLoading) setIsRefreshing(true);
     const { deals } = await getUserDealsAction();
     if (deals) setDeals(deals);
-    setTimeout(() => setIsRefreshing(false), 500);
+
+    setIsLoaded(true);
+    if (showLoading) setTimeout(() => setIsRefreshing(false), 500);
   };
 
   useEffect(() => {
-    if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
+    if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
       refreshDeals();
     }
-  }, [user]);
+  }, []);
 
   // Data Logic
   const inboxDeals = useMemo(() => {
@@ -278,7 +284,7 @@ export default function InboxPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={refreshDeals}
+            onClick={() => refreshDeals(true)}
             disabled={isRefreshing}
             className={dashboardStyles.syncButton}
           >
@@ -290,42 +296,48 @@ export default function InboxPage() {
 
       {/* Interactive Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard
-          label="To Sign"
-          value={stats.pending}
-          icon={PenLine}
-          colorClass="text-amber-500"
-          isActive={activeTab === 'to_sign'}
-          onClick={() => handleStatClick('pending')}
-          delay={0}
-        />
-        <StatCard
-          label="Signed"
-          value={stats.signed}
-          icon={CheckCircle2}
-          colorClass="text-emerald-500"
-          isActive={activeTab === 'history' && filterType === 'signed'}
-          onClick={() => handleStatClick('signed')}
-          delay={0.1}
-        />
-        <StatCard
-          label="Voided"
-          value={stats.voided}
-          icon={XCircle}
-          colorClass="text-destructive"
-          isActive={activeTab === 'history' && filterType === 'voided'}
-          onClick={() => handleStatClick('voided')}
-          delay={0.2}
-        />
-        <StatCard
-          label="Total Inbox"
-          value={stats.total}
-          icon={InboxIcon}
-          colorClass="text-primary"
-          isActive={activeTab === 'history' && filterType === 'all'}
-          onClick={() => handleStatClick('all')}
-          delay={0.3}
-        />
+        {!isLoaded ? (
+          [...Array(4)].map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard
+              label="To Sign"
+              value={stats.pending}
+              icon={PenLine}
+              colorClass="text-amber-500"
+              isActive={activeTab === 'to_sign'}
+              onClick={() => handleStatClick('pending')}
+              delay={0}
+            />
+            <StatCard
+              label="Signed"
+              value={stats.signed}
+              icon={CheckCircle2}
+              colorClass="text-emerald-500"
+              isActive={activeTab === 'history' && filterType === 'signed'}
+              onClick={() => handleStatClick('signed')}
+              delay={0.1}
+            />
+            <StatCard
+              label="Voided"
+              value={stats.voided}
+              icon={XCircle}
+              colorClass="text-destructive"
+              isActive={activeTab === 'history' && filterType === 'voided'}
+              onClick={() => handleStatClick('voided')}
+              delay={0.2}
+            />
+            <StatCard
+              label="Total Inbox"
+              value={stats.total}
+              icon={InboxIcon}
+              colorClass="text-primary"
+              isActive={activeTab === 'history' && filterType === 'all'}
+              onClick={() => handleStatClick('all')}
+              delay={0.3}
+            />
+          </>
+        )}
       </div>
 
       {/* Filter Bar */}
@@ -381,7 +393,19 @@ export default function InboxPage() {
 
       {/* Content */}
       <AnimatePresence mode="popLayout">
-        {filteredDeals.length > 0 ? (
+        {!isLoaded ? (
+          <motion.div
+            key="skeleton"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
+          >
+            {[...Array(6)].map((_, i) => (
+              viewMode === "grid" ? <CardSkeleton key={i} /> : <DealRowSkeleton key={i} />
+            ))}
+          </motion.div>
+        ) : filteredDeals.length > 0 ? (
           <motion.div
             key={`${activeTab}-${filterType}-${viewMode}`}
             variants={containerVariants}
@@ -399,6 +423,7 @@ export default function InboxPage() {
             ))}
           </motion.div>
         ) : (
+// ...
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

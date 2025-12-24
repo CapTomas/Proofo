@@ -11,12 +11,13 @@ import {
   FileCheck,
   Clock
 } from "lucide-react";
-import { StatCard } from "@/components/dashboard/shared-components";
+import { StatCard, StatCardSkeleton } from "@/components/dashboard/shared-components";
 import { Deal } from "@/types";
 
 interface DashboardStatsProps {
   deals: Deal[];
   userEmail?: string;
+  isLoading?: boolean;
 }
 
 function getSignTimeMinutes(deal: Deal): number {
@@ -47,9 +48,11 @@ function formatCompletionRateTrend(trend: number): string | undefined {
   return `${trend > 0 ? '+' : ''}${Math.round(trend)}%`;
 }
 
-export function DashboardStats({ deals, userEmail }: DashboardStatsProps) {
+export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsProps) {
   const stats = useMemo(() => {
+    if (isLoading) return null;
     const total = deals.length;
+    // ... rest of useMemo logic
     const confirmed = deals.filter(d => d.status === "confirmed").length;
     const pending = deals.filter(d => d.status === "pending").length;
     const inbox = deals.filter(d => d.recipientEmail === userEmail && d.status === "pending").length;
@@ -111,12 +114,23 @@ export function DashboardStats({ deals, userEmail }: DashboardStatsProps) {
       completionRateTrend,
       avgTimeMinutesTrend
     };
-  }, [deals, userEmail]);
+  }, [deals, userEmail, isLoading]);
+
+  if (isLoading || !stats) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {[...Array(4)].map((_, i) => (
+          <StatCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <StatCard
         label="Action Required"
+// ...
         value={stats.inbox}
         icon={Inbox}
         trend={stats.inbox > 0 ? "Attention" : "All Clear"}

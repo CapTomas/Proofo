@@ -57,6 +57,7 @@ import { dashboardStyles, containerVariants, itemVariants, cardFlipTransition, g
 import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-components";
 import { getContactsAction, createContactAction, updateContactAction, deleteContactAction } from "@/app/actions/contact-actions";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 // --- TYPES & CONFIG ---
@@ -476,6 +477,52 @@ const ContactCard = ({
   );
 };
 
+// --- LOADING SKELETONS ---
+
+const ContactSkeleton = ({ viewMode }: { viewMode: "grid" | "list" }) => {
+  if (viewMode === "list") {
+    return (
+      <div className="flex items-center gap-4 p-4 rounded-xl border bg-card shrink-0">
+        <Skeleton className="h-12 w-12 rounded-xl" />
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-card border rounded-2xl p-5" style={{ minHeight: "240px" }}>
+      <div className="flex justify-between items-start mb-4">
+        <Skeleton className="h-10 w-10 rounded-lg" />
+        <Skeleton className="h-5 w-16" />
+      </div>
+      <div className="space-y-2 mb-4">
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </div>
+      <div className="flex gap-2 mb-6">
+        <Skeleton className="h-6 w-20" />
+        <Skeleton className="h-6 w-24" />
+      </div>
+      <div className="mt-auto flex justify-between items-center pt-4 border-t border-border/50">
+        <Skeleton className="h-4 w-20" />
+        <div className="flex gap-1">
+          <Skeleton className="h-7 w-7 rounded-lg" />
+          <Skeleton className="h-7 w-7 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN PAGE ---
 
 export default function PeoplePage() {
@@ -865,50 +912,64 @@ export default function PeoplePage() {
       </div>
 
       {/* Content */}
-      <AnimatePresence mode="popLayout">
-        <motion.div
-          key={`${roleFilter}-${showHidden}-${sortOrder}-${viewMode}`}
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          layout
-          className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
-        >
-          {processedContacts.length > 0 ? (
-            processedContacts.map((contact) => (
-              <ContactCard
-                key={contact.id}
-                contact={contact}
-                viewMode={viewMode}
-                searchQuery={searchQuery}
-                isFlipped={flippedId === contact.id}
-                onFlip={(e) => { e.preventDefault(); setFlippedId(flippedId === contact.id ? null : contact.id); }}
-                onAction={handleAction}
-                onDelete={contact.isCustom ? () => setDeleteConfirmId(contact.id) : undefined}
-                onHide={() => handleHideContact(contact.id)}
-                onUnhide={() => handleUnhideContact(contact.id)}
-                isHiddenView={showHidden}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {!isLoaded ? (
+          <motion.div
+            key="loading"
+            variants={containerVariants}
+            initial="show"
+            animate="show"
+            className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
+          >
+            {[...Array(8)].map((_, i) => (
+              <ContactSkeleton key={i} viewMode={viewMode} />
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            key={`${roleFilter}-${showHidden}-${sortOrder}-${viewMode}`}
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            layout
+            className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 4))}
+          >
+            {processedContacts.length > 0 ? (
+              processedContacts.map((contact) => (
+                <ContactCard
+                  key={contact.id}
+                  contact={contact}
+                  viewMode={viewMode}
+                  searchQuery={searchQuery}
+                  isFlipped={flippedId === contact.id}
+                  onFlip={(e) => { e.preventDefault(); setFlippedId(flippedId === contact.id ? null : contact.id); }}
+                  onAction={handleAction}
+                  onDelete={contact.isCustom ? () => setDeleteConfirmId(contact.id) : undefined}
+                  onHide={() => handleHideContact(contact.id)}
+                  onUnhide={() => handleUnhideContact(contact.id)}
+                  isHiddenView={showHidden}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon={showHidden ? EyeOff : Users}
+                title={showHidden ? "No hidden contacts" : "No contacts found"}
+                description={searchQuery
+                  ? "Try adjusting your search terms."
+                  : showHidden
+                    ? "You haven't hidden any contacts."
+                    : "Add people or create deals to see them here."}
+                action={!showHidden && (
+                  <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
+                    <UserPlus className={cn(dashboardStyles.iconMd, "mr-2")} />
+                    Add First Contact
+                  </Button>
+                )}
+                className="col-span-full"
               />
-            ))
-          ) : (
-            <EmptyState
-              icon={showHidden ? EyeOff : Users}
-              title={showHidden ? "No hidden contacts" : "No contacts found"}
-              description={searchQuery
-                ? "Try adjusting your search terms."
-                : showHidden
-                  ? "You haven't hidden any contacts."
-                  : "Add people or create deals to see them here."}
-              action={!showHidden && (
-                <Button onClick={() => setShowAddModal(true)} className="rounded-xl">
-                  <UserPlus className={cn(dashboardStyles.iconMd, "mr-2")} />
-                  Add First Contact
-                </Button>
-              )}
-              className="col-span-full"
-            />
-          )}
-        </motion.div>
+            )}
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Add Contact Dialog */}
