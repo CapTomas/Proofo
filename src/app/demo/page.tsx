@@ -325,8 +325,6 @@ export default function DemoPage() {
                       <div className="w-full">
                         <SignaturePad
                           onSignatureChange={setSignature}
-                          width={800}
-                          height={300}
                           className="w-full space-y-2"
                         />
                       </div>
