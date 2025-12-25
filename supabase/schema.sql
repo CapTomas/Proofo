@@ -26,7 +26,11 @@ DO $$ BEGIN
       'deal_confirmed',
       'deal_voided',
       'email_sent',
-      'pdf_generated'
+      'pdf_generated',
+      'pdf_downloaded',
+      'deal_verified',
+      'deal_link_shared',
+      'token_validated'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;

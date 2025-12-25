@@ -76,7 +76,11 @@ export type AuditEventType =
   | "deal_confirmed"
   | "deal_voided"
   | "email_sent"
-  | "pdf_generated";
+  | "pdf_generated"
+  | "pdf_downloaded"
+  | "deal_verified"
+  | "deal_link_shared"
+  | "token_validated";
 
 export interface AuditLogEntry {
   id: string;

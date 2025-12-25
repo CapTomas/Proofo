@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SignaturePad } from "@/components/signature-pad";
 import { DealHeader } from "@/components/deal-header";
 import { CopyableId } from "@/components/dashboard/shared-components";
+import { AuditTimeline } from "@/components/audit-timeline";
 import {
   Shield,
   CheckCircle2,
@@ -36,6 +38,7 @@ import {
   User,
   Hash,
   TimerOff,
+  ChevronRight,
   Copy,
   Key,
   ShieldCheck,
@@ -43,10 +46,11 @@ import {
   Users,
   Send,
   Inbox,
+  Command,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
-import { Deal } from "@/types";
+import { Deal, AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime } from "@/lib/crypto";
 import {
   getDealByPublicIdAction,
@@ -56,6 +60,8 @@ import {
   getTokenStatusAction,
   sendDealReceiptAction,
   validateViewTokenAction,
+  getAuditLogsAction,
+  logAuditEventAction,
   TokenStatus,
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -64,6 +70,7 @@ import { getUserInitials, cn } from "@/lib/utils";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { SealedDealView } from "@/components/sealed-deal-view";
 import { toast } from "sonner";
+import { prepareAuditEvent } from "@/lib/audit-utils";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -152,6 +159,18 @@ const templateIconNames: Record<string, string> = {
   custom: "PenLine",
 };
 
+// Keyboard hint component
+const KeyboardHint = ({ keys }: { keys: string }) => (
+  <kbd className="ml-2 hidden sm:inline-flex h-5 px-1.5 bg-muted border border-border/50 rounded text-[10px] font-mono text-muted-foreground items-center gap-0.5">
+    {keys.split("+").map((key, i) => (
+      <span key={i}>
+        {i > 0 && "+"}
+        {key === "cmd" ? <Command className="h-3 w-3" /> : key}
+      </span>
+    ))}
+  </kbd>
+);
+
 // Helper function to determine initial step
 function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus, hasAuthorizedAccess?: boolean): Step {
   if (!deal) return "not_found";
@@ -189,6 +208,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [manualToken, setManualToken] = useState("");
   const [isValidatingToken, setIsValidatingToken] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  // Audit trail state
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
 
   // Fetch deal from database on mount
   useEffect(() => {
@@ -241,6 +263,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
             const { isValid } = await validateViewTokenAction(fetchedDeal.id, urlToken, fetchedDeal.publicId);
             if (isValid) {
               setHasAuthorizedAccess(true);
+              // Fetch audit logs for authorized users
+              const { logs } = await getAuditLogsAction(fetchedDeal.id, urlToken);
+              if (logs.length > 0) {
+                setAuditLogs(logs as AuditLogEntry[]);
+              }
             }
           }
 
@@ -328,6 +355,31 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     }
   }, [deal, addAuditLog, user]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // A = Toggle audit trail
+      if (e.key === "a" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setShowAuditTrail(prev => !prev);
+      }
+      // D = Download PDF
+      else if (e.key === "d" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleDownloadPDF();
+      }
+      // V = Verify
+      else if (e.key === "v" && !e.metaKey && !e.ctrlKey && deal) {
+        e.preventDefault();
+        window.location.href = `/verify?id=${deal.publicId}`;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deal]);
+
   // Get creator initials
   const creatorInitials = useMemo(() => {
     if (!deal) return "??";
@@ -351,6 +403,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
       if (isValid) {
         setHasAuthorizedAccess(true);
+        // Fetch audit logs for authorized users
+        const { logs } = await getAuditLogsAction(deal.id, manualToken);
+        if (logs.length > 0) {
+          setAuditLogs(logs as AuditLogEntry[]);
+        }
       } else {
         setTokenError(error || "Invalid or expired access token");
       }
@@ -406,6 +463,21 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
     setIsSealing(true);
     setSealError(null);
+
+    // Log the signature event (before sealing attempt)
+    if (deal.id !== "demo123" && isSupabaseConfigured()) {
+      const auditEvent = prepareAuditEvent({
+        eventType: "deal_signed",
+        metadata: { signatureMethod: "drawn" },
+        includeClientMetadata: true,
+      });
+      await logAuditEventAction({
+        dealId: deal.id,
+        eventType: auditEvent.eventType,
+        actorType: "recipient",
+        metadata: auditEvent.metadata,
+      });
+    }
 
     // If it's a demo deal, use local store
     if (deal.id === "demo123") {
@@ -490,6 +562,21 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
       const filename = generatePDFFilename(targetDeal);
       downloadPDF(pdfBlob, filename);
+
+      // Log PDF download event
+      if (targetDeal.id !== "demo123" && isSupabaseConfigured()) {
+        const auditEvent = prepareAuditEvent({
+          eventType: "pdf_downloaded",
+          metadata: { filename },
+          includeClientMetadata: true,
+        });
+        await logAuditEventAction({
+          dealId: targetDeal.id,
+          eventType: auditEvent.eventType,
+          actorType: "recipient",
+          metadata: auditEvent.metadata,
+        });
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
       setSealError("Failed to generate PDF. Please try again.");
@@ -890,33 +977,46 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </div>
 
                 {/* Actions - matching private page */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadPDF}
-                    disabled={isGeneratingPDF}
-                    className="gap-2"
-                  >
-                    {isGeneratingPDF ? (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                      </motion.div>
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    PDF
-                  </Button>
-                  <Link href={`/verify?id=${displayDeal.publicId}`}>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Shield className="h-4 w-4" />
-                      Verify
-                    </Button>
-                  </Link>
-                </div>
+                <TooltipProvider delayDuration={300}>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownloadPDF}
+                          disabled={isGeneratingPDF}
+                          className="gap-2"
+                        >
+                          {isGeneratingPDF ? (
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </motion.div>
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                          PDF
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Download PDF <KeyboardHint keys="D" /></TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link href={`/verify?id=${displayDeal.publicId}`}>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Shield className="h-4 w-4" />
+                            Verify
+                          </Button>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>Verify Deal <KeyboardHint keys="V" /></TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
               </div>
 
               {/* Sealed Status Card - matching private page */}
@@ -968,13 +1068,44 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 deal={displayDeal}
                 creatorProfile={{ name: displayDeal.creatorName || "Unknown" }}
                 recipientProfile={{
-                  name: user?.name || displayDeal.recipientName || "Recipient"
+                  name: displayDeal.recipientName || "Recipient"
                 }}
-                isCreator={false}
-                isRecipient={true}
+                isCreator={user?.id === displayDeal.creatorId}
+                isRecipient={user?.id === displayDeal.recipientId}
                 recipientStatusLabel="Signed"
                 showSignatureSeal={true}
               />
+
+              {/* Audit Trail - only shown when user has authorized access and there are logs */}
+              {auditLogs.length > 0 && (
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAuditTrail(!showAuditTrail)}
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-2 -ml-2"
+                    >
+                      <ChevronRight className={cn("h-4 w-4 transition-transform", showAuditTrail && "rotate-90")} />
+                      {showAuditTrail ? "Hide" : "Show"} Audit Trail
+                      <KeyboardHint keys="A" />
+                    </Button>
+
+                    <AnimatePresence>
+                      {showAuditTrail && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden pt-2"
+                        >
+                          <AuditTimeline logs={auditLogs} dealStatus={displayDeal.status as DealStatus} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Footer - matching public complete step */}
               <div className="mt-8 text-center text-sm text-muted-foreground">
@@ -1647,10 +1778,10 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   deal={displayDeal}
                   creatorProfile={{ name: displayDeal.creatorName || "Unknown" }}
                   recipientProfile={{
-                    name: user?.name || displayDeal.recipientName || "Recipient"
+                    name: displayDeal.recipientName || "Recipient"
                   }}
-                  isCreator={false}
-                  isRecipient={true}
+                  isCreator={user?.id === displayDeal.creatorId}
+                  isRecipient={user?.id === displayDeal.recipientId}
                   recipientStatusLabel="Signed"
                   showSignatureSeal={true}
                 />

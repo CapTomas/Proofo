@@ -690,7 +690,7 @@ function NewDealContent() {
         </motion.aside>
 
         <div className="flex flex-col flex-1 min-w-0 h-full relative">
-          <DealHeader title="New Agreement" />
+          <DealHeader title="New Agreement" hideLogo />
 
           <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
             <div className="max-w-7xl mx-auto w-full">

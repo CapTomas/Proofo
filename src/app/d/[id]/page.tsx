@@ -13,14 +13,15 @@ import { DealHeader } from "@/components/deal-header";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { SealedDealView } from "@/components/sealed-deal-view";
 import { CopyableId } from "@/components/dashboard/shared-components";
-import { Deal, AuditLogEntry } from "@/types";
+import { Deal, AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime, timeAgo } from "@/lib/crypto";
 import { cn } from "@/lib/utils";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
-import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction } from "@/app/actions/deal-actions";
+import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction, logAuditEventAction } from "@/app/actions/deal-actions";
 import { useAppStore } from "@/store";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { toast } from "sonner";
+import { prepareAuditEvent } from "@/lib/audit-utils";
 import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import {
@@ -259,13 +260,26 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
   }, [deal]);
 
   // Copy signing link
-  const handleCopyLink = useCallback(() => {
-    if (!signingLink) return;
+  const handleCopyLink = useCallback(async () => {
+    if (!signingLink || !deal) return;
     copyToClipboard(signingLink);
     toast.success("Link copied to clipboard!", {
       icon: <Check className="h-4 w-4 text-emerald-500" />,
     });
-  }, [signingLink, copyToClipboard]);
+
+    // Log link copied event
+    const auditEvent = prepareAuditEvent({
+      eventType: "deal_link_shared",
+      metadata: { linkType: "signing" },
+      includeClientMetadata: true,
+    });
+    await logAuditEventAction({
+      dealId: deal.id,
+      eventType: auditEvent.eventType,
+      actorType: "creator",
+      metadata: auditEvent.metadata,
+    });
+  }, [signingLink, copyToClipboard, deal]);
 
   // Native share
   const handleShare = useCallback(async () => {
@@ -299,9 +313,23 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
         isPro: user?.isPro || false,
         verificationUrl,
       });
-      downloadPDF(pdfBlob, generatePDFFilename(deal));
+      const filename = generatePDFFilename(deal);
+      downloadPDF(pdfBlob, filename);
       toast.success("PDF downloaded!", {
         icon: <Download className="h-4 w-4 text-primary" />,
+      });
+
+      // Log PDF download event
+      const auditEvent = prepareAuditEvent({
+        eventType: "pdf_downloaded",
+        metadata: { filename, context: "private_page" },
+        includeClientMetadata: true,
+      });
+      await logAuditEventAction({
+        dealId: deal.id,
+        eventType: auditEvent.eventType,
+        actorType: isCreator ? "creator" : "recipient",
+        metadata: auditEvent.metadata,
       });
     } catch (err) {
       console.error("PDF generation error:", err);
@@ -309,7 +337,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
     } finally {
       setIsGeneratingPDF(false);
     }
-  }, [deal, user?.isPro]);
+  }, [deal, user?.isPro, isCreator]);
 
   // Print page
   const handlePrint = useCallback(() => {
@@ -381,6 +409,23 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
         e.preventDefault();
         setShowAuditTrail(prev => !prev);
       }
+      // V = Verify
+      else if (e.key === "v" && !e.metaKey && !e.ctrlKey && deal) {
+        e.preventDefault();
+        router.push(`/dashboard/verify?id=${deal.publicId}`);
+      }
+      // S = Share
+      else if (e.key === "s" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleShare();
+      }
+      // L = Copy public access link (for confirmed deals)
+      else if (e.key === "l" && !e.metaKey && !e.ctrlKey && accessToken && isCreator && deal?.status === "confirmed") {
+        e.preventDefault();
+        const accessUrl = `${window.location.origin}/d/public/${deal.publicId}?token=${accessToken}`;
+        copyToClipboard(accessUrl);
+        toast.success("Access link copied!");
+      }
       // Escape = Back
       else if (e.key === "Escape") {
         router.push("/dashboard/agreements");
@@ -388,7 +433,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleCopyLink, handleDownloadPDF, handlePrint, router]);
+  }, [handleCopyLink, handleDownloadPDF, handlePrint, handleShare, router, deal, accessToken, isCreator, copyToClipboard]);
 
   // Loading state
   if (isLoading) {
@@ -603,6 +648,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                       <DropdownMenuItem onClick={handleShare}>
                         <Share2 className="h-4 w-4 mr-2" />
                         Share
+                        <KeyboardHint keys="S" />
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handlePrint}>
                         <Printer className="h-4 w-4 mr-2" />
@@ -613,6 +659,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                         <Link href={`/dashboard/verify?id=${deal.publicId}`}>
                           <ShieldCheck className="h-4 w-4 mr-2" />
                           Verify
+                          <KeyboardHint keys="V" />
                         </Link>
                       </DropdownMenuItem>
                       {accessToken && isCreator && deal.status === "confirmed" && (
@@ -626,7 +673,8 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                             }}
                           >
                             <Key className="h-4 w-4 mr-2" />
-                            Copy Access Link
+                            Public Access Link
+                            <KeyboardHint keys="L" />
                           </DropdownMenuItem>
                         </>
                       )}
@@ -784,31 +832,33 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
               />
 
               {/* Audit Timeline */}
-              <div className="pt-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAuditTrail(!showAuditTrail)}
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 mb-4"
-                >
-                  <ChevronRight className={cn("h-4 w-4 transition-transform", showAuditTrail && "rotate-90")} />
-                  {showAuditTrail ? "Hide" : "Show"} Audit Trail
-                  <KeyboardHint keys="A" />
-                </Button>
+              <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                <CardContent className="p-5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAuditTrail(!showAuditTrail)}
+                    className="text-muted-foreground hover:text-foreground flex items-center gap-2 -ml-2"
+                  >
+                    <ChevronRight className={cn("h-4 w-4 transition-transform", showAuditTrail && "rotate-90")} />
+                    {showAuditTrail ? "Hide" : "Show"} Audit Trail
+                    <KeyboardHint keys="A" />
+                  </Button>
 
-                <AnimatePresence>
-                  {showAuditTrail && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <AuditTimeline logs={auditLogs} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  <AnimatePresence>
+                    {showAuditTrail && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden pt-2"
+                      >
+                        <AuditTimeline logs={auditLogs} dealStatus={deal.status as DealStatus} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </CardContent>
+              </Card>
             </div>
           </motion.div>
           </div>

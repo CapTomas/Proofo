@@ -12,10 +12,11 @@ import { PublicHeader } from "@/components/public-header";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { useAppStore } from "@/store";
 import { formatDate, calculateDealSeal, formatDateTime } from "@/lib/crypto";
-import { getDealByPublicIdAction, getAuditLogsAction } from "@/app/actions/deal-actions";
+import { getDealByPublicIdAction, getAuditLogsAction, logAuditEventAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
+import { prepareAuditEvent } from "@/lib/audit-utils";
 import {
   Shield,
   Search,
@@ -304,12 +305,30 @@ function VerifyContent() {
           });
           setCalculatedHash(hash);
 
+          let result: "valid" | "invalid" | "pending" = "pending";
           if (searchedDeal.dealSeal && hash === searchedDeal.dealSeal) {
             setHashVerificationStatus("valid");
+            result = "valid";
           } else if (searchedDeal.dealSeal) {
             setHashVerificationStatus("invalid");
+            result = "invalid";
           } else {
             setHashVerificationStatus("pending");
+          }
+
+          // Log verification event (only for non-pending status)
+          if (result !== "pending" && isSupabaseConfigured()) {
+            const auditEvent = prepareAuditEvent({
+              eventType: "deal_verified",
+              metadata: { result, hasMatchingSeal: result === "valid" },
+              includeClientMetadata: true,
+            });
+            await logAuditEventAction({
+              dealId: searchedDeal.id,
+              eventType: auditEvent.eventType,
+              actorType: "system",
+              metadata: auditEvent.metadata,
+            });
           }
         } catch (error) {
           console.error("Hash calculation error:", error);
@@ -341,7 +360,23 @@ function VerifyContent() {
         isPro: false,
         verificationUrl: window.location.href,
       });
-      downloadPDF(pdfBlob, generatePDFFilename(searchedDeal));
+      const filename = generatePDFFilename(searchedDeal);
+      downloadPDF(pdfBlob, filename);
+
+      // Log PDF download event
+      if (isSupabaseConfigured()) {
+        const auditEvent = prepareAuditEvent({
+          eventType: "pdf_downloaded",
+          metadata: { filename, context: "verify_page" },
+          includeClientMetadata: true,
+        });
+        await logAuditEventAction({
+          dealId: searchedDeal.id,
+          eventType: auditEvent.eventType,
+          actorType: "system",
+          metadata: auditEvent.metadata,
+        });
+      }
     } catch (error) {
       console.error("Failed to generate PDF", error);
     } finally {

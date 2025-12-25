@@ -81,18 +81,16 @@ export function DealHeader({
     <header className="h-16 flex-none border-b border-border/40 bg-background/80 backdrop-blur-xl z-30 sticky top-0 w-full supports-backdrop-filter:bg-background/60">
       <div className="h-full flex items-center justify-between gap-0">
         <div className="flex items-center h-full flex-1 min-w-0">
-          {/* Logo Box - Synchronized with Dashboard Sidebar */}
-          {!hideLogo && (
+          {/* Logo Box - On pages with sidebar (hideLogo=true), show only on mobile.
+              On all other pages, show on all screen sizes */}
+          <div className={cn(hideLogo && "lg:hidden")}>
             <SidebarLogo
               isCollapsed={isSidebarCollapsed}
               hideBorder
               homeHref={homeHref}
               className="border-r border-border/40 bg-card/50 transition-all duration-300"
             />
-          )}
-
-
-
+          </div>
 
           {/* Breadcrumb-style Slash & Title */}
           {title && (

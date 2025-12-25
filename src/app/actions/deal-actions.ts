@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
@@ -208,7 +208,7 @@ export async function createDealAction(data: {
       // Continue anyway, deal was created
     }
 
-    // Add audit log entry
+    // Add audit log entry with enhanced metadata
     await supabase.from("audit_log").insert({
       deal_id: deal.id,
       event_type: "deal_created",
@@ -217,6 +217,9 @@ export async function createDealAction(data: {
       metadata: {
         templateId: validatedData.templateId,
         recipientName: validatedData.recipientName,
+        termsCount: validatedData.terms.length,
+        hasEmail: !!validatedData.recipientEmail,
+        hasDescription: !!validatedData.description,
       },
     });
 
@@ -474,6 +477,18 @@ export async function validateViewTokenAction(
 
     // If RPC says valid, return true
     if (!rpcError && rpcResult === true) {
+      // Log successful token validation
+      await supabase.from("audit_log").insert({
+        deal_id: dealId,
+        event_type: "token_validated",
+        actor_id: null,
+        actor_type: "system",
+        metadata: {
+          result: "valid",
+          tokenType: "access",
+          timestamp: new Date().toISOString(),
+        },
+      });
       return { isValid: true, error: null };
     }
 
@@ -492,8 +507,35 @@ export async function validateViewTokenAction(
       // If deal is confirmed, allow access with the used token
       // NOTE: This is slightly permissive but tokens are unique per deal
       if (dealData && (dealData as { status: string }).status === "confirmed") {
+        // Log successful validation of used token
+        await supabase.from("audit_log").insert({
+          deal_id: dealId,
+          event_type: "token_validated",
+          actor_id: null,
+          actor_type: "system",
+          metadata: {
+            result: "valid",
+            tokenType: "used_access",
+            timestamp: new Date().toISOString(),
+          },
+        });
         return { isValid: true, error: null };
       }
+    }
+
+    // Log failed token validation - but only if a token was actually provided
+    if (token) {
+      await supabase.from("audit_log").insert({
+        deal_id: dealId,
+        event_type: "token_validated",
+        actor_id: null,
+        actor_type: "system",
+        metadata: {
+          result: "invalid",
+          tokenType: "access",
+          timestamp: new Date().toISOString(),
+        },
+      });
     }
 
     return { isValid: false, error: null };
@@ -695,9 +737,10 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
     if (!deal) return;
 
     const dealData = deal as Record<string, unknown>;
+    const isFirstView = !dealData.viewed_at;
 
     // Update viewed_at if not already set
-    if (!dealData.viewed_at) {
+    if (isFirstView) {
       // We need to use a function or service role for this update
       // For now, we'll skip the RLS check by using the deal ID
       await supabase
@@ -706,7 +749,14 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
         .eq("public_id", publicId);
     }
 
-    // Add audit log
+    // Count how many times this deal has been viewed
+    const { count: viewCount } = await supabase
+      .from("audit_log")
+      .select("*", { count: "exact", head: true })
+      .eq("deal_id", dealData.id as string)
+      .eq("event_type", "deal_viewed");
+
+    // Add audit log with enhanced metadata
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -719,6 +769,8 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
       metadata: {
         isLoggedIn: !!user,
         viewedAt: new Date().toISOString(),
+        isFirstView,
+        viewNumber: (viewCount || 0) + 1,
       },
     });
   } catch (error) {
@@ -940,8 +992,8 @@ export async function getUserDealsAction(): Promise<{ deals: Deal[]; error: stri
   }
 }
 
-// Get audit logs for a deal
-export async function getAuditLogsAction(dealId: string): Promise<{
+// Get audit logs for a deal (permission check: creator, recipient, or valid token)
+export async function getAuditLogsAction(dealId: string, token?: string): Promise<{
   logs: Array<{
     id: string;
     dealId: string;
@@ -956,17 +1008,17 @@ export async function getAuditLogsAction(dealId: string): Promise<{
   try {
     const supabase = await createServerSupabaseClient();
 
-    const { data, error } = await supabase
-      .from("audit_log")
-      .select("*")
-      .eq("deal_id", dealId)
-      .order("created_at", { ascending: true });
+    // Use RPC to fetch logs securely based on auth OR token
+    const { data, error } = await supabase.rpc("get_deal_audit_logs", {
+      p_deal_id: dealId,
+      p_token: token || null
+    });
 
     if (error) {
       return { logs: [], error: error.message };
     }
 
-    const logs = (data || []).map((log) => ({
+    const logs = ((data as any[]) || []).map((log) => ({
       id: log.id,
       dealId: log.deal_id,
       eventType: log.event_type,
@@ -980,6 +1032,68 @@ export async function getAuditLogsAction(dealId: string): Promise<{
   } catch (error) {
     logger.error("Error fetching audit logs", error);
     return { logs: [], error: "Server error" };
+  }
+}
+
+// Log an audit event with enhanced metadata (centralized logging action)
+export async function logAuditEventAction(data: {
+  dealId: string;
+  publicId?: string;
+  eventType: "deal_created" | "deal_viewed" | "deal_signed" | "deal_confirmed" | "deal_voided" | "email_sent" | "pdf_generated" | "pdf_downloaded" | "deal_verified" | "deal_link_shared" | "token_validated";
+  actorType: "creator" | "recipient" | "system";
+  metadata?: Record<string, unknown>;
+}): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Get request headers for IP and User Agent
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for") || "unknown";
+    const userAgent = headersList.get("user-agent") || "unknown";
+
+    // Get the current user if authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // If we have a publicId but no dealId, resolve the dealId
+    let dealId = data.dealId;
+    if (!dealId && data.publicId) {
+      const { data: dealData } = await supabase.rpc("get_deal_by_public_id", { p_public_id: data.publicId });
+      if (dealData) {
+        dealId = (dealData as Record<string, unknown>).id as string;
+      }
+    }
+
+    if (!dealId) {
+      return { success: false, error: "Deal ID required" };
+    }
+
+    // Build enhanced metadata
+    const enhancedMetadata = {
+      ...data.metadata,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Use RPC to bypass RLS for inserting audit logs
+    // This allows anonymous recipients to log events like deal_signed
+    const { error: insertError } = await supabase.rpc("log_audit_event", {
+      p_deal_id: dealId,
+      p_event_type: data.eventType,
+      p_actor_type: data.actorType,
+      p_metadata: enhancedMetadata,
+      p_actor_id: user?.id || null,
+      p_ip_address: ip,
+      p_user_agent: userAgent,
+    });
+
+    if (insertError) {
+      logger.error("Error inserting audit log", insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    return { success: true, error: null };
+  } catch (error) {
+    logger.error("Error logging audit event", error);
+    return { success: false, error: "Server error" };
   }
 }
 

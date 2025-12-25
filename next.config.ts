@@ -46,6 +46,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.resend.com",
+              "worker-src 'self' blob:", // Allow web workers with blob URLs (e.g., confetti)
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
