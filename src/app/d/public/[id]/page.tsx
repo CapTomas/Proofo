@@ -40,6 +40,9 @@ import {
   Key,
   ShieldCheck,
   RefreshCw,
+  Users,
+  Send,
+  Inbox,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
@@ -687,115 +690,163 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               key="sealed_no_access"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12"
             >
-              <div className="h-20 w-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6">
-                <Lock className="h-10 w-10 text-emerald-600" />
-              </div>
-              <Badge
-                variant="secondary"
-                className="mb-4 px-4 py-1.5 bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                Sealed & Verified
-              </Badge>
-              <h1 className="text-2xl font-bold mb-3">This Deal is Sealed</h1>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                This agreement has been completed and cryptographically sealed.
-                {displayDeal.confirmedAt && (
-                  <span className="block mt-1 text-sm">
-                    Sealed on {formatDateTime(displayDeal.confirmedAt)}
-                  </span>
-                )}
-              </p>
-
-              {/* Minimal info card */}
-              <Card className="mb-8 max-w-md mx-auto border border-emerald-500/20">
-                <CardContent className="p-5 text-left">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <Hash className="h-4 w-4" />
-                        Deal ID
-                      </span>
-                      <CopyableId id={displayDeal.publicId} />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        Status
-                      </span>
-                      <Badge variant="outline" className="gap-1.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-700">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Confirmed
+              {/* Header Section - Matching Standardized Style */}
+              <div className="mb-8 pl-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                    <Lock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Deal Sealed</h1>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
+                        Verified
                       </Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-border" />
+                        Access token required
+                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              {/* Token Entry Form */}
-              <Card className="mb-6 max-w-md mx-auto">
-                <CardContent className="p-5">
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <Lock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <div className="text-left">
-                        <p className="font-medium mb-1">Have an access token?</p>
-                        <p className="text-sm text-muted-foreground">
-                          Enter the access token from your signing link to view full deal details.
+              {/* Multi-Card Layout */}
+              <div className="space-y-4">
+                {/* Status Card */}
+                <Card className="border border-emerald-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                  <motion.div
+                    className="h-1.5 w-full bg-emerald-500"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    style={{ transformOrigin: "left" }}
+                  />
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-emerald-700">Agreement Verified</p>
+                        <p className="text-xs text-muted-foreground">
+                          {displayDeal.confirmedAt
+                            ? `Sealed on ${formatDateTime(displayDeal.confirmedAt)}`
+                            : "Cryptographically sealed and verified"}
                         </p>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="access-token" className="sr-only">Access Token</Label>
-                      <Input
-                        id="access-token"
-                        type="text"
-                        placeholder="Enter access token..."
-                        value={manualToken}
-                        onChange={(e) => setManualToken(e.target.value)}
-                        className="font-mono text-sm"
-                      />
-                      {tokenError && (
-                        <p className="text-sm text-destructive flex items-center gap-1.5">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          {tokenError}
-                        </p>
-                      )}
+                {/* Deal Info Card */}
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Creator</span>
+                        </div>
+                        <span className="font-medium">{displayDeal.creatorName}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const templateId = displayDeal.templateId || "simple-agreement";
+                            const iconName = templateIconNames[templateId] || "Handshake";
+                            const IconComp = iconMap[iconName] || Handshake;
+                            return <IconComp className="h-4 w-4 text-muted-foreground" />;
+                          })()}
+                          <span className="text-muted-foreground">Deal Type</span>
+                        </div>
+                        <span className="font-medium">
+                          {displayDeal.templateId === "lend-item" ? "Lend Item" :
+                           displayDeal.templateId === "simple-agreement" ? "Simple Agreement" :
+                           displayDeal.templateId === "payment-promise" ? "Payment Promise" :
+                           displayDeal.templateId === "service-exchange" ? "Service Exchange" :
+                           displayDeal.templateId === "custom" ? "Custom Deal" :
+                           "Agreement"}
+                        </span>
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Hash className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Deal ID</span>
+                        </div>
+                        <CopyableId id={displayDeal.publicId} />
+                      </div>
                     </div>
+                  </CardContent>
+                </Card>
 
-                    <Button
-                      onClick={handleValidateToken}
-                      disabled={!manualToken || isValidatingToken}
-                      className="w-full gap-2"
-                    >
-                      {isValidatingToken ? (
-                        <>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          >
-                            <Sparkles className="h-4 w-4" />
-                          </motion.div>
-                          Validating...
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="h-4 w-4" />
-                          Unlock Full Details
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Token Entry Form Card */}
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Key className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-medium text-sm mb-1">Have an access token?</p>
+                          <p className="text-xs text-muted-foreground">
+                            Enter the access token from your signing link to view full deal details.
+                          </p>
+                        </div>
+                      </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <div className="space-y-2">
+                        <Label htmlFor="access-token" className="sr-only">Access Token</Label>
+                        <Input
+                          id="access-token"
+                          type="text"
+                          placeholder="Enter access token..."
+                          value={manualToken}
+                          onChange={(e) => setManualToken(e.target.value)}
+                          className="font-mono text-sm"
+                        />
+                        {tokenError && (
+                          <p className="text-sm text-destructive flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {tokenError}
+                          </p>
+                        )}
+                      </div>
+
+                      <Button
+                        onClick={handleValidateToken}
+                        disabled={!manualToken || isValidatingToken}
+                        className="w-full gap-2"
+                      >
+                        {isValidatingToken ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </motion.div>
+                            Validating...
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="h-4 w-4" />
+                            Unlock Full Details
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex gap-3 mt-6">
                 <Link href={`/verify?id=${displayDeal.publicId}`}>
-                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                  <Button variant="outline" className="gap-2">
                     <Shield className="h-4 w-4" />
                     Verify Deal
                   </Button>
@@ -951,52 +1002,89 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="text-center mb-8">
-                <Badge variant="secondary" className="mb-4 px-4 py-1.5">
-                  <Shield className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                  Secure Agreement
-                </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  {displayDeal.creatorName} wants to make a deal
-                </h1>
-                <p className="text-muted-foreground">Review the terms below before signing</p>
-                {user && (
-                  <Badge variant="outline" className="mt-3 gap-1.5">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    Signing as {user.name}
-                  </Badge>
-                )}
+              {/* Header Section - Matching Signature Step Style */}
+              <div className="mb-8 pl-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Review Agreement</h1>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/10">
+                        Step 1 of 2
+                      </Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-border" />
+                        Signing as <span className="font-semibold text-foreground">{user?.name || displayDeal.recipientName || "Recipient"}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Multi-Card Layout */}
+              {/* Multi-Card Layout - Matching Private Deal Page Style */}
               <div className="space-y-4">
-                {/* Status + Creator Card */}
-                <Card className="border border-amber-500/30 shadow-sm rounded-xl overflow-hidden">
-                  <div className="h-1.5 w-full bg-amber-500" />
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-linear-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-semibold shadow-sm">
-                        {creatorInitials}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold">{displayDeal.creatorName}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                          <Calendar className="h-3.5 w-3.5" />
-                          Created {formatDateTime(displayDeal.createdAt)}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="gap-1.5 bg-amber-500/10 border-amber-500/30 text-amber-700">
-                        <Clock className="h-3 w-3" />
-                        Pending
-                      </Badge>
+                {/* Parties Card */}
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5 md:p-6">
+                    <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                      <Users className="h-4 w-4" />
+                      Parties
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {/* Creator */}
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                        className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-medium text-sm shadow-sm">
+                          {creatorInitials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{displayDeal.creatorName}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Send className="h-3 w-3" />
+                            Creator
+                          </p>
+                        </div>
+                      </motion.div>
+
+                      {/* Recipient */}
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                        className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center font-medium text-sm text-muted-foreground shadow-sm">
+                          {(displayDeal.recipientName || user?.name || "You")
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{displayDeal.recipientName || user?.name || "You"}</p>
+                            <Badge variant="secondary" className="text-[10px] h-4 shrink-0">You</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Inbox className="h-3 w-3" />
+                            Recipient
+                          </p>
+                        </div>
+                      </motion.div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Terms Card */}
+                {/* Deal Info Card */}
                 <Card className="border border-border shadow-sm rounded-xl overflow-hidden">
-                  <CardContent className="p-5 md:p-6 space-y-6">
-                    {/* Header */}
+                  <CardContent className="p-5 md:p-6">
                     <div className="flex items-start gap-4">
                       {(() => {
                         const templateId = displayDeal.templateId || "simple-agreement";
@@ -1008,66 +1096,61 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                           </div>
                         );
                       })()}
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <h2 className="text-xl font-bold tracking-tight">{displayDeal.title}</h2>
                         <p className="text-sm text-muted-foreground mt-0.5">
                           {displayDeal.description || "Agreement"}
                         </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Deal metadata */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Recipient:</span>
-                        <span className="font-medium">{displayDeal.recipientName || "You"}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Hash className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Deal ID:</span>
-                        <CopyableId id={displayDeal.publicId} />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Terms */}
-                    <section className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                          <FileText className="h-4 w-4" />
-                          Terms
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {formatDateTime(displayDeal.createdAt)}
+                          </div>
+                          <CopyableId id={displayDeal.publicId} />
+                          <Badge variant="outline" className="gap-1.5 bg-amber-500/10 border-amber-500/30 text-amber-700">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {displayDeal.terms.length} {displayDeal.terms.length === 1 ? "term" : "terms"}
-                        </Badge>
                       </div>
-                      <div className="space-y-2">
-                        {displayDeal.terms.map((term, index) => (
-                          <motion.div
-                            key={term.id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            whileHover={{ scale: 1.01 }}
-                            className="flex items-center justify-between py-3 px-4 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors cursor-pointer group/term"
-                            onClick={() => {
-                              copyToClipboard(`${term.label}: ${term.value}`);
-                              toast.success(`Copied: ${term.label}`);
-                            }}
-                          >
-                            <span className="text-sm text-muted-foreground">{term.label}</span>
-                            <span className="font-medium text-sm flex items-center gap-2">
-                              {term.value}
-                              <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/term:opacity-100 transition-opacity" />
-                            </span>
-                          </motion.div>
-                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Terms Card */}
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5 md:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                        Terms
                       </div>
-                    </section>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {displayDeal.terms.length} {displayDeal.terms.length === 1 ? "term" : "terms"}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {displayDeal.terms.map((term, index) => (
+                        <motion.div
+                          key={term.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          whileHover={{ scale: 1.01 }}
+                          className="flex items-center justify-between py-3 px-4 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors cursor-pointer group/term"
+                          onClick={() => {
+                            copyToClipboard(`${term.label}: ${term.value}`);
+                            toast.success(`Copied: ${term.label}`);
+                          }}
+                        >
+                          <span className="text-sm text-muted-foreground">{term.label}</span>
+                          <span className="font-medium text-sm flex items-center gap-2">
+                            {term.value}
+                            <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/term:opacity-100 transition-opacity" />
+                          </span>
+                        </motion.div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -1125,7 +1208,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Sign Agreement</h1>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/10">
-                        Final Step
+                        Step 2 of 2
                       </Badge>
                       <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                         <span className="w-1 h-1 rounded-full bg-border" />
@@ -1308,25 +1391,25 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="text-center mb-8">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="h-20 w-20 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30"
-                >
-                  <CheckCircle2 className="h-10 w-10 text-white" />
-                </motion.div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  Deal Sealed! 🎉
-                </h1>
-                <p className="text-muted-foreground">Where should we send your receipt?</p>
-                {user && (
-                  <Badge variant="outline" className="mt-3 gap-1.5">
-                    <User className="h-3 w-3" />
-                    Signed in as {user.name || user.email}
-                  </Badge>
-                )}
+              {/* Header Section - Matching Review/Sign Step Style */}
+              <div className="mb-8 pl-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Agreement Sealed</h1>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
+                        Complete
+                      </Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-border" />
+                        Get your receipt
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <Card className="mb-6">

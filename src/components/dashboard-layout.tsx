@@ -328,7 +328,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 onClick={toggleSidebar}
               >
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                  <PanelLeft className="h-4.5 w-4.5" />
+                  {isSidebarCollapsed ? (
+                    <PanelLeftOpen className="h-4.5 w-4.5" />
+                  ) : (
+                    <PanelLeftClose className="h-4.5 w-4.5" />
+                  )}
                 </div>
                 <AnimatePresence mode="popLayout">
                   {!isSidebarCollapsed && (

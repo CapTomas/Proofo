@@ -665,7 +665,11 @@ function NewDealContent() {
                 onClick={toggleSidebar}
               >
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                  <PanelLeft className="h-4.5 w-4.5" />
+                  {isSidebarCollapsed ? (
+                    <PanelLeftOpen className="h-4.5 w-4.5" />
+                  ) : (
+                    <PanelLeftClose className="h-4.5 w-4.5" />
+                  )}
                 </div>
                 <AnimatePresence mode="popLayout">
                   {!isSidebarCollapsed && (
@@ -686,7 +690,7 @@ function NewDealContent() {
         </motion.aside>
 
         <div className="flex flex-col flex-1 min-w-0 h-full relative">
-          <DealHeader title="New Agreement" hideLogo={true} />
+          <DealHeader title="New Agreement" />
 
           <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
             <div className="max-w-7xl mx-auto w-full">

@@ -610,7 +610,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                         <KeyboardHint keys="P" />
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href={`/verify?id=${deal.publicId}`}>
+                        <Link href={`/dashboard/verify?id=${deal.publicId}`}>
                           <ShieldCheck className="h-4 w-4 mr-2" />
                           Verify
                         </Link>
@@ -737,7 +737,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                               <p className="text-xs text-muted-foreground">Signed on {formatDateTime(deal.confirmedAt)}</p>
                             </div>
                           </div>
-                          <Link href={`/verify?id=${deal.publicId}`}>
+                          <Link href={`/dashboard/verify?id=${deal.publicId}`}>
                             <Button variant="outline" size="sm" className="gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10">
                               <ShieldCheck className="h-4 w-4" />
                               Verify
