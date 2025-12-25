@@ -35,6 +35,12 @@ interface AppState {
   // Theme
   theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
+
+  // Sidebar state
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: (isCollapsed: boolean) => void;
+  sidebarUserPreference: "collapsed" | "expanded" | null;
+  setSidebarUserPreference: (preference: "collapsed" | "expanded" | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -155,6 +161,12 @@ export const useAppStore = create<AppState>()(
       // Theme
       theme: "system",
       setTheme: (theme) => set({ theme }),
+
+      // Sidebar state
+      isSidebarCollapsed: false,
+      sidebarUserPreference: null, // null = auto, "collapsed", "expanded"
+      setIsSidebarCollapsed: (isSidebarCollapsed) => set({ isSidebarCollapsed }),
+      setSidebarUserPreference: (preference) => set({ sidebarUserPreference: preference }),
     }),
     {
       name: "proofo-storage",
@@ -163,6 +175,8 @@ export const useAppStore = create<AppState>()(
         deals: state.deals,
         auditLogs: state.auditLogs,
         theme: state.theme,
+        isSidebarCollapsed: state.isSidebarCollapsed,
+        sidebarUserPreference: state.sidebarUserPreference,
       }),
     }
   )

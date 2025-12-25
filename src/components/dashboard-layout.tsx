@@ -18,10 +18,13 @@ import {
   Inbox,
   Users,
   Shield,
+  PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
   X,
 } from "lucide-react";
+import { SidebarLogo } from "./sidebar-logo";
+import { SidebarNavItem } from "./sidebar-nav-item";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
@@ -29,6 +32,8 @@ import { signOut, isSupabaseConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { DashboardHeader } from "./dashboard-header";
 import { ErrorBoundary } from "./error-boundary";
+
+import { useSidebarAutoCollapse } from "@/hooks/useSidebarAutoCollapse";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -47,8 +52,18 @@ const navItems = [
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, setUser, setDeals } = useAppStore();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const {
+    user,
+    setUser,
+    setDeals,
+    isSidebarCollapsed,
+    setIsSidebarCollapsed,
+    setSidebarUserPreference,
+  } = useAppStore();
+
+  // Use shared auto-collapse logic
+  useSidebarAutoCollapse();
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -57,10 +72,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Handle client-side mounting and hydration
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    const savedState = localStorage.getItem("sidebar-collapsed");
-    if (savedState) setIsCollapsed(savedState === "true");
 
     // Check if desktop
     const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
@@ -78,9 +90,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const toggleSidebar = () => {
-    const newState = !isCollapsed;
-    setIsCollapsed(newState);
-    localStorage.setItem("sidebar-collapsed", String(newState));
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    // When user manually toggles, save their preference
+    setSidebarUserPreference(newState ? "collapsed" : "expanded");
   };
 
   const handleLogout = () => {
@@ -127,31 +140,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Sidebar - Fixed Left */}
         <motion.aside
           initial={false}
-          animate={{ width: isCollapsed ? 80 : 280 }}
+          animate={{ width: isSidebarCollapsed ? 80 : 280 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="hidden lg:flex flex-col border-r bg-card dark:bg-card/50 backdrop-blur-xl z-40 shrink-0"
         >
           {/* Logo Area */}
-          <div
-            className={cn(
-              "h-16 flex items-center border-b border-border/40 transition-all duration-300 shrink-0",
-              isCollapsed ? "justify-center px-0" : "justify-between px-6"
-            )}
-          >
-            <Link href="/dashboard" className="flex items-center gap-3 group overflow-hidden">
-              <AnimatedLogo size={isCollapsed ? 32 : 28} className="text-foreground shrink-0" />
-              {!isCollapsed && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="font-bold text-lg tracking-tight whitespace-nowrap"
-                >
-                  Proofo
-                </motion.span>
-              )}
-            </Link>
-          </div>
+          <SidebarLogo isCollapsed={isSidebarCollapsed} />
+
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
@@ -159,54 +154,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
-              const Icon = item.icon;
-
-              if (isCollapsed) {
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      <Link href={item.href} className="flex justify-center">
-                        <Button
-                          variant={isActive ? "secondary" : "ghost"}
-                          size="icon"
-                          className={cn(
-                            "h-10 w-10 rounded-xl transition-all duration-200",
-                            isActive && "bg-primary/10 text-primary hover:bg-primary/15"
-                          )}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="sr-only">{item.label}</span>
-                        </Button>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="font-medium" sideOffset={10}>
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              }
 
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start gap-3 h-10 px-3 text-sm font-medium rounded-xl transition-all duration-200",
-                      isActive && "bg-primary/10 text-primary hover:bg-primary/15"
-                    )}
-                  >
-                    <Icon className="h-4.5 w-4.5 shrink-0" />
-                    {item.label}
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-nav"
-                        className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
-                      />
-                    )}
-                  </Button>
-                </Link>
+                <SidebarNavItem
+                  key={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  href={item.href}
+                  isActive={isActive}
+                  isCollapsed={isSidebarCollapsed}
+                  showDot
+                />
               );
             })}
+
           </nav>
 
           {/* Footer Actions */}
@@ -215,40 +176,45 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {user && !isPro && (
               <div
                 className={cn(
-                  "rounded-xl bg-linear-to-br from-primary/5 via-primary/10 to-transparent border border-primary/10 overflow-hidden transition-all duration-300",
-                  isCollapsed ? "p-2" : "p-4"
+                  "rounded-xl bg-linear-to-br from-primary/5 via-primary/10 to-transparent border border-primary/10 transition-all duration-300 overflow-hidden",
+                  isSidebarCollapsed ? "p-0" : "px-3 py-4"
                 )}
               >
-                {isCollapsed ? (
-                  <Tooltip>
+                {isSidebarCollapsed ? (
+                  <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
                       <Button
-                        size="icon"
                         variant="ghost"
-                        className="w-full h-8 hover:bg-primary/10"
+                        className="w-full h-10 hover:bg-primary/10 rounded-xl justify-start px-3"
                       >
-                        <Crown className="h-4 w-4 text-primary" />
+                        <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                          <Crown className="h-4 w-4 text-primary" />
+                        </div>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">Upgrade to Pro</TooltipContent>
                   </Tooltip>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-1.5 rounded-lg bg-background shadow-sm">
-                        <Crown className="h-3.5 w-3.5 text-primary" />
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                        <div className="p-1.5 rounded-lg bg-background shadow-sm">
+                          <Crown className="h-3.5 w-3.5 text-primary" />
+                        </div>
                       </div>
                       <span className="text-xs font-semibold">Pro Plan</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
-                      Unlock unlimited history & remove watermarks.
-                    </p>
-                    <Button
-                      size="sm"
-                      className="w-full h-8 text-xs shadow-sm bg-primary text-primary-foreground hover:opacity-90"
-                    >
-                      Upgrade
-                    </Button>
+                    <div className="pl-11">
+                      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+                        Unlock unlimited history & remove watermarks.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full h-8 text-xs shadow-sm bg-primary text-primary-foreground hover:opacity-90 rounded-lg"
+                      >
+                        Upgrade
+                      </Button>
+                    </div>
                   </>
                 )}
               </div>
@@ -257,117 +223,127 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* User Profile */}
             <div className="border-t border-border/40 pt-3">
               {showUserSkeleton ? (
-                <div
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl p-2",
-                    isCollapsed && "justify-center"
-                  )}
-                >
-                  <Skeleton className="h-8 w-8 rounded-full" />
-                  {!isCollapsed && (
-                    <div className="flex-1 space-y-1">
+                <div className="flex items-center h-10 px-3">
+                  <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <div className="flex-1 space-y-1 ml-3">
                       <Skeleton className="h-3 w-20" />
                       <Skeleton className="h-2 w-16" />
                     </div>
                   )}
                 </div>
               ) : !user ? (
-                <div
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl p-2",
-                    isCollapsed && "justify-center"
-                  )}
-                >
-                  <Link href="/login">
-                    <Button variant="ghost" size="sm" className="w-full">
-                      {isCollapsed ? <User className="h-4 w-4" /> : "Sign In"}
-                    </Button>
-                  </Link>
-                </div>
-              ) : isCollapsed ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-full h-10 rounded-xl"
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                    >
-                      <div className="h-6 w-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold overflow-hidden">
-                        {user.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={user.avatarUrl}
-                            alt={userName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          userInitials
-                        )}
-                      </div>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>{userName}</p>
-                    <p className="text-xs text-muted-foreground">Click to log out</p>
-                  </TooltipContent>
-                </Tooltip>
+                <SidebarNavItem
+                  label="Sign In"
+                  icon={User}
+                  href="/login"
+                  isCollapsed={isSidebarCollapsed}
+                />
               ) : (
-                <div className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-xs text-primary-foreground font-bold shrink-0 shadow-sm overflow-hidden">
-                      {user.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={user.avatarUrl}
-                          alt={userName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        userInitials
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{userName}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {isPro ? "Pro Plan" : "Free Plan"}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    title="Log out"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                  </Button>
+                <div className={cn(
+                  "flex items-center rounded-xl transition-all duration-200 group overflow-hidden",
+                  !isSidebarCollapsed && "hover:bg-muted/50"
+                )}>
+                  {isSidebarCollapsed ? (
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full h-10 rounded-xl justify-start px-3"
+                          onClick={handleLogout}
+                          disabled={isLoggingOut}
+                        >
+                          <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                            <div className="h-7 w-7 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold overflow-hidden shadow-sm">
+                              {user.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={user.avatarUrl}
+                                  alt={userName}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                userInitials
+                              )}
+                            </div>
+                          </div>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>{userName}</p>
+                        <p className="text-xs text-muted-foreground">Click to log out</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <>
+                      <div className="flex items-center flex-1 min-w-0 px-3 h-10">
+                        <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                          <div className="h-7 w-7 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-[10px] text-primary-foreground font-bold overflow-hidden shadow-sm">
+                            {user.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={user.avatarUrl}
+                                alt={userName}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              userInitials
+                            )}
+                          </div>
+                        </div>
+                        <div className="ml-3 min-w-0">
+                          <p className="text-sm font-medium truncate">{userName}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {isPro ? "Pro Plan" : "Free Plan"}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0 mr-2"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        title="Log out"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
 
+
+
+
             {/* Collapse Toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "w-full text-muted-foreground hover:text-foreground h-8",
-                isCollapsed && "px-0"
-              )}
-              onClick={toggleSidebar}
-            >
-              {isCollapsed ? (
-                <PanelLeftOpen className="h-4 w-4" />
-              ) : (
-                <div className="flex items-center gap-2 text-xs">
-                  <PanelLeftClose className="h-3.5 w-3.5" />
-                  <span>Collapse</span>
+            <div className="border-t border-border/40 pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-3 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-200"
+                onClick={toggleSidebar}
+              >
+                <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                  <PanelLeft className="h-4.5 w-4.5" />
                 </div>
-              )}
-            </Button>
+                <AnimatePresence mode="popLayout">
+                  {!isSidebarCollapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="ml-3 text-sm font-medium"
+                    >
+                      Collapse
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Button>
+            </div>
           </div>
         </motion.aside>
 

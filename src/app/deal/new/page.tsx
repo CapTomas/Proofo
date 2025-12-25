@@ -4,31 +4,31 @@ import { useState, useEffect, useCallback, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedLogo } from "@/components/animated-logo";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  ArrowLeft,
-  ArrowRight,
   Check,
   Copy,
   Share2,
   Mail,
-  Sparkles,
-  FileCheck,
-  Users,
-  Edit3,
-  CheckCircle2,
-  AlertCircle,
   Package,
   Handshake,
   DollarSign,
   ArrowLeftRight,
   PenLine,
   LucideIcon,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  Globe,
+  FileCheck,
+  AlertCircle,
+  ChevronLeft,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
@@ -38,8 +38,66 @@ import { useAppStore, createNewDeal } from "@/store";
 import { createDealAction, getDealByIdAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { LoginModal } from "@/components/login-modal";
+import { cn } from "@/lib/utils";
+import { DealHeader } from "@/components/deal-header";
+import { SidebarLogo } from "@/components/sidebar-logo";
+import { SidebarNavItem } from "@/components/sidebar-nav-item";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
+import {
+  LayoutTemplate,
+  FileText,
+  Shield,
+  Send,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 
-// Icon mapping for templates
+// Enhanced Spring Physics for "Snappy" feel
+const springTransition = {
+  type: "spring" as const,
+  stiffness: 400,
+  damping: 30,
+};
+
+const slideUp = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: springTransition }
+};
+
+const shakeVariant = {
+  shake: {
+    x: [0, -4, 4, -4, 4, 0],
+    transition: { duration: 0.3 }
+  }
+};
+
+const containerVariants = {
+  hidden: { opacity: 0, scale: 0.98 },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      type: "spring" as const,
+      stiffness: 400,
+      damping: 30,
+      staggerChildren: 0.05
+    }
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.98,
+    transition: { duration: 0.15 }
+  }
+};
+
 const iconMap: Record<string, LucideIcon> = {
   Package,
   Handshake,
@@ -53,16 +111,50 @@ type Step = "template" | "details" | "review" | "share";
 const stepInfo = {
   template: {
     number: 1,
-    title: "Choose Template",
-    description: "Select a template that fits your agreement",
+    title: "Select Template",
+    description: "Choose agreement type",
+    icon: LayoutTemplate,
   },
-  details: { number: 2, title: "Fill Details", description: "Add the specifics of your agreement" },
-  review: { number: 3, title: "Review", description: "Make sure everything looks correct" },
-  share: { number: 4, title: "Share", description: "Send to the other party" },
+  details: {
+    number: 2,
+    title: "Enter Details",
+    description: "Fill required terms",
+    icon: FileText,
+  },
+  review: {
+    number: 3,
+    title: "Verification",
+    description: "Review and create",
+    icon: Shield,
+  },
+  share: {
+    number: 4,
+    title: "Secure Share",
+    description: "Send to recipient",
+    icon: Send,
+  },
 };
 
+// Formatting utilities
+const formatCurrency = (val: string) => {
+  if (!val) return "";
+  const num = val.replace(/[^0-9.]/g, "");
+  if (!num) return "";
+  const parts = num.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join(".");
+};
+
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const STEPS: Step[] = ["template", "details", "review", "share"];
+
 function NewDealContent() {
-  const { user, addDeal, addAuditLog, getDealById } = useAppStore();
+  const { user, addDeal, addAuditLog, getDealById, isSidebarCollapsed, setIsSidebarCollapsed } = useAppStore();
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
   const searchParams = useSearchParams();
   const sourceId = searchParams.get("source");
 
@@ -78,14 +170,42 @@ function NewDealContent() {
   const [shareUrl, setShareUrl] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingDealCreation, setPendingDealCreation] = useState(false);
-  const dealCreationInProgressRef = useRef(false);
+  const [shake, setShake] = useState(false);
+  const [reviewId] = useState(() => Date.now().toString(36).toUpperCase());
+  const [restored, setRestored] = useState(false);
 
-  // Save form progress to localStorage for guests
+  const dealCreationInProgressRef = useRef(false);
+  const topRef = useRef<HTMLDivElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
+
+
+  // Auto-focus first input when entering details step
   useEffect(() => {
-    if (
-      !user &&
-      (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)
-    ) {
+    if (currentStep === "details") {
+      setTimeout(() => firstInputRef.current?.focus(), 100);
+    }
+  }, [currentStep]);
+
+  // Scroll to top on step change for mobile
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [currentStep]);
+
+  // Confetti on success
+  useEffect(() => {
+    if (currentStep === "share") {
+       confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+       });
+    }
+  }, [currentStep]);
+
+  // Restoration Logic
+  useEffect(() => {
+    if (!user && (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)) {
       const progressData = {
         selectedTemplate: selectedTemplate?.id,
         recipientName,
@@ -97,28 +217,32 @@ function NewDealContent() {
     }
   }, [selectedTemplate, recipientName, recipientEmail, formData, user]);
 
-  // Restore form progress for guests
   useEffect(() => {
     if (!user && !sourceId) {
       const savedProgress = localStorage.getItem("proofo-guest-form-progress");
       if (savedProgress) {
         try {
           const progress = JSON.parse(savedProgress);
-          // Only restore if saved within last 24 hours
-          if (Date.now() - progress.timestamp < 24 * 60 * 60 * 1000) {
+          if (Date.now() - progress.timestamp < 86400000) {
+            let restoredAny = false;
             if (progress.selectedTemplate) {
               const template = dealTemplates.find((t) => t.id === progress.selectedTemplate);
               if (template) {
                 // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSelectedTemplate(template);
                 setCurrentStep("details");
+                restoredAny = true;
               }
             }
-            if (progress.recipientName) setRecipientName(progress.recipientName);
-            if (progress.recipientEmail) setRecipientEmail(progress.recipientEmail);
-            if (progress.formData) setFormData(progress.formData);
+            if (progress.recipientName) { setRecipientName(progress.recipientName); restoredAny = true; }
+            if (progress.recipientEmail) { setRecipientEmail(progress.recipientEmail); restoredAny = true; }
+            if (progress.formData) { setFormData(progress.formData); restoredAny = true; }
+
+            if (restoredAny && !restored) {
+               setRestored(true);
+               toast("Draft Restored", { description: "We brought back your previous work." });
+            }
           } else {
-            // Clear old data
             localStorage.removeItem("proofo-guest-form-progress");
           }
         } catch (e) {
@@ -126,31 +250,36 @@ function NewDealContent() {
         }
       }
     }
-  }, [user, sourceId]);
+  }, [user, sourceId, restored]);
 
-  // Clear saved progress when deal is successfully created
+  // Unsaved Changes Guard
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if ((currentStep === "details" || currentStep === "review") && !createdDeal) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [currentStep, createdDeal]);
+
   useEffect(() => {
     if (createdDeal && currentStep === "share") {
       localStorage.removeItem("proofo-guest-form-progress");
     }
   }, [createdDeal, currentStep]);
 
-  // Pre-fill form from source deal (Duplicate feature)
   useEffect(() => {
     if (!sourceId) return;
-
     const prefillFromDeal = (deal: Deal) => {
-      // Find the matching template
       const template = dealTemplates.find((t) => t.id === deal.templateId);
       if (template) {
         setSelectedTemplate(template);
-        // Pre-fill form data from deal terms
         const data: Record<string, string> = {};
         deal.terms.forEach((term) => {
-          // Find matching field by label
           const field = template.fields.find((f) => f.label === term.label);
           if (field) {
-            // Remove currency symbol if present
             const value = term.value.startsWith("$") ? term.value.slice(1) : term.value;
             data[field.id] = value;
           }
@@ -158,13 +287,11 @@ function NewDealContent() {
         setFormData(data);
         setRecipientName(deal.recipientName || "");
         setRecipientEmail(deal.recipientEmail || "");
-        // Skip to details step
         setCurrentStep("details");
       }
     };
 
     const loadSourceDeal = async () => {
-      // Try to get deal from Supabase first
       if (isSupabaseConfigured()) {
         const { deal: sourceDeal } = await getDealByIdAction(sourceId);
         if (sourceDeal) {
@@ -172,33 +299,19 @@ function NewDealContent() {
           return;
         }
       }
-
-      // Fallback to local store
       const localDeal = getDealById(sourceId);
-      if (localDeal) {
-        prefillFromDeal(localDeal);
-      }
+      if (localDeal) prefillFromDeal(localDeal);
     };
-
     loadSourceDeal();
   }, [sourceId, getDealById]);
 
-  // Generate the deal link - use stored shareUrl if available, otherwise construct from createdDeal
-  const dealLink =
-    shareUrl ||
-    (createdDeal
-      ? typeof window !== "undefined"
-        ? `${window.location.origin}/d/${createdDeal.publicId}`
-        : `https://proofo.app/d/${createdDeal.publicId}`
-      : "");
+  const dealLink = shareUrl || (createdDeal ? typeof window !== "undefined" ? `${window.location.origin}/d/public/${createdDeal.publicId}` : `https://proofo.app/d/public/${createdDeal.publicId}` : "");
 
   const handleCreateDeal = useCallback(async () => {
     if (!selectedTemplate) return;
-
     setIsCreating(true);
     setCreateError(null);
 
-    // Build terms from form data
     const terms = selectedTemplate.fields
       .filter((field) => formData[field.id])
       .map((field) => ({
@@ -207,23 +320,16 @@ function NewDealContent() {
         type: field.type === "textarea" ? "text" : field.type,
       }));
 
-    // User must be authenticated to create deals
     if (!user) {
-      setCreateError("You must be logged in to create a deal");
+      setCreateError("Sign in required");
       setIsCreating(false);
       return;
     }
 
-    // Try to use server action if user is authenticated with Supabase
     const isRealUser = isSupabaseConfigured() && user?.id && !user.id.startsWith("demo-");
 
     if (isRealUser) {
-      // Use server action for real database storage
-      const {
-        deal,
-        shareUrl: serverShareUrl,
-        error,
-      } = await createDealAction({
+      const { deal, shareUrl: serverShareUrl, error } = await createDealAction({
         title: selectedTemplate.name,
         description: `${selectedTemplate.name} agreement with ${recipientName}`,
         templateId: selectedTemplate.id,
@@ -235,15 +341,14 @@ function NewDealContent() {
       if (error || !deal) {
         setCreateError(error || "Failed to create deal");
         setIsCreating(false);
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
         return;
       }
-
-      // Add to local store for immediate display
       addDeal(deal);
       setCreatedDeal(deal);
       setShareUrl(serverShareUrl || "");
     } else {
-      // Demo mode - use local storage (for authenticated demo users only)
       const newDeal = createNewDeal(user, {
         templateId: selectedTemplate.id,
         title: selectedTemplate.name,
@@ -251,47 +356,41 @@ function NewDealContent() {
         terms,
         description: `${selectedTemplate.name} agreement with ${recipientName}`,
       });
-
-      // Add to store
       addDeal(newDeal);
-
-      // Add audit log entry (local)
       addAuditLog({
         dealId: newDeal.id,
         eventType: "deal_created",
         actorId: user.id,
         actorType: "creator",
-        metadata: {
-          templateId: selectedTemplate.id,
-          recipientName,
-        },
+        metadata: { templateId: selectedTemplate.id, recipientName },
       });
-
       setCreatedDeal(newDeal);
-      // Use window.location.origin for consistent URL generation in demo mode
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-      setShareUrl(`${baseUrl}/d/${newDeal.publicId}`);
+      setShareUrl(`${baseUrl}/d/public/${newDeal.publicId}`);
     }
-
     setIsCreating(false);
     setCurrentStep("share");
   }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog]);
 
   const handleNext = useCallback(() => {
     if (currentStep === "details") {
-      setCurrentStep("review");
-    } else if (currentStep === "review") {
-      // User must authenticate before creating a deal
+       if (!recipientName) {
+         setShake(true);
+         setTimeout(() => setShake(false), 500);
+         toast.error("Please enter a recipient name.");
+         return;
+       }
+       setCurrentStep("review");
+    }
+    else if (currentStep === "review") {
       if (!user) {
-        // User is not authenticated - show login modal
         setPendingDealCreation(true);
         setShowLoginModal(true);
       } else {
-        // User is authenticated - create deal
         handleCreateDeal();
       }
     }
-  }, [currentStep, user, handleCreateDeal]);
+  }, [currentStep, user, handleCreateDeal, recipientName]);
 
   const handleBack = useCallback(() => {
     if (currentStep === "details") {
@@ -299,48 +398,63 @@ function NewDealContent() {
       setSelectedTemplate(null);
     } else if (currentStep === "review") {
       setCurrentStep("details");
+    } else if (currentStep === "share") {
+       setCurrentStep("template");
+       setSelectedTemplate(null);
+       setRecipientName("");
+       setFormData({});
+       setCreatedDeal(null);
     }
   }, [currentStep]);
 
-  // Keyboard shortcuts for better UX
+  // Global Keyboard Shortcuts
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Escape to go back
-      if (e.key === "Escape" && currentStep !== "template" && currentStep !== "share") {
-        handleBack();
-      }
-
-      // Enter to continue (only on template and review steps)
-      if (e.key === "Enter" && currentStep === "review") {
-        if (!isCreating) {
+    const handleGlobalKeys = (e: KeyboardEvent) => {
+      // Cmd+Enter / Ctrl+Enter to proceed
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (currentStep === "details" || currentStep === "review") {
           handleNext();
         }
       }
+      // Esc to go back (unless in inputs, checking logic inside)
+      if (e.key === "Escape") {
+         if (currentStep !== "template" && currentStep !== "share") {
+            handleBack();
+         }
+      }
+      /* Simple Enter logic already in inputs */
     };
+    window.addEventListener("keydown", handleGlobalKeys);
+    return () => window.removeEventListener("keydown", handleGlobalKeys);
+  }, [currentStep, handleNext, handleBack]);
 
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [currentStep, isCreating, handleBack, handleNext]);
+  // Stepper Navigation
+  const handleStepClick = useCallback((step: Step) => {
+    const stepIdx = STEPS.indexOf(step);
+    const currentIdx = STEPS.indexOf(currentStep);
 
-  // Handle post-authentication deal creation
+    // Only allow going back or to current step
+    if (stepIdx <= currentIdx) {
+        if (currentStep === 'share') return;
+        if (step === 'template') setSelectedTemplate(null);
+        setCurrentStep(step);
+    }
+  }, [currentStep]);
+
   useEffect(() => {
     if (pendingDealCreation && user && !dealCreationInProgressRef.current) {
-      // User just authenticated (either real or demo) - trigger deal creation
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPendingDealCreation(false);
       dealCreationInProgressRef.current = true;
-      handleCreateDeal();
+      // Use setTimeout to avoid synchronous state update in effect
+      setTimeout(() => {
+        setPendingDealCreation(false);
+        handleCreateDeal();
+      }, 0);
     }
   }, [user, pendingDealCreation, handleCreateDeal]);
 
   const handleTemplateSelect = (template: DealTemplate) => {
     setSelectedTemplate(template);
-    // Initialize form data with empty values
     const initialData: Record<string, string> = {};
     template.fields.forEach((field) => {
       initialData[field.id] = field.defaultValue || "";
@@ -349,8 +463,12 @@ function NewDealContent() {
     setCurrentStep("details");
   };
 
-  const handleFieldChange = (fieldId: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [fieldId]: value }));
+  const handleFieldChange = (fieldId: string, value: string, type?: string) => {
+    let finalValue = value;
+    if (type === "currency") {
+       finalValue = formatCurrency(value);
+    }
+    setFormData((prev) => ({ ...prev, [fieldId]: finalValue }));
   };
 
   const copyToClipboard = async () => {
@@ -358,16 +476,9 @@ function NewDealContent() {
       await navigator.clipboard.writeText(dealLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      try { toast.success("Link copied!"); } catch {}
     } catch {
-      // Fallback for browsers that don't support clipboard API
-      const textArea = document.createElement("textarea");
-      textArea.value = dealLink;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+       // fallback
     }
   };
 
@@ -375,12 +486,11 @@ function NewDealContent() {
     if (navigator.share && createdDeal && user) {
       try {
         await navigator.share({
-          title: `${selectedTemplate?.name} - Proofo Agreement`,
-          text: `${user.name} has sent you an agreement to sign on Proofo.`,
+          title: `${selectedTemplate?.name} - Proofo`,
+          text: `Review and sign: ${selectedTemplate?.name}`,
           url: dealLink,
         });
       } catch {
-        // User cancelled or share failed, fall back to copy
         copyToClipboard();
       }
     } else {
@@ -392,16 +502,18 @@ function NewDealContent() {
     const commonProps = {
       id: field.id,
       value: formData[field.id] || "",
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-        handleFieldChange(field.id, e.target.value),
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleFieldChange(field.id, e.target.value, field.type),
       placeholder: field.placeholder,
       "aria-required": field.required,
-      "aria-describedby": field.required ? `${field.id}-required` : undefined,
+      className: cn(
+        "h-10 rounded-xl bg-background border-border focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all duration-200 shadow-sm",
+        (field.type === "currency" || field.type === "number" || field.type === "date") && "tabular-nums"
+      )
     };
 
     switch (field.type) {
       case "textarea":
-        return <Textarea {...commonProps} className="min-h-[100px] resize-none" />;
+        return <Textarea {...commonProps} className={cn(commonProps.className, "min-h-[100px] resize-none leading-relaxed")} />;
       case "date":
         return <Input {...commonProps} type="date" />;
       case "number":
@@ -409,564 +521,531 @@ function NewDealContent() {
       case "currency":
         return (
           <div className="relative">
-            <span
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium"
-              aria-hidden="true"
-            >
-              $
-            </span>
-            <Input {...commonProps} type="number" step="0.01" className="pl-8" />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">$</span>
+            <Input {...commonProps} type="text" inputMode="decimal" className={cn(commonProps.className, "pl-8")} />
+            {/* Valid Indicator */}
+            {formData[field.id] && (
+               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
+                  <Check className="h-4 w-4" />
+               </motion.div>
+            )}
           </div>
         );
       default:
-        return <Input {...commonProps} />;
+        // Text inputs with validation check
+        const hasContent = formData[field.id]?.length > 2;
+        return (
+          <div className="relative">
+             <Input {...commonProps} />
+             <AnimatePresence>
+               {hasContent && (
+                  <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
+                     <Check className="h-4 w-4" />
+                  </motion.div>
+               )}
+             </AnimatePresence>
+          </div>
+        );
     }
   };
 
-  const steps: Step[] = ["template", "details", "review", "share"];
-  const currentStepIndex = steps.indexOf(currentStep);
+  const currentStepIndex = STEPS.indexOf(currentStep);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link
-            href={user ? "/dashboard" : "/"}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
-          >
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden sm:inline">{user ? "Back to Dashboard" : "Back to Home"}</span>
-          </Link>
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight hidden sm:inline">Proofo</span>
-          </Link>
-          <div className="w-24" /> {/* Spacer for centering */}
-        </div>
-      </header>
+    <TooltipProvider delayDuration={0}>
+    <div className="h-screen flex w-full overflow-hidden bg-background" ref={topRef}>
+        {/* Progress Sidebar */}
+        <motion.aside
+          initial={false}
+          animate={{
+            width: isSidebarCollapsed ? 80 : 280,
+          }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="hidden lg:flex flex-col border-r bg-card dark:bg-card/50 backdrop-blur-xl z-40 shrink-0"
+        >
+          {/* Logo Area */}
+          <SidebarLogo isCollapsed={isSidebarCollapsed} />
 
-      <main className="container mx-auto px-4 sm:px-6 py-8 max-w-3xl">
-        {/* Progress Steps */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between relative">
-            {/* Progress Line */}
-            <div className="absolute top-5 left-0 right-0 h-0.5 bg-muted mx-8">
-              <motion.div
-                className="h-full bg-primary"
-                initial={{ width: "0%" }}
-                animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-
-            {steps.map((step, index) => {
-              const isCompleted = currentStepIndex > index;
-              const isCurrent = currentStep === step;
-
-              return (
-                <div key={step} className="relative z-10 flex flex-col items-center">
-                  <motion.div
-                    initial={false}
-                    animate={{
-                      scale: isCurrent ? 1.1 : 1,
-                      backgroundColor: isCompleted || isCurrent ? "var(--primary)" : "var(--muted)",
-                    }}
-                    className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
-                      isCompleted || isCurrent
-                        ? "text-primary-foreground shadow-lg shadow-primary/25"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {isCompleted ? <Check className="h-5 w-5" /> : stepInfo[step as Step].number}
-                  </motion.div>
-                  <span
-                    className={`mt-2 text-xs font-medium hidden sm:block ${
-                      isCurrent ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {stepInfo[step as Step].title}
+          <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
+            <div className="px-3 mb-4">
+              {isSidebarCollapsed ? (
+                <div className="flex justify-center h-4 items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Step
                   </span>
                 </div>
+              ) : (
+                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                  Agreement Progress
+                </h2>
+              )}
+            </div>
+
+            {STEPS.map((step, index) => {
+              const isCompleted = currentStepIndex > index;
+              const isCurrent = currentStep === step;
+              const canNavigate = STEPS.indexOf(step) <= currentStepIndex && currentStep !== "share";
+
+              return (
+                <SidebarNavItem
+                  key={step}
+                  label={stepInfo[step as Step].title}
+                  index={index}
+                  isActive={isCurrent}
+                  isCollapsed={isSidebarCollapsed}
+                  isCompleted={isCompleted}
+                  onClick={() => canNavigate && handleStepClick(step)}
+                  className={cn(!canNavigate && "opacity-50 cursor-not-allowed")}
+                >
+                  <Check className="h-4 w-4" strokeWidth={3} />
+                </SidebarNavItem>
               );
             })}
-          </div>
-        </div>
+          </nav>
 
-        <AnimatePresence mode="wait">
-          {/* Step 1: Select Template */}
-          {currentStep === "template" && (
-            <motion.div
-              key="template"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+          {/* Footer Actions - Matching Dashboard */}
+          <div className="p-3 space-y-3 shrink-0">
+            {/* Security Label - Anchors position */}
+            <div className="px-3 mb-1">
+              {isSidebarCollapsed ? (
+                <div className="flex justify-center h-4 items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Sec
+                  </span>
+                </div>
+              ) : (
+                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                  Security
+                </h2>
+              )}
+            </div>
+
+            {/* Secure & Immutable Agreements (Banner Style) */}
+            <div
+              className={cn(
+                "rounded-xl bg-linear-to-br from-emerald-500/5 via-emerald-500/10 to-transparent border border-emerald-500/10 transition-all duration-300 overflow-hidden",
+                isSidebarCollapsed ? "p-0" : "p-4"
+              )}
             >
-              <div className="text-center mb-10">
-                <Badge variant="secondary" className="mb-4">
-                  <Sparkles className="h-3 w-3 mr-1.5" />
-                  Step 1 of 4
-                </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
-                  Choose a Template
-                </h1>
-                <p className="text-muted-foreground">
-                  Select a template that best fits your agreement type
-                </p>
-                {!user && (
-                  <p className="text-xs text-muted-foreground/70 mt-2 flex items-center gap-1.5 justify-center">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Your progress is automatically saved
-                  </p>
-                )}
-              </div>
+              {isSidebarCollapsed ? (
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <div className="w-full h-10 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                        <Shield className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Secure & Immutable Agreements</TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                      <div className="p-1.5 rounded-lg bg-background shadow-sm">
+                        <Shield className="h-3.5 w-3.5 text-emerald-500" />
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-tight text-emerald-600">Secure Protocol</span>
+                  </div>
+                  <div className="pl-11 pr-2">
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Agreements on Proofo are sealed with cryptographic proofs, making them legally binding & immutable.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {dealTemplates.map((template, index) => {
-                  const IconComponent = iconMap[template.icon] || FileCheck;
-                  return (
-                    <motion.div
-                      key={template.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
+            <div className="border-t border-border/40 pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-10 px-3 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-200"
+                onClick={toggleSidebar}
+              >
+                <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                  <PanelLeft className="h-4.5 w-4.5" />
+                </div>
+                <AnimatePresence mode="popLayout">
+                  {!isSidebarCollapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="ml-3 text-sm font-medium"
                     >
-                      <Card
-                        className="cursor-pointer hover:border-primary hover:shadow-lg transition-all group"
-                        onClick={() => handleTemplateSelect(template)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            handleTemplateSelect(template);
-                          }
-                        }}
-                        aria-label={`${template.name}: ${template.description}`}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex items-start gap-4">
-                            <div
-                              className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform"
-                              aria-hidden="true"
+                      Collapse
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Button>
+            </div>
+
+          </div>
+        </motion.aside>
+
+        <div className="flex flex-col flex-1 min-w-0 h-full relative">
+          <DealHeader title="New Agreement" hideLogo={true} />
+
+          <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
+            <div className="max-w-7xl mx-auto w-full">
+            <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start justify-center">
+              <div className="flex-1 w-full min-w-0">
+                {/* Mobile Header (Progress simplified) */}
+                <div className="lg:hidden mb-8 flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight">New Agreement</h1>
+                    <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                      Step {currentStepIndex + 1} of {STEPS.length}: <span className="font-medium text-foreground">{stepInfo[currentStep].title}</span>
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center font-bold text-sm">
+                    {currentStepIndex + 1}/{STEPS.length}
+                  </div>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {/* STEP 1: TEMPLATE SELECTION */}
+                  {currentStep === "template" && (
+                    <motion.div
+                      key="template"
+                      variants={containerVariants}
+                      initial="hidden" animate="show" exit="exit"
+                      className="space-y-4"
+                    >
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {dealTemplates.map((template, idx) => {
+                          const Icon = iconMap[template.icon] || FileCheck;
+                          return (
+                            <motion.div
+                              key={template.id}
+                              variants={slideUp}
+                              custom={idx}
+                              whileHover={{ y: -4, transition: springTransition }}
+                              whileTap={{ scale: 0.98 }}
                             >
-                              <IconComponent className="h-6 w-6 text-primary" />
+                              <div
+                                className="group relative cursor-pointer overflow-hidden rounded-xl bg-card border border-border hover:border-foreground/20 shadow-sm hover:shadow-md transition-all duration-300 h-full p-5 flex flex-col items-start gap-4 select-none focus-visible:ring-2 focus-visible:ring-primary outline-none"
+                                onClick={() => handleTemplateSelect(template)}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Select ${template.name} template`}
+                                onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
+                              >
+                                <div className="absolute inset-0 bg-secondary/0 group-hover:bg-muted/40 transition-colors duration-300" />
+                                <div className="h-10 w-10 rounded-lg bg-secondary/50 flex items-center justify-center shrink-0 group-hover:bg-foreground group-hover:text-background transition-colors duration-300">
+                                  <Icon className="h-5 w-5" />
+                                </div>
+                                <div className="space-y-1.5 relative z-10">
+                                  <h3 className="font-bold text-base tracking-tight">{template.name}</h3>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">{template.description}</p>
+                                </div>
+                                <div className="mt-auto pt-3 flex items-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                                  Use Template <ArrowRight className="h-3 w-3 ml-1" />
+                                </div>
+                              </div>
+                            </motion.div>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 2: DETAILS */}
+                  {currentStep === "details" && selectedTemplate && (
+                    <motion.div
+                      key="details"
+                      variants={containerVariants}
+                      initial="hidden" animate="show" exit="exit"
+                      className="space-y-5"
+                    >
+                      <Card className="border border-border shadow-sm bg-card overflow-hidden rounded-xl">
+                        <div className="h-1 w-full bg-muted">
+                          <div className="h-full bg-foreground w-1/2 transition-all duration-500 ease-in-out" />
+                        </div>
+                        <div className="p-5 md:p-6 space-y-6">
+                          <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                              <Users className="h-4 w-4" /> Parties Involved
                             </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
-                                {template.name}
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                {template.description}
-                              </p>
+                            <div className="grid gap-5">
+                              <div className="grid gap-2">
+                                <Label htmlFor="recipientName" className="text-sm font-medium">Recipient Name <span className="text-destructive">*</span></Label>
+                                <div className="relative">
+                                  <Input
+                                    id="recipientName"
+                                    ref={firstInputRef}
+                                    placeholder="e.g. Acme Corp, John Doe"
+                                    value={recipientName}
+                                    onChange={(e) => setRecipientName(e.target.value)}
+                                    className={cn("h-10 rounded-lg bg-background border-border focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all shadow-sm", shake && "border-destructive animate-pulse")}
+                                  />
+                                  <AnimatePresence>
+                                    {recipientName.length > 2 && (
+                                      <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
+                                        <Check className="h-4 w-4" />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="recipientEmail" className="text-sm font-medium">
+                                  Recipient Email <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
+                                </Label>
+                                <div className="relative group">
+                                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-foreground transition-colors" />
+                                  <Input
+                                    id="recipientEmail"
+                                    type="email"
+                                    placeholder="email@example.com"
+                                    value={recipientEmail}
+                                    onChange={(e) => setRecipientEmail(e.target.value)}
+                                    className="h-10 pl-11 rounded-lg bg-background border-border focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all shadow-sm"
+                                  />
+                                  <AnimatePresence>
+                                    {isValidEmail(recipientEmail) && (
+                                      <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
+                                        <Check className="h-4 w-4" />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              </div>
                             </div>
-                            <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                          </section>
+                          <Separator />
+                          <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+                            <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                              <FileCheck className="h-4 w-4" /> Agreement Terms
+                            </div>
+                            <div className="grid gap-5">
+                              {selectedTemplate.fields.map((field) => (
+                                <div key={field.id} className="grid gap-2">
+                                  <Label htmlFor={field.id} className="text-sm font-medium">
+                                    {field.label} {field.required && <span className="text-destructive">*</span>}
+                                  </Label>
+                                  {renderField(field)}
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                          <div className="flex justify-between items-center pt-4">
+                            <Button variant="ghost" onClick={handleBack} className="hover:bg-muted">
+                              <ChevronLeft className="mr-2 h-4 w-4" /> Back
+                            </Button>
+                            <motion.div variants={shakeVariant} animate={shake ? "shake" : ""}>
+                              <Button
+                                onClick={handleNext}
+                                className="shadow-sm bg-foreground hover:bg-foreground/90 text-background px-8 h-10 rounded-lg font-medium transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
+                              >
+                                Review & Create <ArrowRight className="ml-2 h-4 w-4" />
+                              </Button>
+                            </motion.div>
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 3: REVIEW */}
+                  {currentStep === "review" && (
+                    <motion.div
+                      key="review"
+                      variants={containerVariants}
+                      initial="hidden" animate="show" exit="exit"
+                      className="space-y-5"
+                    >
+                      <div className="relative rounded-xl overflow-hidden bg-card border border-border shadow-sm duration-500 hover:shadow-md transition-shadow group mx-auto max-w-2xl">
+                        <div className="h-1.5 w-full bg-foreground" />
+                        <div className="p-6 space-y-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Draft Agreement</div>
+                              <div className="text-3xl font-bold tracking-tighter text-foreground">{selectedTemplate?.name}</div>
+                              <div className="text-sm text-muted-foreground tabular-nums">Version 1.0 • {new Date().toLocaleDateString()}</div>
+                            </div>
+                            <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center border border-border">
+                              <ShieldCheck className="h-6 w-6 text-foreground" />
+                            </div>
+                          </div>
+                          <Separator className="border-dashed" />
+                          <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-1.5">
+                              <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Issuer</div>
+                              <div className="font-semibold text-foreground text-lg">{user?.name || "Guest User"}</div>
+                              <div className="text-sm text-muted-foreground font-mono">{user?.email || "No account"}</div>
+                            </div>
+                            <div className="space-y-1.5 text-right">
+                              <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Recipient</div>
+                              <div className="font-semibold text-foreground text-lg">{recipientName}</div>
+                              <div className="text-sm text-muted-foreground font-mono">{recipientEmail || "Direct Link"}</div>
+                            </div>
+                          </div>
+                          <div className="bg-muted/50 rounded-lg p-5 space-y-3 border border-border/50">
+                            {selectedTemplate?.fields.map(field => (
+                              <div key={field.id} className="flex justify-between text-sm items-baseline">
+                                <span className="text-muted-foreground font-medium">{field.label}</span>
+                                <span className="font-bold text-foreground font-mono tabular-nums">
+                                  {field.type === "currency" && "$"}{formData[field.id]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {createError && (
+                            <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-4 rounded-lg flex items-center gap-3">
+                              <AlertCircle className="h-5 w-5 shrink-0" />
+                              <span className="font-medium">{createError}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-muted/30 p-4 border-t border-border flex justify-between items-center backdrop-blur-sm">
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                            <Globe className="h-3.5 w-3.5" />
+                            <span>Secured by Proofo Network</span>
+                          </div>
+                          <div className="text-[10px] font-mono opacity-50">ID: {reviewId}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2 max-w-2xl mx-auto">
+                        <Button variant="outline" className="flex-1 h-11 rounded-lg border-border hover:bg-muted" onClick={handleBack} disabled={isCreating}>
+                          Edit Details
+                        </Button>
+                        <motion.div className="flex-[2]" variants={shakeVariant} animate={shake ? "shake" : ""}>
+                          <Button
+                            className="w-full h-11 rounded-lg shadow-sm bg-foreground hover:bg-foreground/90 text-background text-base font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            onClick={handleNext}
+                            disabled={isCreating}
+                          >
+                            {isCreating ? (
+                              <><span className="animate-spin mr-2">⏳</span> Minting...</>
+                            ) : (
+                              <>Generate Secure Link <ArrowRight className="ml-2 h-4 w-4" /></>
+                            )}
+                          </Button>
+                        </motion.div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* STEP 4: SHARE */}
+                  {currentStep === "share" && (
+                    <motion.div
+                      key="share"
+                      variants={containerVariants}
+                      initial="hidden" animate="show"
+                      className="space-y-6 max-w-xl mx-auto text-center"
+                    >
+                      <div className="space-y-4">
+                        <motion.div
+                          initial={{ scale: 0, rotate: -180 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={springTransition}
+                          className="h-20 w-20 bg-foreground rounded-full flex items-center justify-center shadow-lg relative z-10 text-background mx-auto"
+                        >
+                          <Check className="h-10 w-10" />
+                        </motion.div>
+                        <motion.h2
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                          className="text-2xl font-bold tracking-tight"
+                        >
+                          Agreement Ready!
+                        </motion.h2>
+                        <motion.p
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+                          className="text-muted-foreground max-w-xs mx-auto text-sm"
+                        >
+                          Your secure deal has been created and is ready to share.
+                        </motion.p>
+                      </div>
+
+                      <Card className="overflow-hidden border border-border shadow-md rounded-2xl bg-card">
+                        <CardContent className="p-0">
+                          <div className="p-6 flex flex-col items-center bg-card border-b border-border text-foreground">
+                            <div className="p-2 rounded-xl bg-transparent">
+                              <QRCodeSVG
+                                value={dealLink}
+                                size={160}
+                                marginSize={2}
+                                bgColor="transparent"
+                                fgColor="currentColor"
+                              />
+                            </div>
+                            <div className="mt-4 flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-widest bg-muted px-3 py-1 rounded-full border border-border">
+                              <Zap className="h-3 w-3" /> Scan to Sign
+                            </div>
+                          </div>
+                          <div className="p-5 space-y-4 bg-background">
+                            <div className="space-y-2 text-left">
+                              <Label className="text-xs font-bold text-muted-foreground uppercase">Share Link</Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  value={dealLink}
+                                  readOnly
+                                  className="font-mono text-xs h-10 bg-muted/50 border-border focus-visible:ring-1 focus-visible:ring-foreground"
+                                  onClick={(e) => e.currentTarget.select()}
+                                />
+                                <Button size="icon" onClick={copyToClipboard} className={cn("shrink-0 h-10 w-10 transition-all", copied && "bg-foreground text-background")}>
+                                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                              <Button variant="outline" className="h-11 gap-2 hover:bg-muted" onClick={handleShare}>
+                                <Share2 className="h-4 w-4" /> Share
+                              </Button>
+                              <Link href="/dashboard" className="w-full">
+                                <Button className="h-11 w-full gap-2 shadow-sm bg-foreground hover:bg-foreground/90 text-background">
+                                  Dashboard <ArrowRight className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
+
+                      <div className="pt-2">
+                        <Button variant="link" onClick={() => {
+                          setCurrentStep("template");
+                          setSelectedTemplate(null);
+                          setRecipientName("");
+                          setFormData({});
+                          setCreatedDeal(null);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }} className="text-muted-foreground hover:text-foreground">
+                          + Create Another Agreement
+                        </Button>
+                      </div>
                     </motion.div>
-                  );
-                })}
-              </div>
-
-              {!user && (
-                <div className="text-center mt-8 pt-6 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Already have an account?{" "}
-                    <Link href="/login" className="text-primary font-medium hover:underline">
-                      Sign in
-                    </Link>
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Step 2: Fill Details */}
-          {currentStep === "details" && selectedTemplate && (
-            <motion.div
-              key="details"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-center mb-10">
-                {(() => {
-                  const IconComp = iconMap[selectedTemplate.icon] || FileCheck;
-                  return (
-                    <Badge variant="secondary" className="mb-4 gap-1.5">
-                      <IconComp className="h-4 w-4" aria-hidden="true" />
-                      {selectedTemplate.name}
-                    </Badge>
-                  );
-                })()}
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
-                  Fill in the Details
-                </h1>
-                <p className="text-muted-foreground">Provide the information for your agreement</p>
-              </div>
-
-              <Card>
-                <CardContent className="p-6 sm:p-8 space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="recipientName" className="text-sm font-medium">
-                      Recipient&apos;s Name <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="relative">
-                      <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="recipientName"
-                        value={recipientName}
-                        onChange={(e) => setRecipientName(e.target.value)}
-                        placeholder="Who is this deal with?"
-                        aria-required="true"
-                        className="pl-11"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="recipientEmail" className="text-sm font-medium">
-                      Recipient&apos;s Email{" "}
-                      <span className="text-muted-foreground">(Optional)</span>
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="recipientEmail"
-                        type="email"
-                        value={recipientEmail}
-                        onChange={(e) => setRecipientEmail(e.target.value)}
-                        placeholder="recipient@email.com"
-                        className="pl-11"
-                        pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      If provided, you can send email reminders via the Nudge button
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  {selectedTemplate.fields.map((field, index) => (
-                    <motion.div
-                      key={field.id}
-                      className="space-y-2"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Label htmlFor={field.id} className="text-sm font-medium">
-                        {field.label}
-                        {field.required && <span className="text-destructive ml-1">*</span>}
-                      </Label>
-                      {renderField(field)}
-                    </motion.div>
-                  ))}
-
-                  <div className="flex justify-between pt-6 gap-4">
-                    <Button variant="outline" onClick={handleBack} className="gap-2">
-                      <ArrowLeft className="h-4 w-4" />
-                      Back
-                    </Button>
-                    <Button
-                      onClick={handleNext}
-                      disabled={
-                        !recipientName ||
-                        selectedTemplate.fields.some((f) => f.required && !formData[f.id])
-                      }
-                      className="gap-2 shadow-lg shadow-primary/20"
-                    >
-                      Review Deal
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Step 3: Review */}
-          {currentStep === "review" && selectedTemplate && (
-            <motion.div
-              key="review"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-center mb-10">
-                <Badge variant="secondary" className="mb-4">
-                  <Edit3 className="h-3 w-3 mr-1.5" />
-                  Step 3 of 4
-                </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
-                  Review Your Deal
-                </h1>
-                <p className="text-muted-foreground">
-                  Make sure everything looks correct before creating
-                </p>
-              </div>
-
-              <Card className="overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b">
-                  <div className="flex items-center gap-4">
-                    {(() => {
-                      const ReviewIcon = iconMap[selectedTemplate.icon] || FileCheck;
-                      return (
-                        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <ReviewIcon className="h-7 w-7 text-primary" />
-                        </div>
-                      );
-                    })()}
-                    <div>
-                      <CardTitle className="text-xl">{selectedTemplate.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-1.5 mt-1">
-                        <Users className="h-3.5 w-3.5" />
-                        Agreement with {recipientName}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 sm:p-8 space-y-4">
-                  {createError && (
-                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      {createError}
-                    </div>
                   )}
-                  {selectedTemplate.fields.map((field, index) => (
-                    <motion.div
-                      key={field.id}
-                      className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <span className="text-muted-foreground text-sm">{field.label}</span>
-                      <span className="font-medium">
-                        {field.type === "currency" && formData[field.id] && "$"}
-                        {formData[field.id] || (
-                          <span className="text-muted-foreground italic">Not specified</span>
-                        )}
-                      </span>
-                    </motion.div>
-                  ))}
-
-                  <div className="flex items-start gap-3 mt-6 p-4 rounded-xl bg-primary/5 border border-primary/10">
-                    <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium text-foreground">Ready to create?</p>
-                      <p className="text-muted-foreground mt-0.5">
-                        Once created, you&apos;ll get a unique link to share with {recipientName}.
-                        They can sign without creating an account.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between pt-6 gap-4">
-                    <Button
-                      variant="outline"
-                      onClick={handleBack}
-                      className="gap-2"
-                      disabled={isCreating}
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      onClick={handleNext}
-                      className="gap-2 shadow-lg shadow-primary/20"
-                      disabled={isCreating}
-                    >
-                      {isCreating ? (
-                        <>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          >
-                            <Sparkles className="h-4 w-4" />
-                          </motion.div>
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          Create Deal
-                          <Check className="h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Step 4: Share */}
-          {currentStep === "share" && (
-            <motion.div
-              key="share"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="text-center mb-10">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="h-20 w-20 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30"
-                >
-                  <CheckCircle2 className="h-10 w-10 text-white" />
-                </motion.div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">
-                  Deal Created!
-                </h1>
-                <p className="text-muted-foreground">
-                  Share this link with {recipientName} to get their signature
-                </p>
+                </AnimatePresence>
               </div>
+            </div>
+          </div>
+        </main>
+      </div>
 
-              <Card>
-                <CardContent className="p-6 sm:p-8 space-y-8">
-                  {/* QR Code */}
-                  <div className="flex justify-center">
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className="p-6 bg-white rounded-2xl shadow-lg border"
-                    >
-                      <QRCodeSVG value={dealLink} size={180} level="H" includeMargin />
-                    </motion.div>
-                  </div>
-
-                  {/* Link */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Deal Link</Label>
-                    <div className="flex gap-2">
-                      <Input value={dealLink} readOnly className="font-mono text-sm" />
-                      <Button
-                        variant={copied ? "default" : "outline"}
-                        onClick={copyToClipboard}
-                        className="shrink-0 gap-2 min-w-[100px]"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="h-4 w-4" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4" />
-                            Copy
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Deal ID for verification */}
-                  {createdDeal && (
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                      <span>Deal ID:</span>
-                      <Badge variant="outline" className="font-mono">
-                        {createdDeal.publicId}
-                      </Badge>
-                    </div>
-                  )}
-
-                  {/* Share Options */}
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    <Button onClick={copyToClipboard} className="gap-2 shadow-lg shadow-primary/20">
-                      <Copy className="h-4 w-4" />
-                      Copy Link
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => {
-                        if (user) {
-                          window.open(
-                            `mailto:?subject=${encodeURIComponent(`${selectedTemplate?.name || "Agreement"} - Please Sign`)}&body=${encodeURIComponent(`Hi ${recipientName},\n\n${user.name} has sent you an agreement to sign on Proofo.\n\nPlease review and sign here:\n${dealLink}\n\nNo account needed - just click the link, review the terms, and sign.\n\nThanks!`)}`,
-                            "_blank"
-                          );
-                        }
-                      }}
-                    >
-                      <Mail className="h-4 w-4" />
-                      Send Email
-                    </Button>
-                    <Button variant="outline" className="gap-2" onClick={handleShare}>
-                      <Share2 className="h-4 w-4" />
-                      Share
-                    </Button>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link href="/dashboard">
-                      <Button variant="outline" className="w-full sm:w-auto gap-2">
-                        <FileCheck className="h-4 w-4" />
-                        Go to Dashboard
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      className="w-full sm:w-auto gap-2"
-                      onClick={() => {
-                        setCurrentStep("template");
-                        setSelectedTemplate(null);
-                        setRecipientName("");
-                        setFormData({});
-                        setCreatedDeal(null);
-                      }}
-                    >
-                      Create Another Deal
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-
-      {/* Login Modal for Deferred Authentication */}
       <LoginModal
         open={showLoginModal}
         onOpenChange={setShowLoginModal}
         title="Sign in to create your deal"
         description="To generate a secure, enforceable link, we need to verify your identity."
-        onSuccess={() => {
-          // Modal will close automatically, and useEffect will handle deal creation
-          setShowLoginModal(false);
-        }}
+        onSuccess={() => setShowLoginModal(false)}
       />
     </div>
+    </TooltipProvider>
   );
 }
 
 export default function NewDealPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
-          <div className="text-center">
-            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={
+       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+          <div className="h-12 w-12 rounded-full border-4 border-muted border-t-foreground animate-spin" />
+          <div className="text-sm font-medium text-muted-foreground animate-pulse">Loading experience...</div>
+       </div>
+    }>
       <NewDealContent />
     </Suspense>
   );

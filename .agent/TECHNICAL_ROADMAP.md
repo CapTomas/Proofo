@@ -424,8 +424,6 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (...);
 
 ### Milestone 2.1: PDF Quality
 
-- [ ] Install `qrcode` package: `pnpm add qrcode`
-- [ ] Generate actual QR code image for verification URL
 - [ ] Improve layout and spacing
 - [ ] Add subtle watermark design for free tier
 - [ ] Professional footer with page numbers

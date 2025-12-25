@@ -356,7 +356,8 @@ function VerifyContent() {
 
       <PublicHeader currentPage="verify" />
 
-      <main className="relative pt-28 pb-20 container mx-auto px-4 max-w-6xl z-10">
+      <main className="relative pt-28 pb-20 w-full z-10 transition-all duration-300 px-4 sm:px-6 lg:px-[112px]">
+        <div className="max-w-7xl mx-auto w-full">
         {/* Back Navigation */}
         <div className="mb-8">
           <Link
@@ -802,6 +803,7 @@ function VerifyContent() {
                 </Link>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </main>

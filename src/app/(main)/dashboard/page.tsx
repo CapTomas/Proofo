@@ -444,7 +444,7 @@ export default function DashboardPage() {
 
   const handleNudge = async (deal: Deal) => {
     if (!deal.recipientEmail) {
-      navigator.clipboard.writeText(`${window.location.origin}/d/${deal.publicId}`);
+      navigator.clipboard.writeText(`${window.location.origin}/d/public/${deal.publicId}`);
       toast.success("Link copied to clipboard!");
       return;
     }

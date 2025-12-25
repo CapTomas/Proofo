@@ -420,7 +420,7 @@ export default function AgreementsPage() {
         setTimeout(() => setNudgeSuccess(null), 3000);
       }
     } else {
-      navigator.clipboard.writeText(`${window.location.origin}/d/${deal.publicId}`);
+      navigator.clipboard.writeText(`${window.location.origin}/d/public/${deal.publicId}`);
       setNudgeSuccess(deal.id);
       setTimeout(() => setNudgeSuccess(null), 2000);
     }

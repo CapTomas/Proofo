@@ -1,57 +1,120 @@
 "use client";
 
-import { useState, use, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { SignaturePad } from "@/components/signature-pad";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DealHeader } from "@/components/deal-header";
+import { AuditTimeline } from "@/components/audit-timeline";
+import { SealedDealView } from "@/components/sealed-deal-view";
+import { CopyableId } from "@/components/dashboard/shared-components";
+import { Deal, AuditLogEntry } from "@/types";
+import { formatDateTime, timeAgo } from "@/lib/crypto";
+import { cn } from "@/lib/utils";
+import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
+import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction } from "@/app/actions/deal-actions";
+import { useAppStore } from "@/store";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
+import confetti from "canvas-confetti";
 import {
   Shield,
   CheckCircle2,
-  FileCheck,
-  Mail,
-  AlertCircle,
-  Sparkles,
-  ArrowRight,
-  Calendar,
-  Lock,
   Clock,
-  Download,
   XCircle,
-  Package,
+  RefreshCw,
+  ArrowLeft,
+  Download,
+  Copy,
+  Check,
+  Lock,
+  AlertTriangle,
   Handshake,
+  Package,
   DollarSign,
   ArrowLeftRight,
-  PenLine,
   LucideIcon,
-  User,
-  Hash,
-  TimerOff,
+  MoreHorizontal,
+  ShieldCheck,
+  Mail,
+  ChevronRight,
+  QrCode,
+  Share2,
+  Sparkles,
+  Printer,
+  ExternalLink,
+  Zap,
+  Command,
+  Key,
+  Trash2,
+  PenLine
 } from "lucide-react";
-import Link from "next/link";
-import { useAppStore } from "@/store";
-import { Deal } from "@/types";
-import { formatDate, formatDateTime } from "@/lib/crypto";
 import {
-  getDealByPublicIdAction,
-  getAccessTokenAction,
-  confirmDealAction,
-  markDealViewedAction,
-  getTokenStatusAction,
-  sendDealReceiptAction,
-  TokenStatus,
-} from "@/app/actions/deal-actions";
-import { isSupabaseConfigured } from "@/lib/supabase";
-import { generateDealPDF, downloadPDF, generatePDFFilename, pdfBlobToBase64 } from "@/lib/pdf";
-import { getUserInitials } from "@/lib/utils";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-interface DealPageProps {
-  params: Promise<{ id: string }>;
-}
+// Animation variants matching deal/new page
+const springTransition = {
+  type: "spring" as const,
+  stiffness: 400,
+  damping: 30,
+};
+
+const containerVariants = {
+  hidden: { opacity: 0, scale: 0.98 },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      ...springTransition,
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const slideUp = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: springTransition },
+};
+
+// Keyboard hint component
+const KeyboardHint = ({ keys }: { keys: string }) => (
+  <kbd className="ml-2 hidden sm:inline-flex h-5 px-1.5 bg-muted border border-border/50 rounded text-[10px] font-mono text-muted-foreground items-center gap-0.5">
+    {keys.split("+").map((key, i) => (
+      <span key={i}>
+        {i > 0 && "+"}
+        {key === "cmd" ? <Command className="h-3 w-3" /> : key}
+      </span>
+    ))}
+  </kbd>
+);
 
 // Icon mapping for templates
 const iconMap: Record<string, LucideIcon> = {
@@ -62,71 +125,6 @@ const iconMap: Record<string, LucideIcon> = {
   PenLine,
 };
 
-// Demo deal data for when deal is not found
-const demoDeal: Deal = {
-  id: "demo123",
-  publicId: "demo123",
-  creatorId: "demo-creator",
-  creatorName: "Alex Johnson",
-  recipientName: "You",
-  title: "Lend Camera Equipment",
-  description: "Agreement to lend camera equipment",
-  templateId: "lend-item",
-  terms: [
-    { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
-    { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
-    { id: "3", label: "Expected Return Date", value: "February 15, 2024", type: "date" },
-    {
-      id: "4",
-      label: "Condition Notes",
-      value: "Excellent condition, includes original box and accessories",
-      type: "text",
-    },
-  ],
-  createdAt: "2024-01-20T14:00:00Z",
-  status: "pending",
-};
-
-// Demo deal for confirmed state preview
-const demoConfirmedDeal: Deal = {
-  id: "demo-confirmed",
-  publicId: "demo-confirmed",
-  creatorId: "demo-creator",
-  creatorName: "Alex Johnson",
-  recipientName: "Sarah Miller",
-  title: "Lend Camera Equipment",
-  description: "Agreement to lend camera equipment",
-  templateId: "lend-item",
-  terms: [
-    { id: "1", label: "Item Being Lent", value: "Canon EOS R5 + 24-70mm f/2.8 lens", type: "text" },
-    { id: "2", label: "Estimated Value", value: "$5,000", type: "currency" },
-    { id: "3", label: "Expected Return Date", value: "February 15, 2024", type: "date" },
-    {
-      id: "4",
-      label: "Condition Notes",
-      value: "Excellent condition, includes original box and accessories",
-      type: "text",
-    },
-  ],
-  createdAt: "2024-01-20T14:00:00Z",
-  confirmedAt: "2024-01-21T10:30:00Z",
-  status: "confirmed",
-  signatureUrl:
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-  dealSeal: "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678",
-};
-
-type Step =
-  | "review"
-  | "sign"
-  | "email"
-  | "complete"
-  | "already_signed"
-  | "voided"
-  | "not_found"
-  | "expired";
-
-// Template icon name mapping
 const templateIconNames: Record<string, string> = {
   "lend-item": "Package",
   "simple-agreement": "Handshake",
@@ -135,1319 +133,731 @@ const templateIconNames: Record<string, string> = {
   custom: "PenLine",
 };
 
-// Helper function to determine initial step
-function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus): Step {
-  if (!deal) return "not_found";
-  if (deal.status === "confirmed") return "already_signed";
-  if (deal.status === "voided") return "voided";
-  // Check token status for pending deals
-  if (deal.status === "pending" && tokenStatus === "expired") return "expired";
-  if (deal.status === "pending" && tokenStatus === "used") return "already_signed";
-  if (deal.status === "sealing") return "sign";
-  return "review";
+// Status configuration
+const statusConfig = {
+  pending: {
+    label: "Pending Signature",
+    color: "text-amber-600",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/30",
+    icon: Clock,
+    description: "Awaiting recipient signature",
+    barColor: "bg-amber-500",
+  },
+  sealing: {
+    label: "Sealing",
+    color: "text-blue-600",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/30",
+    icon: RefreshCw,
+    description: "Processing cryptographic seal",
+    barColor: "bg-blue-500",
+  },
+  confirmed: {
+    label: "Sealed & Verified",
+    color: "text-emerald-600",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/30",
+    icon: CheckCircle2,
+    description: "Verified and enforceable",
+    barColor: "bg-emerald-500",
+  },
+  voided: {
+    label: "Voided",
+    color: "text-destructive",
+    bg: "bg-destructive/10",
+    border: "border-destructive/30",
+    icon: XCircle,
+    description: "No longer valid",
+    barColor: "bg-destructive",
+  },
+};
+
+interface PrivateDealPageProps {
+  params: Promise<{ id: string }>;
 }
 
-export default function DealConfirmPage({ params }: DealPageProps) {
-  const resolvedParams = use(params);
-  const { getDealByPublicId, confirmDeal: storeConfirmDeal, addAuditLog, user } = useAppStore();
-  const hasLoggedViewRef = useRef(false);
-  const hasFetchedRef = useRef(false);
-
-  // State for database deal
-  const [dbDeal, setDbDeal] = useState<Deal | null>(null);
+export default function PrivateDealPage({ params }: PrivateDealPageProps) {
+  const router = useRouter();
+  const { user, isSidebarCollapsed } = useAppStore();
+  const { copied, copyToClipboard } = useCopyToClipboard();
+  const [resolvedId, setResolvedId] = useState<string | null>(null);
+  const [deal, setDeal] = useState<Deal | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [creatorProfile, setCreatorProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
+  const [recipientProfile, setRecipientProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
+  const [isCreator, setIsCreator] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [isVoiding, setIsVoiding] = useState(false);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
+  const [showQRDialog, setShowQRDialog] = useState(false);
+  const [isSendingNudge, setIsSendingNudge] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [isLoadingDeal, setIsLoadingDeal] = useState(true);
-  const [sealError, setSealError] = useState<string | null>(null);
-  const [tokenStatus, setTokenStatus] = useState<TokenStatus>("valid");
-  const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null);
+  const hasShownConfetti = useRef(false);
 
-  // Fetch deal from database on mount
+  // Resolve params
   useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
+    params.then((p) => setResolvedId(p.id));
+  }, [params]);
+
+  // Fetch deal data
+  useEffect(() => {
+    if (!resolvedId) return;
 
     const fetchDeal = async () => {
-      // Handle demo deals
-      if (resolvedParams.id === "demo123") {
-        setDbDeal(demoDeal);
-        setIsLoadingDeal(false);
-        return;
+      setIsLoading(true);
+      const result = await getPrivateDealAction(resolvedId);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.deal) {
+        setDeal(result.deal);
+        setAuditLogs(result.auditLogs as AuditLogEntry[]);
+        setCreatorProfile(result.creatorProfile);
+        setRecipientProfile(result.recipientProfile);
+        setIsCreator(result.isCreator);
+
+        // Fetch access token for the deal (for sharing/copying)
+        const { token } = await getViewAccessTokenAction(result.deal.id);
+        setAccessToken(token);
       }
-
-      // Handle demo confirmed deal (for preview)
-      if (resolvedParams.id === "demo-confirmed") {
-        setDbDeal(demoConfirmedDeal);
-        setIsLoadingDeal(false);
-        return;
-      }
-
-      // Try to fetch from Supabase first (authoritative source)
-      if (isSupabaseConfigured()) {
-        const { deal: fetchedDeal, error } = await getDealByPublicIdAction(resolvedParams.id);
-
-        if (fetchedDeal && !error) {
-          setDbDeal(fetchedDeal);
-
-          // Get token status for this deal (includes expiration check)
-          const { status, expiresAt } = await getTokenStatusAction(fetchedDeal.id);
-          setTokenStatus(status);
-          setTokenExpiresAt(expiresAt);
-
-          // Only get access token if status is valid
-          if (status === "valid") {
-            const { token } = await getAccessTokenAction(fetchedDeal.id);
-            if (token) {
-              setAccessToken(token);
-            }
-          }
-
-          // Mark as viewed
-          await markDealViewedAction(resolvedParams.id);
-          setIsLoadingDeal(false);
-          return;
-        }
-
-        // If Supabase failed, fall through to local store
-      }
-
-      // Fall back to local store (for demo/local mode without Supabase or if Supabase fetch failed)
-      const localDeal = getDealByPublicId(resolvedParams.id);
-      if (localDeal) {
-        setDbDeal(localDeal);
-      }
-
-      setIsLoadingDeal(false);
+      setIsLoading(false);
     };
 
     fetchDeal();
-  }, [resolvedParams.id, getDealByPublicId]);
+  }, [resolvedId]);
 
-  // Get the deal to display
-  const deal = dbDeal;
-
-  // Track the step state - initial value depends on whether deal is loaded
-  const [stepOverride, setStepOverride] = useState<Step | null>(null);
-  const [signature, setSignature] = useState<string | null>(null);
-  // Pre-fill email from signed-in user if available
-  const [email, setEmail] = useState(user?.email || "");
-  const [isSealing, setIsSealing] = useState(false);
-  // Track the deal that was confirmed by user action
-  const [sealedDeal, setSealedDeal] = useState<Deal | null>(null);
-  // PDF generation state
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
-
-  // Calculate current step based on deal state and any user navigation
-  const currentStep = useMemo(() => {
-    // If user has navigated to a specific step, use that
-    if (stepOverride) return stepOverride;
-    // If still loading, show loading (not a step per se, handled separately)
-    if (isLoadingDeal) return "review";
-    // If no deal, show not found
-    if (!deal) return "not_found";
-    // Otherwise determine from deal status (including token status)
-    return getInitialStep(deal, tokenStatus);
-  }, [stepOverride, isLoadingDeal, deal, tokenStatus]);
-
-  // Helper to navigate to a step
-  const setCurrentStep = (step: Step) => {
-    setStepOverride(step);
-  };
-
-  // The confirmed deal is either one we just sealed, or one that was already confirmed in DB
-  const confirmedDeal = sealedDeal || (deal?.status === "confirmed" ? deal : null);
-
-  // Pre-fill email when user becomes available (e.g., logs in after page load)
+  // Celebration confetti for confirmed deals
   useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
-    }
-  }, [user?.email, email]);
-
-  // Log deal view for non-demo deals (using ref to track)
-  useEffect(() => {
-    if (deal && deal.id !== "demo123" && !hasLoggedViewRef.current) {
-      hasLoggedViewRef.current = true;
-      addAuditLog({
-        dealId: deal.id,
-        eventType: "deal_viewed",
-        actorId: user?.id || null,
-        actorType: "recipient",
-        metadata: {
-          viewedAt: new Date().toISOString(),
-          isLoggedIn: !!user,
-        },
+    if (deal?.status === "confirmed" && !hasShownConfetti.current) {
+      hasShownConfetti.current = true;
+      // Subtle confetti burst
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ["#10b981", "#34d399", "#6ee7b7"],
       });
     }
-  }, [deal, addAuditLog, user]);
+  }, [deal?.status]);
 
-  // Get creator initials
-  const creatorInitials = useMemo(() => {
-    if (!deal) return "??";
-    return deal.creatorName
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+  // Get template icon
+  const TemplateIcon = useMemo(() => {
+    if (!deal) return Handshake;
+    const templateId = deal.templateId || "simple-agreement";
+    const iconName = templateIconNames[templateId] || "Handshake";
+    return iconMap[iconName] || Handshake;
   }, [deal]);
 
-  const handleProceedToSign = () => {
-    setCurrentStep("sign");
-  };
+  // Get signing link
+  const signingLink = useMemo(() => {
+    if (!deal) return "";
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/d/public/${deal.publicId}`;
+  }, [deal]);
 
-  const handleSign = async () => {
-    if (!signature || !deal) return;
+  // Copy signing link
+  const handleCopyLink = useCallback(() => {
+    if (!signingLink) return;
+    copyToClipboard(signingLink);
+    toast.success("Link copied to clipboard!", {
+      icon: <Check className="h-4 w-4 text-emerald-500" />,
+    });
+  }, [signingLink, copyToClipboard]);
 
-    setIsSealing(true);
-    setSealError(null);
+  // Native share
+  const handleShare = useCallback(async () => {
+    if (!deal || !signingLink) return;
 
-    // If it's a demo deal, use local store
-    if (deal.id === "demo123") {
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-      setIsSealing(false);
-      setCurrentStep("email");
-      return;
-    }
-
-    // Determine email to use - logged-in user's email takes priority
-    const recipientEmailToUse = user?.email || email || undefined;
-
-    // Check if we have an access token and should use Supabase
-    if (accessToken && isSupabaseConfigured()) {
-      // Use server action for secure sealing
-      // Note: The server action automatically links the deal to the logged-in user's ID
-      const { deal: confirmedResult, error } = await confirmDealAction({
-        dealId: deal.id,
-        publicId: deal.publicId,
-        token: accessToken,
-        signatureBase64: signature,
-        recipientEmail: recipientEmailToUse,
-      });
-
-      if (error || !confirmedResult) {
-        setSealError(error || "Failed to seal deal");
-        setIsSealing(false);
-        return;
-      }
-
-      setSealedDeal(confirmedResult);
-
-      // For logged-in users: skip email step entirely and go to complete
-      // Their user.id is already linked, and we can auto-send receipt
-      if (user?.id && user?.email) {
-        setIsSealing(false);
-        // Auto-send receipt email in background for logged-in users
-        sendReceiptForLoggedInUser(confirmedResult, user.email);
-        setCurrentStep("complete");
-        return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: deal.title,
+          text: `Sign this agreement: ${deal.title}`,
+          url: signingLink,
+        });
+        toast.success("Shared successfully!");
+      } catch {
+        handleCopyLink();
       }
     } else {
-      // Use local store (demo mode)
-      const result = await storeConfirmDeal(deal.id, signature, recipientEmailToUse);
-      if (result) {
-        setSealedDeal(result);
-      }
+      handleCopyLink();
     }
+  }, [deal, signingLink, handleCopyLink]);
 
-    setIsSealing(false);
-    setCurrentStep("email");
-  };
-
-  // Auto-send receipt email for logged-in users (fire-and-forget)
-  const sendReceiptForLoggedInUser = async (deal: Deal, recipientEmail: string) => {
-    try {
-      const verificationUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/verify?id=${deal.publicId}`
-          : `https://proofo.app/verify?id=${deal.publicId}`;
-
-      const { pdfBlob } = await generateDealPDF({
-        deal: deal,
-        signatureDataUrl: signature || deal.signatureUrl,
-        isPro: user?.isPro || false,
-        verificationUrl,
-      });
-
-      const pdfBase64 = await pdfBlobToBase64(pdfBlob);
-      const pdfFilename = generatePDFFilename(deal);
-
-      const { success } = await sendDealReceiptAction({
-        dealId: deal.id,
-        recipientEmail: recipientEmail,
-        pdfBase64,
-        pdfFilename,
-      });
-
-      // Only set emailSent to true if the email was actually sent successfully
-      if (success) {
-        setEmailSent(true);
-      }
-    } catch (error) {
-      // Silent failure for auto-send - user can still download PDF manually
-      console.error("Auto-send receipt failed (non-blocking):", error);
-    }
-  };
-
-  const handleSkipEmail = () => {
-    setCurrentStep("complete");
-  };
-
-  // PDF Download Handler
-  const handleDownloadPDF = async () => {
-    if (!confirmedDeal && !displayDeal) return;
-
-    const targetDeal = confirmedDeal || displayDeal;
-    if (!targetDeal) return;
-
+  // Download PDF
+  const handleDownloadPDF = useCallback(async () => {
+    if (!deal) return;
     setIsGeneratingPDF(true);
     try {
-      const verificationUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/verify?id=${targetDeal.publicId}`
-          : `https://proofo.app/verify?id=${targetDeal.publicId}`;
-
+      const verificationUrl = `${window.location.origin}/verify?id=${deal.publicId}`;
       const { pdfBlob } = await generateDealPDF({
-        deal: targetDeal,
-        signatureDataUrl: signature || targetDeal.signatureUrl,
+        deal,
+        signatureDataUrl: deal.signatureUrl,
         isPro: user?.isPro || false,
         verificationUrl,
       });
-
-      const filename = generatePDFFilename(targetDeal);
-      downloadPDF(pdfBlob, filename);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      setSealError("Failed to generate PDF. Please try again.");
+      downloadPDF(pdfBlob, generatePDFFilename(deal));
+      toast.success("PDF downloaded!", {
+        icon: <Download className="h-4 w-4 text-primary" />,
+      });
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      toast.error("Failed to generate PDF");
     } finally {
       setIsGeneratingPDF(false);
     }
-  };
+  }, [deal, user?.isPro]);
 
-  // Send Receipt Email Handler
-  const handleSendReceiptEmail = async () => {
-    if (!email || !confirmedDeal) return;
+  // Print page
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
 
-    setIsSendingEmail(true);
-    setEmailError(null);
-
+  // Send nudge/reminder
+  const handleSendNudge = useCallback(async () => {
+    if (!deal || !deal.recipientEmail || !isCreator) return;
+    setIsSendingNudge(true);
     try {
-      // First generate the PDF
-      const verificationUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/verify?id=${confirmedDeal.publicId}`
-          : `https://proofo.app/verify?id=${confirmedDeal.publicId}`;
-
-      const { pdfBlob } = await generateDealPDF({
-        deal: confirmedDeal,
-        signatureDataUrl: signature || confirmedDeal.signatureUrl,
-        isPro: user?.isPro || false,
-        verificationUrl,
-      });
-
-      // Convert PDF to base64 for email attachment
-      const pdfBase64 = await pdfBlobToBase64(pdfBlob);
-      const pdfFilename = generatePDFFilename(confirmedDeal);
-
-      // Send the email with PDF attachment
-      const { success, error } = await sendDealReceiptAction({
-        dealId: confirmedDeal.id,
-        recipientEmail: email,
-        pdfBase64,
-        pdfFilename,
-      });
-
-      if (!success) {
-        setEmailError(error || "Failed to send email");
+      const result = await sendDealInvitationAction({ dealId: deal.id, recipientEmail: deal.recipientEmail });
+      if (result.error) {
+        toast.error(result.error);
       } else {
-        setEmailSent(true);
-        // Move to complete step after successful email
-        setTimeout(() => setCurrentStep("complete"), 1500);
+        toast.success(`Reminder sent to ${deal.recipientEmail}!`, {
+          icon: <Mail className="h-4 w-4 text-primary" />,
+        });
       }
-    } catch (error) {
-      console.error("Error sending receipt email:", error);
-      setEmailError("Failed to send email. Please try again.");
+    } catch {
+      toast.error("Failed to send reminder");
     } finally {
-      setIsSendingEmail(false);
+      setIsSendingNudge(false);
     }
+  }, [deal, isCreator]);
+
+  // Void deal
+  const handleVoidDeal = async () => {
+    if (!deal || !isCreator) return;
+    setIsVoiding(true);
+    const { error } = await voidDealAction(deal.id);
+    if (error) {
+      toast.error(error);
+    } else {
+      toast.success("Deal voided");
+      window.location.reload();
+    }
+    setIsVoiding(false);
+    setShowVoidDialog(false);
   };
 
-  // Show loading if deal is being fetched
-  if (isLoadingDeal) {
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // C = Copy link
+      if (e.key === "c" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleCopyLink();
+      }
+      // D = Download PDF
+      else if (e.key === "d" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleDownloadPDF();
+      }
+      // P = Print
+      else if (e.key === "p" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handlePrint();
+      }
+      // Q = QR Code
+      else if (e.key === "q" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setShowQRDialog(true);
+      }
+      // A = Toggle audit trail
+      else if (e.key === "a" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setShowAuditTrail(prev => !prev);
+      }
+      // Escape = Back
+      else if (e.key === "Escape") {
+        router.push("/dashboard/agreements");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleCopyLink, handleDownloadPDF, handlePrint, router]);
+
+  // Loading state
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"
-          />
-          <p className="text-muted-foreground">Loading deal...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show not found if no deal after loading
-  if (!deal && !isLoadingDeal) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex items-center justify-center">
-        <div className="text-center py-12">
-          <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-            <AlertCircle className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold mb-3">Deal Not Found</h1>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            This deal doesn&apos;t exist or the link may have expired. Please check with the person
-            who sent you this link.
-          </p>
-          <Link href="/">
-            <Button>Go to Proofo</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Current deal data to display
-  const displayDeal = confirmedDeal || deal || demoDeal;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-center">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-primary-foreground font-bold text-lg">P</span>
+      <div className="h-screen flex flex-col bg-background overflow-hidden">
+        <DealHeader title={deal?.title} />
+        <main className={cn(
+          "flex-1 overflow-y-auto py-8 lg:py-12 w-full transition-all duration-300",
+          "px-4 sm:px-6",
+          isSidebarCollapsed ? "lg:px-[112px]" : "lg:px-[312px]"
+        )}>
+          <div className="max-w-7xl mx-auto w-full">
+            <div className="mb-8">
+              <Skeleton className="h-5 w-32 mb-6" />
+              <Skeleton className="h-10 w-3/4 mb-3" />
+              <div className="flex gap-2">
+                <Skeleton className="h-6 w-28" />
+                <Skeleton className="h-6 w-20" />
+              </div>
             </div>
-            <span className="font-bold text-xl tracking-tight">Proofo</span>
-          </Link>
-        </div>
-      </header>
+            <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+              <div className="p-5 md:p-6 space-y-6">
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-40 w-full rounded-lg" />
+              </div>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
-      <main className="container mx-auto px-4 sm:px-6 py-8 max-w-2xl">
-        <AnimatePresence mode="wait">
-          {/* Not Found State */}
-          {currentStep === "not_found" && (
+  // Error state
+  if (error) {
+    const isAuthError = error === "Authentication required";
+    const isUnauthorized = error.includes("Unauthorized");
+
+    return (
+      <div className="h-screen flex flex-col bg-background overflow-hidden">
+        <DealHeader title={deal?.title} />
+        <main className={cn(
+          "flex-1 overflow-y-auto py-16 w-full transition-all duration-300",
+          "px-4 sm:px-6",
+          isSidebarCollapsed ? "lg:px-[112px]" : "lg:px-[312px]"
+        )}>
+          <div className="max-w-7xl mx-auto w-full">
             <motion.div
-              key="not_found"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12"
+              transition={springTransition}
             >
-              <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold mb-3">Deal Not Found</h1>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                This deal doesn&apos;t exist or the link may have expired. Please check with the
-                person who sent you this link.
-              </p>
-              <Link href="/">
-                <Button>Go to Proofo</Button>
-              </Link>
-            </motion.div>
-          )}
-
-          {/* Voided State */}
-          {currentStep === "voided" && displayDeal && (
-            <motion.div
-              key="voided"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12"
-            >
-              <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
-                <XCircle className="h-10 w-10 text-destructive" />
-              </div>
-              <h1 className="text-2xl font-bold mb-3">Deal Voided</h1>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                This deal has been voided by {displayDeal.creatorName} and is no longer available
-                for signing.
-              </p>
-              <Link href="/">
-                <Button variant="outline">Go to Proofo</Button>
-              </Link>
-            </motion.div>
-          )}
-
-          {/* Expired State - Token has expired */}
-          {currentStep === "expired" && displayDeal && (
-            <motion.div
-              key="expired"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center py-12"
-            >
-              <div className="h-20 w-20 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-6">
-                <TimerOff className="h-10 w-10 text-amber-600" />
-              </div>
-              <h1 className="text-2xl font-bold mb-3">Link Expired</h1>
-              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                This signing link has expired
-                {tokenExpiresAt ? ` on ${formatDateTime(tokenExpiresAt)}` : ""}.
-              </p>
-              <Card className="mb-6 max-w-md mx-auto">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="text-left text-sm">
-                      <p className="font-medium mb-1">What happened?</p>
-                      <p className="text-muted-foreground">
-                        For security reasons, signing links expire after 7 days. Please contact{" "}
-                        {displayDeal.creatorName} to request a new signing link.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/">
-                  <Button variant="outline">Go to Proofo</Button>
-                </Link>
-                <Link href="/dashboard">
-                  <Button>View Your Deals</Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Already Signed State */}
-          {currentStep === "already_signed" && displayDeal && (
-            <motion.div
-              key="already_signed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {/* Success Header */}
-              <div className="text-center mb-8">
-                <Badge
-                  variant="secondary"
-                  className="mb-4 px-4 py-1.5 bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                  Sealed & Verified
-                </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  Deal Complete
-                </h1>
-                <p className="text-muted-foreground">
-                  This agreement was sealed on{" "}
-                  {displayDeal.confirmedAt
-                    ? formatDateTime(displayDeal.confirmedAt)
-                    : "a previous date"}
-                </p>
-              </div>
-
-              {/* Creator & Status Info */}
-              <Card className="mb-6 border-emerald-500/30">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold">
-                      {creatorInitials}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">{displayDeal.creatorName}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5" />
-                        Created {formatDate(displayDeal.createdAt)}
-                      </p>
-                    </div>
-                    <Badge variant="success" className="gap-1.5">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Confirmed
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Deal Details */}
-              <Card className="mb-6 overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b pb-4">
-                  <div className="flex items-center gap-4">
-                    {(() => {
-                      const templateId = displayDeal.templateId || "simple-agreement";
-                      const iconName = templateIconNames[templateId] || "Handshake";
-                      const IconComp = iconMap[iconName] || Handshake;
-                      return (
-                        <div className="h-14 w-14 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                          <IconComp className="h-7 w-7 text-emerald-600" />
-                        </div>
-                      );
-                    })()}
-                    <div>
-                      <CardTitle className="text-xl">{displayDeal.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {displayDeal.description || "Agreement"}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  {/* Deal metadata */}
-                  <div className="grid grid-cols-2 gap-4 pb-4 border-b">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Recipient:</span>
-                      <span className="font-medium">
-                        {displayDeal.recipientName || "Recipient"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Deal ID:</span>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {displayDeal.publicId}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Terms */}
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                      Agreement Terms
-                    </h4>
-                    {displayDeal.terms.map((term, index) => (
-                      <motion.div
-                        key={term.id}
-                        className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <span className="text-muted-foreground text-sm">{term.label}</span>
-                        <span className="font-medium">{term.value}</span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Signature Display */}
-              {displayDeal.signatureUrl && (
-                <Card className="mb-6">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <PenLine className="h-5 w-5 text-muted-foreground" />
-                      Recipient Signature
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-muted/30 rounded-lg p-4 flex justify-center">
-                      {displayDeal.signatureUrl.startsWith("data:") ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- base64 data URL for signature
-                        <img
-                          src={displayDeal.signatureUrl}
-                          alt="Signature"
-                          className="max-h-24 object-contain"
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element -- Supabase storage URL for signature
-                        <img
-                          src={displayDeal.signatureUrl}
-                          alt="Signature"
-                          className="max-h-24 object-contain"
-                        />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Cryptographic Seal */}
-              {displayDeal.dealSeal && (
-                <Card className="mb-6">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Lock className="h-5 w-5 text-muted-foreground" />
-                      Cryptographic Seal (SHA-256)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <code className="block p-3 bg-muted rounded-lg text-xs font-mono break-all">
-                      {displayDeal.dealSeal}
-                    </code>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      This hash proves the deal data has not been modified since signing.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Shield className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span>Encrypted & Secure</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Lock className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span>Cryptographically Sealed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <FileCheck className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span>Legally Binding</span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={handleDownloadPDF}
-                  disabled={isGeneratingPDF}
-                >
-                  {isGeneratingPDF ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                      </motion.div>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4" />
-                      Download Receipt
-                    </>
-                  )}
-                </Button>
-                <Link href={`/verify?id=${displayDeal.publicId}`}>
-                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                    <Shield className="h-4 w-4" />
-                    Verify Deal
-                  </Button>
-                </Link>
-                <Link href="/">
-                  <Button className="gap-2 w-full sm:w-auto">
-                    <Sparkles className="h-4 w-4" />
-                    Create Your Own Deals
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 1: Review Deal */}
-          {currentStep === "review" && displayDeal && (
-            <motion.div
-              key="review"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-center mb-8">
-                <Badge variant="secondary" className="mb-4 px-4 py-1.5">
-                  <Shield className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                  Secure Agreement
-                </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  {displayDeal.creatorName} wants to make a deal
-                </h1>
-                <p className="text-muted-foreground">Review the terms below before signing</p>
-                {user && (
-                  <Badge variant="outline" className="mt-3 gap-1.5">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    Signing as {user.name}
-                  </Badge>
-                )}
-              </div>
-
-              {/* Creator Info */}
-              <Card className="mb-6">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground font-semibold">
-                      {creatorInitials}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">{displayDeal.creatorName}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5" />
-                        Created {formatDate(displayDeal.createdAt)}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="gap-1.5">
-                      <Clock className="h-3 w-3" />
-                      Pending
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Deal Details */}
-              <Card className="mb-6 overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b pb-4">
-                  <div className="flex items-center gap-4">
-                    {(() => {
-                      const templateId = displayDeal.templateId || "simple-agreement";
-                      const iconName = templateIconNames[templateId] || "Handshake";
-                      const IconComp = iconMap[iconName] || Handshake;
-                      return (
-                        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <IconComp className="h-7 w-7 text-primary" />
-                        </div>
-                      );
-                    })()}
-                    <div>
-                      <CardTitle className="text-xl">{displayDeal.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {displayDeal.description || "Agreement"}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  {/* Deal metadata */}
-                  <div className="grid grid-cols-2 gap-4 pb-4 border-b">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Recipient:</span>
-                      <span className="font-medium">{displayDeal.recipientName || "You"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Deal ID:</span>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {displayDeal.publicId}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Terms */}
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                      Agreement Terms
-                    </h4>
-                    {displayDeal.terms.map((term, index) => (
-                      <motion.div
-                        key={term.id}
-                        className="flex flex-col sm:flex-row sm:justify-between gap-1 py-3 border-b last:border-0"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <span className="text-muted-foreground text-sm">{term.label}</span>
-                        <span className="font-medium">{term.value}</span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Shield className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span>Encrypted & Secure</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Lock className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span>Cryptographically Sealed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <FileCheck className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <span>Legally Binding</span>
-                </div>
-              </div>
-
-              <Button
-                className="w-full shadow-xl shadow-primary/25"
-                size="xl"
-                onClick={handleProceedToSign}
-              >
-                Review Complete — Sign to Accept
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Step 2: Sign */}
-          {currentStep === "sign" && displayDeal && (
-            <motion.div
-              key="sign"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="text-center mb-8">
-                <Badge variant="secondary" className="mb-4 px-4 py-1.5">
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                  Almost Done
-                </Badge>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  Sign to Accept
-                </h1>
-                <p className="text-muted-foreground">
-                  Draw your signature below to seal this agreement
-                </p>
-                {/* Show prominent "Signing as" indicator for logged-in users */}
-                {user && (
-                  <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-                    <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                      Signing as {user.name || user.email}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Logged-in user info card */}
-              {user && (
-                <Card className="mb-6 border-emerald-500/30 bg-emerald-500/5">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
-                        {getUserInitials(user.name, user.email)}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{user.name || "Authenticated User"}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                          ✓ This deal will be linked to your account
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {sealError && (
-                <Card className="mb-6 border-destructive/50 bg-destructive/5">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-                    <p className="text-sm text-destructive">{sealError}</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card className="mb-6">
-                <CardContent className="p-6 sm:p-8">
-                  <SignaturePad
-                    onSignatureChange={setSignature}
-                    className="flex flex-col items-center"
-                  />
-                </CardContent>
-              </Card>
-
-              <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setCurrentStep("review")}
-                >
-                  Back
-                </Button>
-                <Button
-                  className="flex-1 shadow-xl shadow-primary/25"
-                  size="lg"
-                  onClick={handleSign}
-                  disabled={!signature || isSealing}
-                >
-                  {isSealing ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Sparkles className="h-5 w-5 mr-2" />
-                      </motion.div>
-                      Sealing...
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-4 w-4 mr-2" />
-                      Agree & Seal
-                    </>
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Sealing Animation Overlay */}
-          {isSealing && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-background/90 backdrop-blur-md z-50 flex items-center justify-center"
-            >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.1, type: "spring" }}
-                className="text-center max-w-sm mx-auto px-4"
-              >
-                {/* Animated Seal */}
-                <div className="relative h-32 w-32 mx-auto mb-8">
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.2, 1],
-                    }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="absolute inset-0 rounded-full bg-primary/20"
-                  />
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.1, 1],
-                    }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                    className="absolute inset-2 rounded-full bg-primary/30"
-                  />
-                  <motion.div
-                    animate={{
-                      rotate: [0, 360],
-                    }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-4 rounded-full border-4 border-dashed border-primary/40"
-                  />
+              <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                <CardContent className="p-8 text-center">
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    transition={{ delay: 0.5, type: "spring" }}
-                    className="absolute inset-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/30"
+                    transition={{ delay: 0.1, type: "spring", stiffness: 400, damping: 25 }}
+                    className={cn(
+                      "h-14 w-14 rounded-xl flex items-center justify-center mx-auto mb-5",
+                      isAuthError ? "bg-primary/10" : "bg-destructive/10"
+                    )}
                   >
-                    <FileCheck className="h-10 w-10 text-primary-foreground" />
+                    {isAuthError ? (
+                      <Lock className="h-7 w-7 text-primary" />
+                    ) : isUnauthorized ? (
+                      <Shield className="h-7 w-7 text-destructive" />
+                    ) : (
+                      <AlertTriangle className="h-7 w-7 text-destructive" />
+                    )}
                   </motion.div>
-                </div>
-
-                <motion.h2
-                  className="text-2xl font-bold mb-2"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  Sealing Your Deal
-                </motion.h2>
-                <motion.p
-                  className="text-muted-foreground"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  Creating cryptographic proof...
-                </motion.p>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* Step 3: Email (Optional) */}
-          {currentStep === "email" && (
-            <motion.div
-              key="email"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="text-center mb-8">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="h-20 w-20 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30"
-                >
-                  <CheckCircle2 className="h-10 w-10 text-white" />
-                </motion.div>
-                <h1 className="text-2xl sm:text-3xl font-bold mb-3 tracking-tight">
-                  Deal Sealed! 🎉
-                </h1>
-                <p className="text-muted-foreground">Where should we send your receipt?</p>
-                {user && (
-                  <Badge variant="outline" className="mt-3 gap-1.5">
-                    <User className="h-3 w-3" />
-                    Signed in as {user.name || user.email}
-                  </Badge>
-                )}
-              </div>
-
-              <Card className="mb-6">
-                <CardContent className="p-6 sm:p-8 space-y-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="email" className="text-sm font-medium">
-                      Email Address{" "}
-                      <span className="text-muted-foreground">
-                        ({user?.email ? "Auto-filled" : "Optional"})
-                      </span>
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="your@email.com"
-                        className="pl-11"
-                        disabled={isSendingEmail || emailSent}
-                      />
-                    </div>
-                  </div>
-
-                  {emailError && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
-                      <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                      <p className="text-sm text-destructive">{emailError}</p>
-                    </div>
-                  )}
-
-                  {emailSent && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-                      <p className="text-sm text-emerald-700">
-                        Receipt sent successfully! Check your inbox.
-                      </p>
-                    </div>
-                  )}
-
-                  {!emailSent && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border">
-                      <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                      <p className="text-sm text-muted-foreground">
-                        We&apos;ll send you a PDF copy of this agreement with the cryptographic seal
-                        for your records. Your email is never shared.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleSkipEmail}
-                  disabled={isSendingEmail}
-                >
-                  Skip for Now
-                </Button>
-                <Button
-                  className="flex-1 shadow-xl shadow-primary/25"
-                  onClick={handleSendReceiptEmail}
-                  disabled={!email || isSendingEmail || emailSent}
-                >
-                  {isSendingEmail ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                      </motion.div>
-                      Sending...
-                    </>
-                  ) : emailSent ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Sent!
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Receipt
-                    </>
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 4: Complete */}
-          {currentStep === "complete" && (
-            <motion.div
-              key="complete"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="text-center"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="h-24 w-24 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-500/30"
-              >
-                <CheckCircle2 className="h-12 w-12 text-white" />
-              </motion.div>
-
-              <h1 className="text-2xl sm:text-3xl font-bold mb-4 tracking-tight">
-                You&apos;re All Set!
-              </h1>
-              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                This agreement has been cryptographically sealed and is now enforceable.
-                {emailSent && " A copy has been sent to your email."}
-              </p>
-
-              {/* Logged-in user account link confirmation */}
-              {user && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-8">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                    Linked to your account • View in Dashboard
-                  </span>
-                </div>
-              )}
-
-              <Card className="mb-8 text-left">
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between py-2 border-b">
-                      <span className="text-muted-foreground text-sm">Deal ID</span>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {resolvedParams.id}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b">
-                      <span className="text-muted-foreground text-sm">Status</span>
-                      <Badge variant="success" className="gap-1.5">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Confirmed
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b">
-                      <span className="text-muted-foreground text-sm">Sealed At</span>
-                      <span className="font-medium text-sm">
-                        {confirmedDeal?.confirmedAt
-                          ? formatDate(confirmedDeal.confirmedAt)
-                          : new Date().toLocaleString("en-US", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })}
-                      </span>
-                    </div>
-                    {confirmedDeal?.dealSeal && (
-                      <div className="flex items-center justify-between py-2 border-b">
-                        <span className="text-muted-foreground text-sm">Seal Hash</span>
-                        <Badge
-                          variant="outline"
-                          className="font-mono text-xs max-w-[200px] truncate"
-                        >
-                          {confirmedDeal.dealSeal.slice(0, 16)}...
-                        </Badge>
-                      </div>
+                  <h1 className="text-xl font-bold mb-2">
+                    {isAuthError ? "Sign In Required" : isUnauthorized ? "Access Denied" : "Something Went Wrong"}
+                  </h1>
+                  <p className="text-muted-foreground text-sm mb-6">
+                    {isAuthError
+                      ? "Please sign in to view this deal."
+                      : isUnauthorized
+                        ? "Only the creator and recipient can access this deal."
+                        : error}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {isAuthError && (
+                      <Link href="/login">
+                        <Button className="w-full">Sign In</Button>
+                      </Link>
                     )}
-                    {/* Show signed-in user info */}
-                    {user && (
-                      <div className="flex items-center justify-between py-2 border-b">
-                        <span className="text-muted-foreground text-sm">Signed By</span>
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-linear-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-medium">
-                            {getUserInitials(user.name, user.email)}
-                          </div>
-                          <span className="font-medium text-sm">{user.name || user.email}</span>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-muted-foreground text-sm">With</span>
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground text-xs font-medium">
-                          {creatorInitials}
-                        </div>
-                        <span className="font-medium text-sm">{displayDeal.creatorName}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={handleDownloadPDF}
-                  disabled={isGeneratingPDF}
-                >
-                  {isGeneratingPDF ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                      </motion.div>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4" />
-                      Download PDF
-                    </>
-                  )}
-                </Button>
-                <Link href={`/verify?id=${displayDeal.publicId}`}>
-                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                    <Shield className="h-4 w-4" />
-                    Verify Deal
-                  </Button>
-                </Link>
-              </div>
-
-              <Separator className="my-8" />
-
-              <div className="text-center">
-                {user ? (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      This deal is now in your dashboard
-                    </p>
                     <Link href="/dashboard">
-                      <Button className="shadow-lg shadow-primary/20 gap-2">
-                        <FileCheck className="h-4 w-4" />
+                      <Button variant={isAuthError ? "outline" : "default"} className="w-full">
                         Go to Dashboard
                       </Button>
                     </Link>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Want to create your own deals?
-                    </p>
-                    <Link href="/dashboard">
-                      <Button className="shadow-lg shadow-primary/20 gap-2">
-                        <Sparkles className="h-4 w-4" />
-                        Get Started with Proofo
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!deal) return null;
+
+  const config = statusConfig[deal.status as keyof typeof statusConfig] || statusConfig.pending;
+  const StatusIcon = config.icon;
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="h-screen flex flex-col bg-background print:bg-white overflow-hidden">
+        <div className="print:hidden">
+          <DealHeader title={deal?.title} />
+        </div>
+
+        <main className={cn(
+          "flex-1 overflow-y-auto py-8 lg:py-12 w-full transition-all duration-300",
+          "px-4 sm:px-6",
+          isSidebarCollapsed ? "lg:px-[112px]" : "lg:px-[312px]"
+        )}>
+          <div className="max-w-7xl mx-auto w-full">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+          >
+            {/* Back Navigation */}
+            <motion.div variants={slideUp} className="mb-6 print:hidden">
+              <Link
+                href="/dashboard/agreements"
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors group"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                Back to Agreements
+                <KeyboardHint keys="Esc" />
+              </Link>
+            </motion.div>
+
+            {/* Header */}
+            <motion.div variants={slideUp} className="mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <motion.div
+                    whileHover={{ scale: 1.05, rotate: 3 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className={cn(
+                      "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm",
+                      config.bg,
+                      config.border
+                    )}
+                  >
+                    <TemplateIcon className={cn("h-6 w-6", config.color)} />
+                  </motion.div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">{deal.title}</h1>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={cn("gap-1.5", config.bg, config.border, config.color)}>
+                        <StatusIcon className="h-3 w-3" />
+                        {config.label}
+                      </Badge>
+                      <CopyableId id={deal.publicId} />
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        • {timeAgo(deal.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0 print:hidden">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyLink}
+                        className="gap-2"
+                      >
+                        {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
                       </Button>
-                    </Link>
-                  </>
-                )}
+                    </TooltipTrigger>
+                    <TooltipContent>Copy signing link <KeyboardHint keys="C" /></TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadPDF}
+                        disabled={isGeneratingPDF}
+                        className="gap-2"
+                      >
+                        {isGeneratingPDF ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        <span className="hidden sm:inline">PDF</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Download PDF <KeyboardHint keys="D" /></TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => setShowQRDialog(true)}>
+                        <QrCode className="h-4 w-4 mr-2" />
+                        Show QR Code
+                        <KeyboardHint keys="Q" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleShare}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handlePrint}>
+                        <Printer className="h-4 w-4 mr-2" />
+                        Print
+                        <KeyboardHint keys="P" />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/verify?id=${deal.publicId}`}>
+                          <ShieldCheck className="h-4 w-4 mr-2" />
+                          Verify
+                        </Link>
+                      </DropdownMenuItem>
+                      {accessToken && isCreator && deal.status === "confirmed" && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const accessUrl = `${window.location.origin}/d/public/${deal.publicId}?token=${accessToken}`;
+                              copyToClipboard(accessUrl);
+                              toast.success("Access link copied!");
+                            }}
+                          >
+                            <Key className="h-4 w-4 mr-2" />
+                            Copy Access Link
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {isCreator && deal.status === "pending" && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setShowVoidDialog(true)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Void Deal
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
 
-      {/* Footer */}
-      <footer className="py-8 border-t mt-auto">
-        <div className="container mx-auto px-4 sm:px-6 text-center text-sm text-muted-foreground">
-          <p className="flex items-center justify-center gap-2">
-            <Shield className="h-4 w-4" />
-            Powered by Proofo • Evidence that holds up
-          </p>
-        </div>
-      </footer>
-    </div>
+            {/* Multi-Card Layout */}
+            <div className="space-y-4">
+              {/* Status Alert Card */}
+              <AnimatePresence>
+                {deal.status === "pending" && isCreator && (
+                  <motion.div variants={slideUp}>
+                    <Card className="border border-amber-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                      <motion.div
+                        className="h-1.5 w-full bg-amber-500"
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        style={{ transformOrigin: "left" }}
+                      />
+                      <CardContent className="p-5">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                              <Clock className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{config.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {deal.recipientEmail ? `Waiting for ${deal.recipientEmail}` : "Share the link with your recipient"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {deal.recipientEmail && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleSendNudge}
+                                    disabled={isSendingNudge}
+                                    className="gap-2 border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
+                                  >
+                                    {isSendingNudge ? (
+                                      <RefreshCw className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Zap className="h-4 w-4" />
+                                    )}
+                                    <span className="hidden sm:inline">Nudge</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Send reminder email</TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Button size="sm" onClick={handleCopyLink} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
+                              <Mail className="h-4 w-4" />
+                              <span className="hidden sm:inline">Send Link</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {deal.status === "confirmed" && deal.confirmedAt && (
+                  <motion.div variants={slideUp}>
+                    <Card className="border border-emerald-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                      <motion.div
+                        className="h-1.5 w-full bg-emerald-500"
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        style={{ transformOrigin: "left" }}
+                      />
+                      <CardContent className="p-5">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div className="flex items-center gap-3">
+                            <motion.div
+                              className="h-10 w-10 rounded-lg bg-emerald-500/20 flex items-center justify-center"
+                              initial={{ rotate: -10 }}
+                              animate={{ rotate: 0 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                            >
+                              <Sparkles className="h-5 w-5 text-emerald-600" />
+                            </motion.div>
+                            <div>
+                              <p className="font-medium text-sm text-emerald-600 flex items-center gap-2">
+                                Agreement Sealed
+                                <CheckCircle2 className="h-4 w-4" />
+                              </p>
+                              <p className="text-xs text-muted-foreground">Signed on {formatDateTime(deal.confirmedAt)}</p>
+                            </div>
+                          </div>
+                          <Link href={`/verify?id=${deal.publicId}`}>
+                            <Button variant="outline" size="sm" className="gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10">
+                              <ShieldCheck className="h-4 w-4" />
+                              Verify
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {deal.status === "voided" && (
+                  <motion.div variants={slideUp}>
+                    <Card className="border border-destructive/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                      <motion.div
+                        className="h-1.5 w-full bg-destructive"
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        style={{ transformOrigin: "left" }}
+                      />
+                      <CardContent className="p-5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-destructive/20 flex items-center justify-center">
+                            <XCircle className="h-5 w-5 text-destructive" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm text-destructive">Deal Voided</p>
+                            <p className="text-xs text-muted-foreground">This agreement is no longer valid</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Shared Deal View - Parties, Terms, Signature & Seal */}
+              <SealedDealView
+                deal={deal}
+                creatorProfile={creatorProfile}
+                recipientProfile={recipientProfile}
+              />
+
+              {/* Audit Timeline */}
+              <div className="pt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAuditTrail(!showAuditTrail)}
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 mb-4"
+                >
+                  <ChevronRight className={cn("h-4 w-4 transition-transform", showAuditTrail && "rotate-90")} />
+                  {showAuditTrail ? "Hide" : "Show"} Audit Trail
+                  <KeyboardHint keys="A" />
+                </Button>
+
+                <AnimatePresence>
+                  {showAuditTrail && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <AuditTimeline logs={auditLogs} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+          </div>
+        </main>
+
+        {/* Dialogs */}
+        <AlertDialog open={showVoidDialog} onOpenChange={setShowVoidDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will void the agreement for all parties. Recipient will no longer be able to sign it. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleVoidDeal}
+                disabled={isVoiding}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isVoiding ? "Voiding..." : "Yes, void deal"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-center">Scan to Sign</DialogTitle>
+              <DialogDescription className="text-center">
+                Share this QR code with the recipient.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center p-6 space-y-4">
+              <div className="p-3 bg-white rounded-2xl shadow-sm border">
+                <QRCodeSVG value={signingLink} size={200} />
+              </div>
+              <p className="text-[10px] font-mono text-muted-foreground truncate w-full text-center">
+                {deal.publicId}
+              </p>
+              <Button variant="outline" className="w-full" onClick={handleCopyLink}>
+                Copy Link
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 }

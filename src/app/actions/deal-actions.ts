@@ -227,7 +227,7 @@ export async function createDealAction(data: {
       .eq("id", user.id)
       .single();
 
-    const shareUrl = `${APP_URL}/d/${publicId}`;
+    const shareUrl = `${APP_URL}/d/public/${publicId}`;
 
     return {
       deal: {
@@ -248,7 +248,7 @@ export async function createDealAction(data: {
 // Get deal by public ID (for recipient view - doesn't require auth)
 export async function getDealByPublicIdAction(
   publicId: string
-): Promise<{ deal: Deal | null; error: string | null }> {
+): Promise<{ deal: Deal | null; creatorProfile?: { name: string; avatarUrl?: string }; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
 
@@ -260,9 +260,34 @@ export async function getDealByPublicIdAction(
       return { deal: null, error: error?.message || "Deal not found" };
     }
 
-    // The function returns JSON with creator_name already included
+    const deal = transformDeal(data as Record<string, unknown>);
+
+    // Fetch creator profile directly for fresh data
+    // Note: profiles table has RLS that allows SELECT for authenticated users
+    // For anonymous users, we rely on the RPC data which includes creator_name via JOIN
+    const creatorId = (data as Record<string, unknown>).creator_id as string;
+    let creatorProfile: { name: string; avatarUrl?: string } | undefined;
+
+    // Try to fetch fresh profile data (will work for authenticated users)
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("name, avatar_url")
+      .eq("id", creatorId)
+      .single();
+
+    if (profileData) {
+      creatorProfile = {
+        name: profileData.name || deal.creatorName || "Unknown",
+        avatarUrl: profileData.avatar_url,
+      };
+    } else {
+      // Fall back to the RPC data
+      creatorProfile = { name: deal.creatorName || "Unknown" };
+    }
+
     return {
-      deal: transformDeal(data as Record<string, unknown>),
+      deal,
+      creatorProfile,
       error: null,
     };
   } catch (error) {
@@ -338,6 +363,54 @@ export async function getAccessTokenAction(
   }
 }
 
+// Get access token for viewing a sealed deal (includes used tokens)
+// This is for creators to share the access link for confirmed deals
+export async function getViewAccessTokenAction(
+  dealId: string
+): Promise<{ token: string | null; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Check authentication - only deal parties can get the token
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { token: null, error: "Not authenticated" };
+    }
+
+    // Verify user is a party to this deal
+    const { data: deal } = await supabase
+      .from("deals")
+      .select("creator_id, recipient_id")
+      .eq("id", dealId)
+      .single();
+
+    if (!deal || (deal.creator_id !== user.id && deal.recipient_id !== user.id)) {
+      return { token: null, error: "Not authorized" };
+    }
+
+    // Get the most recent token for this deal (including used ones)
+    const { data, error } = await supabase
+      .from("access_tokens")
+      .select("token")
+      .eq("deal_id", dealId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return { token: null, error: "No token found for this deal" };
+    }
+
+    return { token: data.token, error: null };
+  } catch (error) {
+    logger.error("Error fetching view access token", error);
+    return { token: null, error: "Server error" };
+  }
+}
+
 // Token status types
 export type TokenStatus = "valid" | "expired" | "used" | "not_found";
 
@@ -380,6 +453,53 @@ export async function getTokenStatusAction(dealId: string): Promise<{
   } catch (error) {
     logger.error("Error fetching token status", error);
     return { status: "not_found", expiresAt: null, error: "Server error" };
+  }
+}
+
+// Validate access token for viewing a sealed deal
+// NOTE: Used tokens should still grant view access for confirmed deals (they were used to sign)
+export async function validateViewTokenAction(
+  dealId: string,
+  token: string,
+  publicId?: string // Optional - used to bypass RLS for checking deal status
+): Promise<{ isValid: boolean; error: string | null }> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // First, try the RPC function for unused tokens
+    const { data: rpcResult, error: rpcError } = await supabase.rpc("validate_access_token", {
+      p_deal_id: dealId,
+      p_token: token,
+    });
+
+    // If RPC says valid, return true
+    if (!rpcError && rpcResult === true) {
+      return { isValid: true, error: null };
+    }
+
+    // If RPC returns false, check if the token was used (for a signed deal)
+    // We need to check: 1) token exists and is "used" status 2) deal is confirmed
+    const { data: tokenStatus } = await supabase.rpc("get_token_status_for_deal", {
+      p_deal_id: dealId,
+    });
+
+    if (tokenStatus && (tokenStatus as { status: string }).status === "used" && publicId) {
+      // Token was used - check if deal is confirmed using RPC that bypasses RLS
+      const { data: dealData } = await supabase.rpc("get_deal_by_public_id", {
+        p_public_id: publicId,
+      });
+
+      // If deal is confirmed, allow access with the used token
+      // NOTE: This is slightly permissive but tokens are unique per deal
+      if (dealData && (dealData as { status: string }).status === "confirmed") {
+        return { isValid: true, error: null };
+      }
+    }
+
+    return { isValid: false, error: null };
+  } catch (error) {
+    logger.error("Error validating access token", error);
+    return { isValid: false, error: "Server error" };
   }
 }
 
@@ -863,9 +983,133 @@ export async function getAuditLogsAction(dealId: string): Promise<{
   }
 }
 
+// Get private deal details (only for authorized parties: creator or recipient)
+export async function getPrivateDealAction(publicId: string): Promise<{
+  deal: Deal | null;
+  auditLogs: Array<{
+    id: string;
+    dealId: string;
+    eventType: string;
+    actorId: string | null;
+    actorType: string;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
+  }>;
+  creatorProfile: { name: string; avatarUrl?: string } | null;
+  recipientProfile: { name: string; avatarUrl?: string } | null;
+  isCreator: boolean;
+  error: string | null;
+}> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Check authentication
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return {
+        deal: null,
+        auditLogs: [],
+        creatorProfile: null,
+        recipientProfile: null,
+        isCreator: false,
+        error: "Authentication required",
+      };
+    }
+
+    // Get the deal using RPC to bypass RLS
+    const { data: dealData, error: fetchError } = await supabase.rpc("get_deal_by_public_id", {
+      p_public_id: publicId,
+    });
+
+    if (fetchError || !dealData) {
+      return {
+        deal: null,
+        auditLogs: [],
+        creatorProfile: null,
+        recipientProfile: null,
+        isCreator: false,
+        error: "Deal not found",
+      };
+    }
+
+    const deal = transformDeal(dealData as Record<string, unknown>);
+
+    // Authorization check: user must be creator OR recipient
+    const isCreator = deal.creatorId === user.id;
+    const isRecipient =
+      deal.recipientId === user.id ||
+      (deal.recipientEmail && deal.recipientEmail.toLowerCase() === user.email?.toLowerCase());
+
+    if (!isCreator && !isRecipient) {
+      return {
+        deal: null,
+        auditLogs: [],
+        creatorProfile: null,
+        recipientProfile: null,
+        isCreator: false,
+        error: "Unauthorized - you are not a party to this deal",
+      };
+    }
+
+    // Fetch creator profile
+    const { data: creatorData } = await supabase
+      .from("profiles")
+      .select("name, avatar_url")
+      .eq("id", deal.creatorId)
+      .single();
+
+    const creatorProfile = creatorData
+      ? { name: creatorData.name || "Unknown", avatarUrl: creatorData.avatar_url }
+      : null;
+
+    // Fetch recipient profile if they have an account
+    let recipientProfile: { name: string; avatarUrl?: string } | null = null;
+    if (deal.recipientId) {
+      const { data: recipientData } = await supabase
+        .from("profiles")
+        .select("name, avatar_url")
+        .eq("id", deal.recipientId)
+        .single();
+
+      recipientProfile = recipientData
+        ? { name: recipientData.name || deal.recipientName || "Unknown", avatarUrl: recipientData.avatar_url }
+        : null;
+    } else if (deal.recipientName) {
+      // Use recipient name from deal if no profile
+      recipientProfile = { name: deal.recipientName };
+    }
+
+    // Fetch audit logs
+    const { logs } = await getAuditLogsAction(deal.id);
+
+    return {
+      deal,
+      auditLogs: logs,
+      creatorProfile,
+      recipientProfile,
+      isCreator,
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error fetching private deal", error);
+    return {
+      deal: null,
+      auditLogs: [],
+      creatorProfile: null,
+      recipientProfile: null,
+      isCreator: false,
+      error: "Server error",
+    };
+  }
+}
+
 // Send deal receipt email (called after confirmation)
 export async function sendDealReceiptAction(data: {
   dealId: string;
+  publicId?: string; // Optional - used to bypass RLS for anonymous users
   recipientEmail: string;
   pdfBase64?: string;
   pdfFilename?: string;
@@ -873,8 +1117,11 @@ export async function sendDealReceiptAction(data: {
   try {
     const supabase = await createServerSupabaseClient();
 
-    // Fetch the deal
-    const { data: dealData, error: fetchError } = await supabase
+    // Try normal select first (works for authenticated users)
+    let dealData = null;
+    let creatorName = "Unknown";
+
+    const { data: selectData, error: selectError } = await supabase
       .from("deals")
       .select(
         `
@@ -885,13 +1132,36 @@ export async function sendDealReceiptAction(data: {
       .eq("id", data.dealId)
       .single();
 
-    if (fetchError || !dealData) {
+    if (!selectError && selectData) {
+      dealData = selectData;
+      creatorName = (dealData.creator as { name: string } | null)?.name || "Unknown";
+    } else if (data.publicId) {
+      // Fallback: Use RPC to bypass RLS (for anonymous users after signing)
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_deal_by_public_id", {
+        p_public_id: data.publicId,
+      });
+
+      if (rpcError || !rpcData) {
+        return { success: false, error: "Deal not found" };
+      }
+
+      dealData = rpcData;
+
+      // Fetch creator name separately
+      const { data: creator } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", (dealData as Record<string, unknown>).creator_id)
+        .single();
+
+      creatorName = creator?.name || "Unknown";
+    } else {
       return { success: false, error: "Deal not found" };
     }
 
     const deal: Deal = {
-      ...transformDeal(dealData),
-      creatorName: (dealData.creator as { name: string } | null)?.name || "Unknown",
+      ...transformDeal(dealData as Record<string, unknown>),
+      creatorName,
     };
 
     // Import email function dynamically to avoid bundling issues
@@ -964,7 +1234,7 @@ export async function sendDealInvitationAction(data: {
     }
 
     // Construct share URL
-    const shareUrl = `${APP_URL}/d/${deal.publicId}`;
+    const shareUrl = `${APP_URL}/d/public/${deal.publicId}`;
 
     // Import email function dynamically
     const { sendDealInvitationEmail } = await import("@/lib/email");

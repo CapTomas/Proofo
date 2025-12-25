@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AnimatedLogo } from "@/components/animated-logo";
+import { useAppStore } from "@/store";
 import {
   Shield,
   Menu,
@@ -18,6 +19,7 @@ import {
   LogIn,
   CreditCard,
   Layers,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -63,11 +65,12 @@ const HeaderMagneticWrapper = ({ children }: { children: React.ReactNode }) => {
 };
 
 interface PublicHeaderProps {
-  currentPage?: "home" | "demo" | "verify";
+  currentPage?: "home" | "demo" | "verify" | "features" | "how-it-works" | "pricing";
 }
 
 export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAppStore();
 
   // Lock body scroll when menu is open
   useEffect(() => {
@@ -171,33 +174,33 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
 
             {/* Desktop Auth */}
             <div className="hidden sm:flex items-center gap-2">
-              <Link href="/login">
+              <Link href={user ? "/dashboard" : "/login"}>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="text-sm font-medium h-9 hover:bg-primary/5"
                 >
-                  Log In
+                  {user ? "Dashboard" : "Log In"}
                 </Button>
               </Link>
               <Link href="/deal/new">
                 <HeaderMagneticWrapper>
                   <Button size="sm" className="font-medium h-9 shadow-sm">
-                    Get Started
+                    {user ? "New Deal" : "Get Started"}
                   </Button>
                 </HeaderMagneticWrapper>
               </Link>
             </div>
 
             {/* Mobile Auth (User Icon) */}
-            <Link href="/login" className="sm:hidden">
+            <Link href={user ? "/dashboard" : "/login"} className="sm:hidden">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 rounded-full bg-secondary/50 text-foreground hover:bg-secondary/60 border border-transparent hover:border-border/30 transition-all backdrop-blur-sm"
               >
-                <User className="h-4 w-4" />
-                <span className="sr-only">Log In</span>
+                {user ? <LayoutDashboard className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                <span className="sr-only">{user ? "Dashboard" : "Log In"}</span>
               </Button>
             </Link>
 
@@ -328,17 +331,17 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
               <div className="p-6 border-t border-border/20 bg-secondary/5 space-y-3 relative z-10 shrink-0">
                 <Link href="/deal/new" onClick={() => setMobileMenuOpen(false)} className="block">
                   <Button className="w-full justify-between h-12 text-base rounded-2xl shadow-lg shadow-primary/20 px-6 group">
-                    <span className="font-semibold">Get Started</span>
+                    <span className="font-semibold">{user ? "New Deal" : "Get Started"}</span>
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block">
+                <Link href={user ? "/dashboard" : "/login"} onClick={() => setMobileMenuOpen(false)} className="block">
                   <Button
                     variant="outline"
                     className="w-full justify-center gap-2 h-12 text-base rounded-2xl border-border/40 bg-background/30 hover:bg-background/50 backdrop-blur-sm"
                   >
-                    <LogIn className="h-4 w-4" />
-                    Log In
+                    {user ? <LayoutDashboard className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+                    {user ? "Dashboard" : "Log In"}
                   </Button>
                 </Link>
                 <div className="pt-2 flex justify-center">
