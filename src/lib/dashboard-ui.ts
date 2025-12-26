@@ -119,7 +119,7 @@ export const enhancedItemVariants: Variants = {
  */
 export const dashboardStyles = {
   // Page container
-  pageContainer: "space-y-6 pb-20",
+  pageContainer: "space-y-6 pb-10",
 
   // Page header with title and description
   pageHeader: "flex items-center justify-between gap-4 pb-2 border-b border-border/40",
