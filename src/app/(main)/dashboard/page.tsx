@@ -718,63 +718,71 @@ export default function DashboardPage() {
             </Card>
 
             {/* Deadlines Widget */}
-            {(upcomingDeadlines.length > 0 || !isLoaded) && (
-              <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
-                <div className="px-5 py-3">
-                  <h3 className="text-sm font-medium flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-primary" />
-                    Upcoming Deadlines
-                  </h3>
-                </div>
-                <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-0 pr-2 pl-2">
-                  {!isLoaded ? (
-                    <div className="p-3 space-y-3">
-                      {[...Array(2)].map((_, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Skeleton className="h-8 w-1 rounded-full" />
-                            <div className="space-y-1">
-                              <Skeleton className="h-4 w-32" />
-                              <Skeleton className="h-3 w-24 opacity-50" />
-                            </div>
+            <Card className="h-auto lg:h-[180px] flex flex-col border border-border/50 shadow-card rounded-2xl overflow-hidden">
+              <div className="px-5 py-3">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  Upcoming Deadlines
+                </h3>
+              </div>
+              <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-0 pr-2 pl-2">
+                {!isLoaded ? (
+                  <div className="p-3 space-y-3">
+                    {[...Array(2)].map((_, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-8 w-1 rounded-full" />
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-24 opacity-50" />
                           </div>
-                          <Skeleton className="h-5 w-16" />
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div>
-                      {upcomingDeadlines.map((item: DeadlineItem) => (
-                        <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
-                          <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
-                            <div className="flex items-center gap-3">
-                              <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
-                              <div>
-                                <p className="font-semibold text-foreground text-sm">
-                                  {item.deal.title}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.label}: {formatDate(item.date)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className="font-mono text-[10px] whitespace-nowrap border-border bg-background"
-                              >
-                                {getRelativeTime(item.date)}
-                              </Badge>
-                              <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Skeleton className="h-5 w-16" />
+                      </div>
+                    ))}
+                  </div>
+                ) : upcomingDeadlines.length > 0 ? (
+                  <div>
+                    {upcomingDeadlines.map((item: DeadlineItem) => (
+                      <Link href={`/d/${item.deal.publicId}`} key={item.deal.id}>
+                        <div className="group flex items-center justify-between text-sm p-3 hover:bg-muted/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-border/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1 h-8 bg-primary/20 rounded-full group-hover:bg-primary/40 transition-colors" />
+                            <div>
+                              <p className="font-semibold text-foreground text-sm">
+                                {item.deal.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.label}: {formatDate(item.date)}
+                              </p>
                             </div>
                           </div>
-                        </Link>
-                      ))}
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className="font-mono text-[10px] whitespace-nowrap border-border bg-background"
+                            >
+                              {getRelativeTime(item.date)}
+                            </Badge>
+                            <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground/60 py-6">
+                    <div className="h-10 w-10 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
+                      <CalendarDays className="h-5 w-5 opacity-20" />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    <p className="text-xs font-medium text-foreground/80">No deadlines set</p>
+                    <p className="text-[10px] max-w-[180px] mt-0.5">
+                      Dates tracker will appear here when you add them to your agreements.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column (1/3): Context & Tools */}

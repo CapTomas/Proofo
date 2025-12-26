@@ -677,7 +677,7 @@ function NewDealContent() {
           {/* Logo Area */}
           <SidebarLogo isCollapsed={isSidebarCollapsed} />
 
-          <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
+            <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative">
             <div className="px-3 mb-4">
               {isSidebarCollapsed ? (
                 <div className="flex justify-center h-4 items-center">
@@ -712,6 +712,30 @@ function NewDealContent() {
                 </SidebarNavItem>
               );
             })}
+
+            {/* Active indicator dot - single element that travels between steps */}
+            {!isSidebarCollapsed && (() => {
+              const activeIndex = currentStepIndex;
+              if (activeIndex === -1) return null;
+              // Each nav item is h-10 (40px) + gap-1 (4px), plus the header div (~28px with mb-4=16px)
+              const itemHeight = 44;
+              const headerOffset = 34; // px-3 mb-4 header area (adjusted for text height)
+              const navPaddingTop = 24; // py-6 = 24px
+              const dotY = navPaddingTop + headerOffset + activeIndex * itemHeight + 20;
+              return (
+                <motion.div
+                  className="absolute right-6 w-1.5 h-1.5 rounded-full bg-primary pointer-events-none"
+                  initial={false}
+                  animate={{ top: dotY }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30,
+                  }}
+                  style={{ marginTop: -3 }}
+                />
+              );
+            })()}
           </nav>
 
           {/* Footer Actions - Matching Dashboard */}

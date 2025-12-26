@@ -64,10 +64,21 @@ export function SidebarNavItem({
           <div className="relative">
             <Icon className={cn("h-4.5 w-4.5 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
             {hasNotification && (
-              <span className={cn(
-                "absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background",
-                notificationColor === "amber" ? "bg-amber-500" : "bg-rose-500"
-              )} />
+              <motion.span
+                className={cn(
+                  "absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background",
+                  notificationColor === "amber" ? "bg-amber-500" : "bg-rose-500"
+                )}
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [1, 0.8, 1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
             )}
           </div>
         ) : typeof index === "number" ? (

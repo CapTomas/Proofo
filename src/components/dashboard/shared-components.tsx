@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle, FileSignature } from "lucide-react";
@@ -188,22 +188,36 @@ export const CopyableId = ({ id, className }: { id: string; className?: string }
   };
 
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
-        className
-      )}
-      onClick={handleCopy}
-      title="Click to copy Deal ID"
+    <motion.div
+      animate={copied ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
     >
-      {id}
-      {copied ? (
-        <Check className="h-3 w-3 text-emerald-500" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity" />
-      )}
-    </Badge>
+      <Badge
+        variant="outline"
+        className={cn(
+          "font-mono cursor-pointer hover:bg-secondary/80 transition-colors group/id gap-1.5 h-5 px-1.5 text-[10px]",
+          copied && "bg-emerald-500/10 border-emerald-500/30",
+          className
+        )}
+        onClick={handleCopy}
+        title="Click to copy Deal ID"
+      >
+        {id}
+        <div className="relative w-3 h-3 flex items-center justify-center">
+          {copied ? (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
+            >
+              <Check className="h-3 w-3 text-emerald-500" />
+            </motion.div>
+          ) : (
+            <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/id:opacity-100 transition-opacity absolute inset-0" />
+          )}
+        </div>
+      </Badge>
+    </motion.div>
   );
 };
 
@@ -280,7 +294,7 @@ export const StatCard = ({
         )}
       </div>
       <div>
-        <div className={dashboardStyles.statCardValue}>{value}</div>
+        <AnimatedValue value={value} delay={delay} className={dashboardStyles.statCardValue} />
         <p className={dashboardStyles.statCardLabel}>{label}</p>
       </div>
     </motion.div>
@@ -295,6 +309,77 @@ export const StatCard = ({
   }
 
   return cardContent;
+};
+
+/**
+ * AnimatedValue - Animates a number counting up from 0
+ * Handles both pure numbers and strings with numbers (like "23%")
+ */
+const AnimatedValue = ({
+  value,
+  delay = 0,
+  className,
+}: {
+  value: string | number;
+  delay?: number;
+  className?: string;
+}) => {
+  const [displayValue, setDisplayValue] = React.useState<string | number>(
+    typeof value === "number" ? 0 : value
+  );
+
+  React.useEffect(() => {
+    // Parse the target number from the value
+    const strValue = String(value);
+    const numericMatch = strValue.match(/^([~]?)(\d+(?:\.\d+)?)/);
+
+    if (!numericMatch) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const prefix = numericMatch[1] || "";
+    const suffix = strValue.slice(numericMatch[0].length);
+    const targetNum = parseFloat(numericMatch[2]);
+
+    if (isNaN(targetNum) || targetNum === 0) {
+      setDisplayValue(value);
+      return;
+    }
+
+    // Animation timing
+    const startDelay = delay * 1000 + 100;
+    const duration = 600;
+    const startTime = Date.now() + startDelay;
+
+    const animate = () => {
+      const now = Date.now();
+      if (now < startTime) {
+        setDisplayValue(`${prefix}0${suffix}`);
+        requestAnimationFrame(animate);
+        return;
+      }
+
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(targetNum * eased);
+
+      setDisplayValue(`${prefix}${current}${suffix}`);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value, delay]);
+
+  return <div className={className}>{displayValue}</div>;
 };
 
 // Skeletons are now re-exported from ./skeleton-components.tsx

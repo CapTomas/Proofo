@@ -14,6 +14,19 @@ interface EmptyStateProps {
   className?: string;
 }
 
+// Gentle floating animation
+const floatingAnimation = {
+  initial: { y: 0 },
+  animate: {
+    y: [-4, 4, -4],
+    transition: {
+      duration: 4,
+      ease: [0.42, 0, 0.58, 1] as const, // easeInOut cubic bezier
+      repeat: Infinity,
+    },
+  },
+};
+
 export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
     <motion.div
@@ -21,9 +34,14 @@ export function EmptyState({ icon: Icon, title, description, action, className }
       animate={{ opacity: 1, y: 0 }}
       className={cn(dashboardStyles.emptyState, className)}
     >
-      <div className={dashboardStyles.emptyStateIcon}>
+      <motion.div
+        className={dashboardStyles.emptyStateIcon}
+        variants={floatingAnimation}
+        initial="initial"
+        animate="animate"
+      >
         <Icon className="h-8 w-8 text-muted-foreground/50" />
-      </div>
+      </motion.div>
       <h3 className={dashboardStyles.emptyStateTitle}>{title}</h3>
       <p className={dashboardStyles.emptyStateDescription}>{description}</p>
       {action && <div className="mt-4">{action}</div>}
