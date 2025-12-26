@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { Toaster } from "sonner";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Proofo - Digital Handshake",
@@ -67,6 +68,7 @@ export default function RootLayout({
         >
           <AuthProvider>{children}</AuthProvider>
           <Toaster richColors position="bottom-right" theme="system" />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
