@@ -44,20 +44,18 @@ import {
   StatCardSkeleton,
   DealRowSkeleton,
   CardSkeleton,
+  getDealStatusConfig,
 } from "@/components/dashboard/shared-components";
-// Note: Inbox uses "To Sign" label for pending instead of "Pending"
-const inboxStatusConfig = {
-  ...statusConfig,
-  pending: { ...statusConfig.pending, label: "To Sign" },
-  confirmed: { ...statusConfig.confirmed, label: "Signed" },
-};
+
 
 // CopyableId and StatCard imported from shared-components
 
 // StatCard imported from shared-components
 
 const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: string) => void }) => {
-  const config = inboxStatusConfig[deal.status];
+  const { user } = useAppStore();
+  const router = useRouter(); // Use router for direct navigation
+  const config = getDealStatusConfig(deal, user?.id, user?.email);
   const Icon = config.icon;
   const isPending = deal.status === "pending";
 
@@ -67,7 +65,7 @@ const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: stri
         className={cn(
           dashboardStyles.cardBase,
           deal.status === "voided" && "opacity-60 grayscale-[0.5]",
-          isPending && "ring-1 ring-amber-500/20 border-amber-500/20"
+          isPending && "ring-1 ring-rose-500/30 border-rose-500/30 shadow-rose-500/10 hover:border-rose-500/50"
         )}
         onClick={() => onNavigate(deal.publicId)}
       >
@@ -153,8 +151,8 @@ const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: stri
               {isPending ? (
                 <Button
                   size="sm"
-                  className="h-7 px-3 text-[10px] bg-amber-500 hover:bg-amber-600 text-white shadow-sm gap-1.5"
-                  onClick={() => onNavigate(deal.publicId)}
+                  className="h-7 px-3 text-[10px] bg-rose-500/50 text-white dark:text-rose-300 hover:bg-rose-500/75 shadow-sm gap-1.5"
+                  onClick={() => router.push(`/d/public/${deal.publicId}`)}
                 >
                   <FileSignature className={dashboardStyles.iconSm} />
                   Sign Now

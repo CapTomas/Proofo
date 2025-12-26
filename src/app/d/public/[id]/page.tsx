@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SignaturePad } from "@/components/signature-pad";
 import { DealHeader } from "@/components/deal-header";
-import { CopyableId } from "@/components/dashboard/shared-components";
+import { CopyableId, getDealStatusConfig } from "@/components/dashboard/shared-components";
 import { AuditTimeline } from "@/components/audit-timeline";
 import {
   Shield,
@@ -804,7 +804,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 {/* Status Card */}
                 <Card className="border border-emerald-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
                   <motion.div
-                    className="h-1.5 w-full bg-emerald-500"
+                    className="h-1.5 w-full bg-emerald-500/50"
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
@@ -1019,49 +1019,102 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </TooltipProvider>
               </div>
 
-              {/* Sealed Status Card - matching private page */}
-              <Card className="border border-emerald-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
-                <motion.div
-                  className="h-1.5 w-full bg-emerald-500"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  style={{ transformOrigin: "left" }}
-                />
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              {/* Sealed Status Card - visible only when sealed */}
+              {displayDeal.status === "confirmed" && (
+                <Card className={cn(
+                  "border shadow-sm bg-card rounded-xl overflow-hidden mt-6",
+                  (() => {
+                    const isRecipient = !!(
+                      (user?.id && displayDeal.recipientId === user.id) ||
+                      (user?.email && displayDeal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
+                    );
+                    return isRecipient ? "border-sky-500/30" : "border-emerald-500/30";
+                  })()
+                )}>
+                  <motion.div
+                    className={cn(
+                      "h-1.5 w-full",
+                      (() => {
+                        const isRecipient = !!(
+                          (user?.id && displayDeal.recipientId === user.id) ||
+                          (user?.email && displayDeal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
+                        );
+                        return isRecipient ? "bg-sky-500/50" : "bg-emerald-500/50";
+                      })()
+                    )}
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    style={{ transformOrigin: "left" }}
+                  />
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        {(() => {
+                          const isRecipient = !!(
+                            (user?.id && displayDeal.recipientId === user.id) ||
+                            (user?.email && displayDeal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
+                          );
+                          return (
+                            <>
+                              <div className={cn(
+                                "h-10 w-10 rounded-lg flex items-center justify-center",
+                                isRecipient ? "bg-sky-500/20" : "bg-emerald-500/20"
+                              )}>
+                                <CheckCircle2 className={cn("h-5 w-5", isRecipient ? "text-sky-600" : "text-emerald-600")} />
+                              </div>
+                              <div>
+                                <p className={cn(
+                                  "font-medium text-sm",
+                                  isRecipient ? "text-sky-700" : "text-emerald-700"
+                                )}>
+                                  {isRecipient ? "Agreement Signed" : "Agreement Sealed"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Signed on {displayDeal.confirmedAt ? formatDateTime(displayDeal.confirmedAt) : "a previous date"}
+                                </p>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
-                      <div>
-                        <p className="font-medium text-sm text-emerald-700">
-                          Agreement Sealed
-                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Signed on {displayDeal.confirmedAt ? formatDateTime(displayDeal.confirmedAt) : "a previous date"}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const isRecipient = !!(
+                            (user?.id && displayDeal.recipientId === user.id) ||
+                            (user?.email && displayDeal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
+                          );
+                          return (
+                            <Link href={`/verify?id=${displayDeal.publicId}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "gap-2",
+                                  isRecipient
+                                    ? "border-sky-500/30 text-sky-600 hover:bg-sky-500/10"
+                                    : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                                )}
+                              >
+                                <ShieldCheck className="h-4 w-4" />
+                                Verify
+                              </Button>
+                            </Link>
+                          );
+                        })()}
+                        {!user && (
+                          <Link href="/auth/signup">
+                            <Button size="sm" className="gap-2">
+                              <Sparkles className="h-4 w-4" />
+                              Create Account
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Link href={`/verify?id=${displayDeal.publicId}`}>
-                        <Button variant="outline" size="sm" className="gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10">
-                          <ShieldCheck className="h-4 w-4" />
-                          Verify
-                        </Button>
-                      </Link>
-                      {!user && (
-                        <Link href="/auth/signup">
-                          <Button size="sm" className="gap-2">
-                            <Sparkles className="h-4 w-4" />
-                            Create Account
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Shared Deal View - Parties, Terms, Signature & Seal */}
               <SealedDealView
@@ -1071,7 +1124,12 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   name: displayDeal.recipientName || "Recipient"
                 }}
                 isCreator={user?.id === displayDeal.creatorId}
-                isRecipient={user?.id === displayDeal.recipientId}
+                isRecipient={
+                  !!(
+                    (user?.id && displayDeal.recipientId === user.id) ||
+                    (user?.email && displayDeal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
+                  )
+                }
                 recipientStatusLabel="Signed"
                 showSignatureSeal={true}
               />
@@ -1659,8 +1717,22 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       })()}
                     </motion.div>
                     <div>
-                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">{displayDeal.title}</h1>
-                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center justify-between">
+                          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
+                            {displayDeal.title}
+                          </h1>
+                          {(() => {
+                            const config = getDealStatusConfig(displayDeal, user?.id, user?.email);
+                            const Icon = config.icon;
+                            return (
+                              <Badge variant={config.badgeVariant} className="ml-2 gap-1.5 h-6">
+                                <Icon className="h-3 w-3" />
+                                {config.label}
+                              </Badge>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="gap-1.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600">
                           <CheckCircle2 className="h-3 w-3" />
                           Sealed & Verified
@@ -1697,7 +1769,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 {/* Success Status Card with emerald border */}
                 <Card className="border border-emerald-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
                   <motion.div
-                    className="h-1.5 w-full bg-emerald-500"
+                    className="h-1.5 w-full bg-emerald-500/50"
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
@@ -1781,7 +1853,12 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     name: displayDeal.recipientName || "Recipient"
                   }}
                   isCreator={user?.id === displayDeal.creatorId}
-                  isRecipient={user?.id === displayDeal.recipientId}
+                  isRecipient={
+                    !!(
+                      (user?.id && displayDeal.recipientId === user.id) ||
+                      (user?.email && displayDeal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
+                    )
+                  }
                   recipientStatusLabel="Signed"
                   showSignatureSeal={true}
                 />

@@ -17,6 +17,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
 import { prepareAuditEvent } from "@/lib/audit-utils";
+import { CopyableId, getDealStatusConfig } from "@/components/dashboard/shared-components";
 import {
   Shield,
   Search,

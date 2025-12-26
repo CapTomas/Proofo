@@ -1444,10 +1444,10 @@ function NewDealContent() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.2 }}
                             >
-                              <Card className="border border-blue-500/30 bg-blue-500/5 rounded-2xl overflow-hidden">
+                              <Card className="border border-sky-500/30 bg-sky-500/5 rounded-2xl overflow-hidden">
                                 <CardContent className="p-5 flex items-center gap-4">
-                                  <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
-                                    <Bell className="h-5 w-5 text-blue-600" />
+                                  <div className="h-10 w-10 rounded-xl bg-sky-500/20 flex items-center justify-center shrink-0">
+                                    <Bell className="h-5 w-5 text-sky-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="font-semibold text-sm text-foreground">Recipient notified in-app</p>
@@ -1455,7 +1455,7 @@ function NewDealContent() {
                                       {registeredRecipient.name} will see this in their Inbox
                                     </p>
                                   </div>
-                                  <Badge variant="secondary" className="shrink-0 bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                  <Badge variant="secondary" className="shrink-0 bg-sky-500/10 text-sky-600 border-sky-500/20">
                                     Proofo User
                                   </Badge>
                                 </CardContent>

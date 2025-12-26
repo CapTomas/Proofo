@@ -22,8 +22,10 @@ import {
   Copy as DuplicateIcon,
   ShieldCheck,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Deal } from "@/types";
 import { useAppStore } from "@/store";
 import { timeAgo } from "@/lib/crypto";
@@ -51,11 +53,13 @@ import {
   getToggleButtonClass,
   getTabButtonClass,
   getGridClass,
+  isStaleDeal,
 } from "@/lib/dashboard-ui";
 import {
   CopyableId,
   StatCard,
   statusConfig,
+  getDealStatusConfig,
   useSearchShortcut,
   KeyboardHint,
   StatCardSkeleton,
@@ -94,15 +98,17 @@ const DealCard = ({
   nudgeSuccess: string | null;
 }) => {
   const isCreator = deal.creatorId === userId;
-  const config = statusConfig[deal.status];
+  const config = getDealStatusConfig(deal, userId);
   const Icon = config.icon;
+  const isStale = isCreator && isStaleDeal(deal);
 
   return (
     <motion.div variants={itemVariants} layout className="group relative">
       <Card
         className={cn(
           dashboardStyles.cardBase,
-          deal.status === "voided" && "opacity-60 grayscale-[0.5]"
+          deal.status === "voided" && "opacity-60 grayscale-[0.5]",
+          isStale && "border-amber-500/50 shadow-amber-500/10 hover:border-amber-500/75"
         )}
         onClick={() => onNavigate(deal.publicId)}
       >
@@ -193,28 +199,43 @@ const DealCard = ({
             <div className={dashboardStyles.cardFooterActions} onClick={(e) => e.stopPropagation()}>
               {/* 1. Nudge (Only if pending & creator) */}
               {deal.status === "pending" && isCreator && (
-                <Button
-                  size="sm"
-                  variant={nudgeSuccess === deal.id ? "default" : "secondary"}
-                  className={cn(
-                    "h-7 text-[10px] px-2.5 transition-all shadow-sm",
-                    nudgeSuccess === deal.id && "bg-emerald-500 hover:bg-emerald-600 text-white"
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNudge(deal);
-                  }}
-                  disabled={isNudging === deal.id}
-                >
-                  {isNudging === deal.id ? (
-                    <RefreshCw className="h-3 w-3 animate-spin" />
-                  ) : nudgeSuccess === deal.id ? (
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                  ) : (
-                    <Mail className="h-3 w-3 mr-1" />
-                  )}
-                  {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
-                </Button>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant={nudgeSuccess === deal.id ? "default" : "secondary"}
+                      className={cn(
+                        "h-7 text-[10px] px-2.5 transition-all shadow-sm",
+                        nudgeSuccess === deal.id && "bg-emerald-500/20 hover:bg-emerald-600/30 text-white",
+                        isStale && nudgeSuccess !== deal.id && "bg-amber-500/20 border-amber-500/50 text-amber-900 dark:text-amber-200 hover:bg-amber-500/30"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNudge(deal);
+                      }}
+                      disabled={isNudging === deal.id}
+                    >
+                      {isNudging === deal.id ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : nudgeSuccess === deal.id ? (
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                      ) : (
+                        <Mail className="h-3 w-3 mr-1" />
+                      )}
+                      {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className={cn(
+                      isStale && "bg-amber-500 text-amber-950 border-none font-medium"
+                    )}
+                  >
+                    {isStale
+                      ? "Stale deal (waiting > 48h)"
+                      : "Send reminder email"}
+                  </TooltipContent>
+                </Tooltip>
               )}
 
               {/* 2. Duplicate (Always available) */}
@@ -332,9 +353,8 @@ export default function AgreementsPage() {
 
   // Filtering
   const filteredDeals = useMemo(() => {
-    let deals = storeDeals.filter(
-      (deal) => deal.creatorId === user?.id || deal.recipientEmail === user?.email
-    );
+    // Agreements only shows deals CREATED by the user
+    let deals = storeDeals.filter((deal) => deal.creatorId === user?.id);
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -363,14 +383,15 @@ export default function AgreementsPage() {
 
   // Stats
   const stats = useMemo(() => {
-    const active = storeDeals.filter(
+    const creatorDeals = storeDeals.filter((d) => d.creatorId === user?.id);
+    const active = creatorDeals.filter(
       (d) => d.status === "pending" || d.status === "sealing"
     ).length;
-    const completed = storeDeals.filter((d) => d.status === "confirmed").length;
-    const voided = storeDeals.filter((d) => d.status === "voided").length;
+    const completed = creatorDeals.filter((d) => d.status === "confirmed").length;
+    const voided = creatorDeals.filter((d) => d.status === "voided").length;
     const totalHistory = completed + voided;
     return { active, completed, voided, totalHistory };
-  }, [storeDeals]);
+  }, [storeDeals, user]);
 
   // Handlers
   const handleStatClick = (type: "active" | "completed" | "voided" | "all") => {
@@ -410,14 +431,18 @@ export default function AgreementsPage() {
   const handleNudge = async (deal: Deal) => {
     if (deal.recipientEmail && isSupabaseConfigured()) {
       setIsNudging(deal.id);
-      const { success } = await sendDealInvitationAction({
-        dealId: deal.id,
-        recipientEmail: deal.recipientEmail,
-      });
+      const result = await sendDealInvitationAction({ dealId: deal.id, recipientEmail: deal.recipientEmail });
       setIsNudging(null);
-      if (success) {
+
+      if (result.success) {
         setNudgeSuccess(deal.id);
+        toast.success(`Reminder sent to ${deal.recipientEmail}!`, {
+          icon: <Mail className="h-4 w-4 text-primary" />,
+        });
+        refreshDeals(false); // Refresh items in background to clear stale states
         setTimeout(() => setNudgeSuccess(null), 3000);
+      } else {
+        toast.error(result.error || "Failed to send reminder");
       }
     } else {
       navigator.clipboard.writeText(`${window.location.origin}/d/public/${deal.publicId}`);

@@ -52,8 +52,8 @@ const eventConfig: Record<string, {
   deal_viewed: {
     label: "Deal Viewed",
     icon: Eye,
-    color: "text-blue-600",
-    bgColor: "bg-blue-500/10",
+    color: "text-sky-600",
+    bgColor: "bg-sky-500/10",
     description: "Recipient opened the deal link",
     getDescription: (metadata) => {
       const isFirstView = metadata?.isFirstView as boolean | undefined;
@@ -107,8 +107,8 @@ const eventConfig: Record<string, {
   email_sent: {
     label: "Email Sent",
     icon: Mail,
-    color: "text-blue-600",
-    bgColor: "bg-blue-500/10",
+    color: "text-sky-600",
+    bgColor: "bg-sky-500/10",
     description: "Email notification sent",
     getDescription: (metadata) => {
       const emailType = metadata?.emailType as string;
@@ -164,8 +164,8 @@ const eventConfig: Record<string, {
   deal_link_shared: {
     label: "Link Shared",
     icon: Link,
-    color: "text-blue-600",
-    bgColor: "bg-blue-500/10",
+    color: "text-sky-600",
+    bgColor: "bg-sky-500/10",
     description: "Deal link was shared",
     getDescription: (metadata) => {
       const linkType = metadata?.linkType as string;

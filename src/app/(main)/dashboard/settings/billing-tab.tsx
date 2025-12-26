@@ -222,7 +222,7 @@ export const BillingTab = ({ user }: { user: SettingsUser }) => {
             <div className="grid sm:grid-cols-2 gap-4">
               <Card className="bg-card border-border/50 shadow-sm">
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
+                  <div className="h-10 w-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-600">
                     <PieChart className="h-5 w-5" />
                   </div>
                   <div>

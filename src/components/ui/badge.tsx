@@ -19,6 +19,10 @@ const badgeVariants = cva(
           "border-transparent bg-success/15 text-success dark:text-emerald-400 hover:bg-success/25",
         warning:
           "border-transparent bg-warning/15 text-warning dark:text-amber-400 hover:bg-warning/25",
+        action:
+          "border-transparent bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25",
+        signed:
+          "border-transparent bg-sky-500/15 text-sky-600 dark:text-sky-400 hover:bg-sky-500/25",
         neutral: "border-transparent bg-muted text-muted-foreground hover:bg-muted/80",
       },
     },

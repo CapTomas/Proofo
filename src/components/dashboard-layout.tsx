@@ -55,6 +55,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const {
     user,
     setUser,
+    deals,
     setDeals,
     isSidebarCollapsed,
     setIsSidebarCollapsed,
@@ -113,6 +114,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setTimeout(() => setIsLoggingOut(false), 100);
   };
 
+  const hasInboxNotifications = React.useMemo(() => {
+    return deals.some(
+      (d) =>
+        d.recipientEmail === user?.email &&
+        d.status === "pending"
+    );
+  }, [deals, user?.email]);
+
+  const hasAgreementsNotifications = React.useMemo(() => {
+    const { isStaleDeal } = require("@/lib/dashboard-ui");
+    return deals.some(
+      (d) =>
+        d.creatorId === user?.id &&
+        isStaleDeal(d)
+    );
+  }, [deals, user?.id]);
+
   const userName = user?.name || "Guest";
   const userInitials = userName
     .split(" ")
@@ -164,6 +182,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   isActive={isActive}
                   isCollapsed={isSidebarCollapsed}
                   showDot
+                  hasNotification={
+                    (item.label === "Inbox" && hasInboxNotifications) ||
+                    (item.label === "Agreements" && hasAgreementsNotifications)
+                  }
+                  notificationColor={item.label === "Agreements" ? "amber" : "rose"}
                 />
               );
             })}
@@ -431,6 +454,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                         >
                           <Icon className="h-4.5 w-4.5 shrink-0" />
                           {item.label}
+                          {item.label === "Inbox" && hasInboxNotifications && (
+                            <span className="ml-auto w-2 h-2 bg-rose-500 rounded-full" />
+                          )}
+                          {item.label === "Agreements" && hasAgreementsNotifications && (
+                            <span className="ml-auto w-2 h-2 bg-amber-500 rounded-full" />
+                          )}
                         </Button>
                       </Link>
                     );

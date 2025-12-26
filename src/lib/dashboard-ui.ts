@@ -6,6 +6,7 @@
  */
 
 import { Variants } from "framer-motion";
+import { Deal } from "@/types";
 
 // =============================================================================
 // ANIMATION VARIANTS
@@ -250,4 +251,17 @@ export function getFilterPillClass(isActive: boolean): string {
  */
 export function getTabButtonClass(isActive: boolean): string {
   return `${dashboardStyles.tabButton} ${isActive ? dashboardStyles.tabButtonActive : dashboardStyles.tabButtonInactive}`;
+}
+
+/**
+ * Check if a deal is "stale" (pending for > 48h since creation or last nudge)
+ */
+export function isStaleDeal(deal: Deal): boolean {
+  if (deal.status !== "pending") return false;
+
+  const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000;
+  const now = new Date().getTime();
+  const startTime = new Date(deal.lastNudgedAt || deal.createdAt).getTime();
+
+  return now - startTime > STALE_THRESHOLD_MS;
 }

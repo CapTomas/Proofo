@@ -146,7 +146,7 @@ export function SealedDealView({
               >
                 <div className={`h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm shadow-sm ${
                   isSealed
-                    ? "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white"
+                    ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white"
                     : "bg-muted text-muted-foreground"
                 }`}>
                   {recipientProfile?.avatarUrl ? (
@@ -214,7 +214,9 @@ export function SealedDealView({
       {/* Signature & Seal Card */}
       {showSignatureSeal && isSealed && (deal.signatureUrl || deal.dealSeal) && (
         <motion.div variants={slideUp} className="mt-4">
-          <Card className="border border-emerald-500/20 shadow-sm bg-card rounded-xl overflow-hidden">
+          <Card className={`shadow-sm bg-card rounded-xl overflow-hidden border ${
+            isRecipient ? "border-sky-500/20" : "border-emerald-500/20"
+          }`}>
             <CardContent className="p-5 md:p-6">
               <div className="grid sm:grid-cols-2 gap-6">
                 {/* Signature */}
@@ -249,7 +251,9 @@ export function SealedDealView({
                         <ScrambleText text={deal.dealSeal} />
                       </code>
                       <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                        <div className={`flex items-center gap-1.5 text-xs ${
+                          isRecipient ? "text-sky-600" : "text-emerald-600"
+                        }`}>
                           <Lock className="h-3 w-3" />
                           SHA-256
                         </div>

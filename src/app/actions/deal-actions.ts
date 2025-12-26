@@ -108,6 +108,7 @@ function transformDeal(dbDeal: Record<string, unknown>): Deal {
     viewedAt: dbDeal.viewed_at as string | undefined,
     signatureUrl: dbDeal.signature_url as string | undefined,
     dealSeal: dbDeal.deal_seal as string | undefined,
+    lastNudgedAt: dbDeal.last_nudged_at as string | undefined,
   };
 }
 
@@ -1430,6 +1431,12 @@ export async function sendDealInvitationAction(data: {
         recipient: data.recipientEmail,
       },
     });
+
+    // Update last_nudged_at on the deal
+    await supabase
+      .from("deals")
+      .update({ last_nudged_at: new Date().toISOString() })
+      .eq("id", data.dealId);
 
     return { success: true, error: null };
   } catch (error) {

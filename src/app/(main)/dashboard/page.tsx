@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ArrowRight,
   CheckCircle2,
@@ -25,6 +26,7 @@ import {
   BarChart3,
   Fingerprint,
   Mail,
+  FileSignature,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,10 +38,11 @@ import { getUserDealsAction, sendDealInvitationAction } from "@/app/actions/deal
 import { toast } from "sonner";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { cn } from "@/lib/utils";
-import { dashboardStyles } from "@/lib/dashboard-ui";
+import { dashboardStyles, isStaleDeal } from "@/lib/dashboard-ui";
 import {
   CopyableId,
   statusConfig,
+  getDealStatusConfig,
   DealRowSkeleton,
 } from "@/components/dashboard/shared-components";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
@@ -145,23 +148,25 @@ const DealRow = ({
   onAction?: (deal: Deal) => void;
   isActionLoading?: boolean;
 }) => {
+  const router = useRouter(); // Use router for direct navigation
   const isCreator = deal.creatorId === userId;
-  const isInbox = !isCreator;
-  const config = statusConfig[deal.status];
+  const config = getDealStatusConfig(deal, userId);
   const StatusIcon = config.icon;
 
-  // Use different styling for inbox pending items (needs your signature)
-  const isInboxPending = isInbox && deal.status === "pending";
-  const iconBg = isInboxPending ? "bg-blue-500/10" : config.bg;
-  const iconBorder = isInboxPending ? "border-blue-500/30" : config.border;
-  const iconColor = isInboxPending ? "text-blue-600" : config.color;
+  const iconBg = config.bg;
+  const iconBorder = config.border;
+  const iconColor = config.color;
+  const isStale = isCreator && isStaleDeal(deal);
 
   return (
     <motion.div
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="group flex items-center justify-between p-3 rounded-xl hover:bg-muted/40 border border-transparent hover:border-border/50 transition-all cursor-pointer"
+      className={cn(
+        "group flex items-center justify-between p-3 rounded-xl hover:bg-muted/40 border border-transparent hover:border-border/50 transition-all cursor-pointer",
+        isStale && "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50"
+      )}
     >
       <Link href={`/d/${deal.publicId}`} className="flex-1 flex items-center gap-4 min-w-0">
         <div
@@ -172,11 +177,7 @@ const DealRow = ({
             iconColor
           )}
         >
-          {isInboxPending ? (
-            <Inbox className="h-4.5 w-4.5" />
-          ) : (
-            <StatusIcon className="h-4.5 w-4.5" />
-          )}
+          <StatusIcon className="h-4.5 w-4.5" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap mb-0.5">
@@ -184,18 +185,12 @@ const DealRow = ({
               {deal.title}
             </p>
 
-            {isInboxPending ? (
-              <Badge className="h-5 px-1.5 text-[10px] font-medium bg-blue-500 hover:bg-blue-600 text-white border-0">
-                Sign Required
-              </Badge>
-            ) : (
-              <Badge
-                variant={config.badgeVariant}
-                className="h-5 px-1.5 text-[10px] font-medium border"
-              >
-                {config.label}
-              </Badge>
-            )}
+            <Badge
+              variant={config.badgeVariant}
+              className="h-5 px-1.5 text-[10px] font-medium border"
+            >
+              {config.label}
+            </Badge>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
             {isCreator ? (
@@ -216,46 +211,106 @@ const DealRow = ({
       </Link>
 
       <div className="flex items-center gap-2 px-2">
-        {/* ID Badge */}
+        {/* Actions - Hover only */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {(() => {
+            const isSignable = type === "inbox" || (!isCreator && deal.status === "pending");
+
+            if (isSignable) {
+              return (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 px-2.5 text-[10px] font-medium shadow-sm gap-1.5 transition-all duration-200 bg-rose-500/50 text-white dark:text-rose-300 hover:bg-rose-500/75"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/d/public/${deal.publicId}`);
+                  }}
+                >
+                  <FileSignature className="h-3 w-3" />
+                  Sign
+                </Button>
+              );
+            }
+
+            if (deal.status === "confirmed") {
+              return (
+                 <Link href={`/verify?id=${deal.publicId}`} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 px-2.5 text-[10px] font-medium shadow-sm gap-1.5 transition-all duration-200 hover:shadow-md hover:bg-emerald-500/10 text-emerald-600 active:scale-95"
+                  >
+                    <Shield className="h-3 w-3" />
+                    Verify
+                  </Button>
+                </Link>
+              );
+            }
+
+            // Nudge (Pending Creator) or Duplicate (Voided/Others) - Hover Only
+             if (onAction) {
+              const button = (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className={cn(
+                    "h-7 px-2.5 text-[10px] font-medium shadow-sm gap-1.5 transition-all duration-200",
+                    "hover:shadow-md hover:bg-secondary/80 active:scale-95",
+                    isStale && deal.status === "pending" && "bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-200 border-amber-500/50",
+                    isActionLoading && "opacity-70 cursor-not-allowed"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isActionLoading) onAction(deal);
+                  }}
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : deal.status === "pending" ? (
+                    <Zap className="h-3 w-3" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                  {isActionLoading
+                    ? "Sending..."
+                    : deal.status === "pending"
+                      ? "Nudge"
+                      : "Duplicate"}
+                </Button>
+              );
+
+              if (isStale && deal.status === "pending") {
+                return (
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>{button}</TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px] bg-amber-500 text-amber-950 font-medium">
+                      Stale deal (waiting &gt; 48h)
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return button;
+            }
+            return null;
+          })()}
+        </div>
+
+        {/* ID Badge - Middle */}
         <CopyableId id={deal.publicId} className="bg-background hidden sm:flex" />
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          {onAction && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className={cn(
-                "h-7 px-2.5 text-[10px] font-medium shadow-sm gap-1.5 transition-all duration-200",
-                "hover:shadow-md hover:bg-secondary/80 active:scale-95",
-                isActionLoading && "opacity-70 cursor-not-allowed"
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isActionLoading) onAction(deal);
-              }}
-              disabled={isActionLoading}
-            >
-              {isActionLoading ? (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              ) : type === "pending" ? (
-                <Mail className="h-3 w-3" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
-              {isActionLoading ? "Sending..." : type === "pending" ? "Nudge" : "Duplicate"}
-            </Button>
-          )}
-          <Link href={`/d/${deal.publicId}`} className="hidden sm:block">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
+        {/* Arrow - Far Right, Hover Only */}
+        <Link href={`/d/${deal.publicId}`} className="hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </Link>
       </div>
     </motion.div>
   );
@@ -459,9 +514,15 @@ export default function DashboardPage() {
       return;
     }
     setNudgeLoading(deal.id);
-    await sendDealInvitationAction({ dealId: deal.id, recipientEmail: deal.recipientEmail });
+    const result = await sendDealInvitationAction({ dealId: deal.id, recipientEmail: deal.recipientEmail });
     setNudgeLoading(null);
-    toast.success("Nudge sent", { description: "Reminder email delivered" });
+
+    if (result.success) {
+      toast.success("Nudge sent", { description: "Reminder email delivered" });
+      refreshDeals(false); // Refresh in background to clear stale state
+    } else {
+      toast.error(result.error || "Failed to send nudge");
+    }
   };
 
   const handleDuplicate = (deal: Deal) => {
@@ -539,7 +600,7 @@ export default function DashboardPage() {
                   >
                     Priority Queue
                     {localStats.inbox > 0 && (
-                      <Badge className="text-[10px] h-4 px-1 bg-amber-500 text-white border-0">
+                      <Badge className="text-[10px] h-5 px-2 bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 border-0">
                         {localStats.inbox}
                       </Badge>
                     )}
@@ -593,7 +654,11 @@ export default function DashboardPage() {
                             userId={user?.id || ""}
                             type={deal.queueType as "inbox" | "pending"}
                             onAction={
-                              deal.queueType === "pending" ? () => handleNudge(deal) : undefined
+                              deal.queueType === "pending"
+                                ? () => handleNudge(deal)
+                                : deal.queueType === "inbox"
+                                  ? () => router.push(`/d/public/${deal.publicId}`)
+                                  : undefined
                             }
                             isActionLoading={nudgeLoading === deal.id}
                           />
@@ -622,8 +687,17 @@ export default function DashboardPage() {
                           key={deal.id}
                           deal={deal}
                           userId={user?.id || ""}
-                          type="recent"
-                          onAction={() => handleDuplicate(deal)}
+                            type="recent"
+                            onAction={
+                              deal.status === "pending"
+                                ? () => handleNudge(deal)
+                                : () => handleDuplicate(deal)
+                            }
+                            isActionLoading={
+                              deal.status === "pending"
+                                ? nudgeLoading === deal.id
+                                : false
+                            }
                         />
                       ))}
                     </motion.div>
@@ -737,12 +811,14 @@ export default function DashboardPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between mb-0.5">
                           <p className="font-bold text-sm truncate pr-2">{latestDeal.title}</p>
-                          <Badge
-                            variant={statusConfig[latestDeal.status].badgeVariant}
-                            className="text-[10px] h-4 px-1"
-                          >
-                            {statusConfig[latestDeal.status].label}
-                          </Badge>
+                          {(() => {
+                            const config = getDealStatusConfig(latestDeal, user?.id, user?.email);
+                            return (
+                              <Badge variant={config.badgeVariant} className="text-[10px] h-5 px-1.5">
+                                {config.label}
+                              </Badge>
+                            );
+                          })()}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {latestDeal.status === "confirmed" ? "Signed by" : "Sent to"}{" "}
@@ -765,26 +841,39 @@ export default function DashboardPage() {
                         </Button>
                       </Link>
                       {latestDeal.status === "confirmed" ? (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="w-full h-8 text-xs gap-1 rounded-lg"
-                        >
-                          <Download className="h-3 w-3" /> Receipt
-                        </Button>
+                        <Link href={`/verify?id=${latestDeal.publicId}`} className="w-full">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="w-full h-8 text-xs gap-1 rounded-lg hover:bg-emerald-500/10 text-emerald-600"
+                          >
+                            <Shield className="h-3 w-3" /> Verify
+                          </Button>
+                        </Link>
+                      ) : !latestDeal.creatorId || latestDeal.creatorId !== user?.id ? (
+                        <Link href={`/d/public/${latestDeal.publicId}`} className="w-full">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full h-8 text-xs gap-1 rounded-lg  text-white dark:text-rose-300 bg-rose-500/50 hover:bg-rose-500/75"
+                          >
+                            <FileSignature className="h-3 w-3" /> Sign
+                          </Button>
+                        </Link>
                       ) : (
                         <Button
                           variant="secondary"
                           size="sm"
-                          className="w-full h-8 text-xs rounded-lg"
+                          className="w-full h-8 text-xs gap-1 rounded-lg"
                           onClick={() => handleNudge(latestDeal)}
                           disabled={nudgeLoading === latestDeal.id}
                         >
                           {nudgeLoading === latestDeal.id ? (
                             <RefreshCw className="h-3 w-3 animate-spin" />
                           ) : (
-                            "Nudge"
+                            <Zap className="h-3 w-3" />
                           )}
+                          Nudge
                         </Button>
                       )}
                     </div>

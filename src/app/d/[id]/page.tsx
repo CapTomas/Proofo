@@ -12,10 +12,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DealHeader } from "@/components/deal-header";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { SealedDealView } from "@/components/sealed-deal-view";
-import { CopyableId } from "@/components/dashboard/shared-components";
+import { CopyableId, getDealStatusConfig } from "@/components/dashboard/shared-components";
 import { Deal, AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime, timeAgo } from "@/lib/crypto";
 import { cn } from "@/lib/utils";
+import { dashboardStyles, isStaleDeal } from "@/lib/dashboard-ui";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
 import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction, logAuditEventAction, markDealViewedAction } from "@/app/actions/deal-actions";
 import { useAppStore } from "@/store";
@@ -54,7 +55,9 @@ import {
   Command,
   Key,
   Trash2,
-  PenLine
+  PenLine,
+  FileText,
+  FileSignature,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -134,45 +137,7 @@ const templateIconNames: Record<string, string> = {
   custom: "PenLine",
 };
 
-// Status configuration
-const statusConfig = {
-  pending: {
-    label: "Pending Signature",
-    color: "text-amber-600",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/30",
-    icon: Clock,
-    description: "Awaiting recipient signature",
-    barColor: "bg-amber-500",
-  },
-  sealing: {
-    label: "Sealing",
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/30",
-    icon: RefreshCw,
-    description: "Processing cryptographic seal",
-    barColor: "bg-blue-500",
-  },
-  confirmed: {
-    label: "Sealed & Verified",
-    color: "text-emerald-600",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/30",
-    icon: CheckCircle2,
-    description: "Verified and enforceable",
-    barColor: "bg-emerald-500",
-  },
-  voided: {
-    label: "Voided",
-    color: "text-destructive",
-    bg: "bg-destructive/10",
-    border: "border-destructive/30",
-    icon: XCircle,
-    description: "No longer valid",
-    barColor: "bg-destructive",
-  },
-};
+
 
 interface PrivateDealPageProps {
   params: Promise<{ id: string }>;
@@ -364,6 +329,8 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
         toast.success(`Reminder sent to ${deal.recipientEmail}!`, {
           icon: <Mail className="h-4 w-4 text-primary" />,
         });
+        // Refresh page after a short delay to clear stale state
+        setTimeout(() => window.location.reload(), 1500);
       }
     } catch {
       toast.error("Failed to send reminder");
@@ -545,7 +512,12 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
 
   if (!deal) return null;
 
-  const config = statusConfig[deal.status as keyof typeof statusConfig] || statusConfig.pending;
+  const isRecipient = !!(
+    (user && deal.recipientId === user.id) ||
+    (user && deal.recipientEmail?.toLowerCase() === user.email?.toLowerCase())
+  );
+
+  const config = getDealStatusConfig(deal, user?.id, user?.email);
   const StatusIcon = config.icon;
 
   return (
@@ -719,11 +691,25 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
             <div className="space-y-4">
               {/* Status Alert Card */}
               <AnimatePresence>
-                {deal.status === "pending" && isCreator && (
+                {deal.status === "pending" && (
                   <motion.div variants={slideUp}>
-                    <Card className="border border-amber-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                    <Card className={cn(
+                      "border shadow-sm bg-card rounded-xl overflow-hidden transition-all duration-300",
+                      config.badgeVariant === "action"
+                        ? "border-rose-500/30"
+                        : isStaleDeal(deal) && deal.creatorId === user?.id
+                          ? "border-amber-500/60 bg-amber-500/5 shadow-amber-500/10"
+                          : "border-amber-500/30"
+                    )}>
                       <motion.div
-                        className="h-1.5 w-full bg-amber-500"
+                        className={cn(
+                          "h-1.5 w-full",
+                          config.badgeVariant === "action"
+                            ? "bg-rose-500/50"
+                            : isStaleDeal(deal) && deal.creatorId === user?.id
+                              ? "bg-amber-500"
+                              : "bg-amber-500/50"
+                        )}
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -732,42 +718,88 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                       <CardContent className="p-5">
                         <div className="flex items-center justify-between flex-wrap gap-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                              <Clock className="h-5 w-5 text-amber-600" />
+                            <div
+                              className={cn(
+                                "h-10 w-10 rounded-lg flex items-center justify-center",
+                                config.badgeVariant === "action"
+                                    ? "bg-rose-500/20 text-rose-600 dark:text-rose-400"
+                                  : "bg-amber-500/20 text-amber-600"
+                              )}
+                            >
+                              <config.icon
+                                className={cn(
+                                  "h-5 w-5",
+                                  config.badgeVariant === "action"
+                                    ? "text-rose-600 dark:text-rose-400"
+                                    : "text-amber-600"
+                                )}
+                              />
                             </div>
                             <div>
-                              <p className="font-medium text-sm">{config.description}</p>
+                              <p className="font-medium text-sm">
+                                {config.badgeVariant === "action"
+                                  ? "Sign Your Deal"
+                                  : "Awaiting Recipient Signature"}
+                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {deal.recipientEmail ? `Waiting for ${deal.recipientEmail}` : "Share the link with your recipient"}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {deal.recipientEmail && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleSendNudge}
-                                    disabled={isSendingNudge}
-                                    className="gap-2 border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
-                                  >
-                                    {isSendingNudge ? (
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Zap className="h-4 w-4" />
-                                    )}
-                                    <span className="hidden sm:inline">Nudge</span>
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Send reminder email</TooltipContent>
-                              </Tooltip>
+                            {config.badgeVariant === "action" ? (
+                              <Button
+                                size="sm"
+                                onClick={() => router.push(`/d/public/${deal.publicId}`)}
+                                className="gap-2 bg-rose-500/50 text-white dark:text-rose-300 hover:bg-rose-500/75"
+                              >
+                                <FileSignature className="h-4 w-4" />
+                                <span className="hidden sm:inline">Sign Now</span>
+                              </Button>
+                            ) : (
+                              <>
+                                {deal.recipientEmail && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleSendNudge}
+                                        disabled={isSendingNudge}
+                                        className={cn(
+                                          "gap-2 transition-all duration-300",
+                                          isStaleDeal(deal) && deal.creatorId === user?.id
+                                            ? "bg-amber-500/20 border-amber-500/50 text-amber-900 dark:text-amber-200 hover:bg-amber-500/30"
+                                            : "border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
+                                        )}
+                                      >
+                                        {isSendingNudge ? (
+                                          <RefreshCw className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Zap className="h-4 w-4" />
+                                        )}
+                                        <span className="hidden sm:inline">Nudge</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className={cn(
+                                      isStaleDeal(deal) && deal.creatorId === user?.id && "bg-amber-500 text-amber-950 border-none font-medium"
+                                    )}>
+                                      {isStaleDeal(deal) && deal.creatorId === user?.id
+                                        ? "Stale deal (waiting > 48h)"
+                                        : "Send reminder email"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                <Button
+                                  size="sm"
+                                  onClick={handleCopyLink}
+                                  className="gap-2 bg-amber-500/50 text-amber-600 dark:text-amber-300 hover:bg-amber-500/75"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                  <span className="hidden sm:inline">Send Link</span>
+                                </Button>
+                              </>
                             )}
-                            <Button size="sm" onClick={handleCopyLink} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
-                              <Mail className="h-4 w-4" />
-                              <span className="hidden sm:inline">Send Link</span>
-                            </Button>
                           </div>
                         </div>
                       </CardContent>
@@ -777,9 +809,12 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
 
                 {deal.status === "confirmed" && deal.confirmedAt && (
                   <motion.div variants={slideUp}>
-                    <Card className="border border-emerald-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                    <Card className={cn(
+                      "shadow-sm bg-card rounded-xl overflow-hidden border",
+                      isRecipient ? "border-sky-500/30" : "border-emerald-500/30"
+                    )}>
                       <motion.div
-                        className="h-1.5 w-full bg-emerald-500"
+                        className={cn("h-1.5 w-full", isRecipient ? "bg-sky-500/50" : "bg-emerald-500/50")}
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -789,23 +824,40 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                         <div className="flex items-center justify-between flex-wrap gap-4">
                           <div className="flex items-center gap-3">
                             <motion.div
-                              className="h-10 w-10 rounded-lg bg-emerald-500/20 flex items-center justify-center"
+                              className={cn(
+                                "h-10 w-10 rounded-lg flex items-center justify-center",
+                                isRecipient
+                                  ? "bg-sky-500/20"
+                                  : "bg-emerald-500/20"
+                              )}
                               initial={{ rotate: -10 }}
                               animate={{ rotate: 0 }}
                               transition={{ type: "spring", stiffness: 400, damping: 10 }}
                             >
-                              <Sparkles className="h-5 w-5 text-emerald-600" />
+                              <Sparkles className={cn("h-5 w-5", isRecipient ? "text-sky-600" : "text-emerald-600")} />
                             </motion.div>
                             <div>
-                              <p className="font-medium text-sm text-emerald-600 flex items-center gap-2">
-                                Agreement Sealed
+                              <p className={cn(
+                                "font-medium text-sm flex items-center gap-2",
+                                isRecipient ? "text-sky-600" : "text-emerald-600"
+                              )}>
+                                {isRecipient ? "Agreement Signed" : "Agreement Sealed"}
                                 <CheckCircle2 className="h-4 w-4" />
                               </p>
                               <p className="text-xs text-muted-foreground">Signed on {formatDateTime(deal.confirmedAt)}</p>
                             </div>
                           </div>
                           <Link href={`/dashboard/verify?id=${deal.publicId}`}>
-                            <Button variant="outline" size="sm" className="gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "gap-2 hover:bg-opacity-10",
+                                isRecipient
+                                  ? "border-sky-500/30 text-sky-600 hover:bg-sky-500/10"
+                                  : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                              )}
+                            >
                               <ShieldCheck className="h-4 w-4" />
                               Verify
                               <ExternalLink className="h-3 w-3" />
@@ -848,6 +900,8 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                 deal={deal}
                 creatorProfile={creatorProfile}
                 recipientProfile={recipientProfile}
+                isCreator={isCreator}
+                isRecipient={isRecipient}
               />
 
               {/* Audit Timeline */}

@@ -20,6 +20,7 @@ export interface Deal {
   signatureUrl?: string;
   dealSeal?: string;
   accessToken?: string;
+  lastNudgedAt?: string;
 }
 
 export interface DealTerm {

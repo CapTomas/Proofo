@@ -27,6 +27,8 @@ interface SidebarNavItemProps {
   isCompleted?: boolean;
   index?: number;
   showDot?: boolean;
+  hasNotification?: boolean;
+  notificationColor?: "rose" | "amber";
 }
 
 export function SidebarNavItem({
@@ -43,6 +45,8 @@ export function SidebarNavItem({
   isCompleted,
   index,
   showDot,
+  hasNotification,
+  notificationColor = "rose",
 }: SidebarNavItemProps) {
   const content = (
     <Button
@@ -57,7 +61,15 @@ export function SidebarNavItem({
       {/* Icon/Number Container - Fixed Width to anchor center at 40px */}
       <div className="w-8 h-8 flex items-center justify-center shrink-0">
         {Icon ? (
-          <Icon className={cn("h-4.5 w-4.5 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+          <div className="relative">
+            <Icon className={cn("h-4.5 w-4.5 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+            {hasNotification && (
+              <span className={cn(
+                "absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-background",
+                notificationColor === "amber" ? "bg-amber-500" : "bg-rose-500"
+              )} />
+            )}
+          </div>
         ) : typeof index === "number" ? (
           <div className={cn(
             "h-5 w-5 flex items-center justify-center text-xs font-medium shrink-0 transition-all",

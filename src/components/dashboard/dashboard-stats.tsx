@@ -136,7 +136,7 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
         trendDirection={stats.inbox > 0 ? "down" : "neutral"}
         href="/dashboard/inbox"
         delay={0}
-        colorClass="text-amber-500"
+        colorClass="text-rose-500"
       />
       <StatCard
         label="Active Deals"
@@ -146,7 +146,7 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
         trendDirection="neutral"
         href="/dashboard/agreements?status=pending"
         delay={0.1}
-        colorClass="text-blue-500"
+        colorClass="text-sky-500"
       />
       <StatCard
         label="Completion Rate"

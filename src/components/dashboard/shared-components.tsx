@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle, FileSignature } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, getStatCardClass } from "@/lib/dashboard-ui";
@@ -28,17 +28,16 @@ export {
  * Unified status configuration for deals
  * Used across Dashboard Home, Agreements, and Inbox pages
  */
-export const statusConfig: Record<
-  DealStatus,
-  {
-    label: string;
-    color: string;
-    icon: React.ComponentType<{ className?: string }>;
-    bg: string;
-    border: string;
-    badgeVariant: "warning" | "success" | "destructive" | "secondary";
-  }
-> = {
+export interface StatusStyle {
+  label: string;
+  color: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bg: string;
+  border: string;
+  badgeVariant: "warning" | "success" | "destructive" | "secondary" | "action" | "signed";
+}
+
+export const statusConfig: Record<DealStatus, StatusStyle> = {
   pending: {
     label: "Pending",
     color: "text-amber-600",
@@ -49,9 +48,9 @@ export const statusConfig: Record<
   },
   sealing: {
     label: "Sealing",
-    color: "text-blue-600",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
+    color: "text-sky-600",
+    bg: "bg-sky-500/10",
+    border: "border-sky-500/20",
     icon: RefreshCw,
     badgeVariant: "secondary",
   },
@@ -72,6 +71,57 @@ export const statusConfig: Record<
     badgeVariant: "destructive",
   },
 };
+
+/**
+ * Gets the contextual status configuration for a deal based on the current user.
+ * This differentiates between "Waiting for Others" and "Action Required".
+ */
+export function getDealStatusConfig(deal: any, userId?: string, userEmail?: string): StatusStyle {
+  const baseConfig = statusConfig[deal.status as DealStatus] || statusConfig.pending;
+
+  if (deal.status === "pending") {
+    // If the current user is the recipient and hasn't signed yet (implied by pending)
+    const isRecipient =
+      (userId && deal.recipientId === userId) ||
+      (userEmail && deal.recipientEmail?.toLowerCase() === userEmail.toLowerCase());
+
+    if (isRecipient) {
+      return {
+        ...baseConfig,
+        label: "Action Required",
+        color: "text-rose-600 dark:text-rose-400",
+        bg: "bg-rose-500/10",
+        border: "border-rose-500/20",
+        icon: FileSignature,
+        badgeVariant: "action",
+      };
+    } else {
+      return {
+        ...baseConfig,
+        label: "Waiting",
+      };
+    }
+  }
+
+  if (deal.status === "confirmed") {
+    const isRecipient =
+      (userId && deal.recipientId === userId) ||
+      (userEmail && deal.recipientEmail?.toLowerCase() === userEmail.toLowerCase());
+
+    if (isRecipient) {
+      return {
+        ...baseConfig,
+        label: "Signed",
+        color: "text-sky-600 dark:text-sky-400",
+        bg: "bg-sky-500/10",
+        border: "border-sky-500/20",
+        badgeVariant: "signed",
+      };
+    }
+  }
+
+  return baseConfig;
+}
 
 // =============================================================================
 // SHARED HOOKS
@@ -221,7 +271,7 @@ export const StatCard = ({
               trendDirection === "up"
                 ? "bg-emerald-500/10 text-emerald-600"
                 : trendDirection === "down"
-                  ? "bg-amber-500/10 text-amber-600"
+                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                   : "bg-muted text-muted-foreground"
             )}
           >
