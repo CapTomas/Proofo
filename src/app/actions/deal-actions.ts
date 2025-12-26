@@ -296,7 +296,12 @@ export async function createDealAction(data: {
 // Get deal by public ID (for recipient view - doesn't require auth)
 export async function getDealByPublicIdAction(
   publicId: string
-): Promise<{ deal: Deal | null; creatorProfile?: { name: string; avatarUrl?: string }; error: string | null }> {
+): Promise<{
+  deal: Deal | null;
+  creatorProfile?: { name: string; avatarUrl?: string };
+  recipientProfile?: { name: string; avatarUrl?: string };
+  error: string | null
+}> {
   try {
     const supabase = await createServerSupabaseClient();
 
@@ -333,9 +338,30 @@ export async function getDealByPublicIdAction(
       creatorProfile = { name: deal.creatorName || "Unknown" };
     }
 
+    // Fetch recipient profile data if recipient_id exists
+    // Note: This makes public profile data visible to anyone with the link
+    // This is generally acceptable for deal parties, similar to creator profile
+    let recipientProfile: { name: string; avatarUrl?: string } | undefined;
+
+    if (deal.recipientId) {
+      const { data: recipientData } = await supabase
+        .from("profiles")
+        .select("name, avatar_url")
+        .eq("id", deal.recipientId)
+        .single();
+
+      if (recipientData) {
+        recipientProfile = {
+          name: recipientData.name || deal.recipientName || "Recipient",
+          avatarUrl: recipientData.avatar_url,
+        };
+      }
+    }
+
     return {
       deal,
       creatorProfile,
+      recipientProfile,
       error: null,
     };
   } catch (error) {

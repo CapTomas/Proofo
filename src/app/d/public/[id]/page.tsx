@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { SignaturePad } from "@/components/signature-pad";
 import { DealHeader } from "@/components/deal-header";
 import { CopyableId, getDealStatusConfig } from "@/components/dashboard/shared-components";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuditTimeline } from "@/components/audit-timeline";
 import {
   Shield,
@@ -197,6 +198,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
   // State for database deal
   const [dbDeal, setDbDeal] = useState<Deal | null>(null);
+  const [creatorProfile, setCreatorProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
+  const [recipientProfile, setRecipientProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoadingDeal, setIsLoadingDeal] = useState(true);
   const [sealError, setSealError] = useState<string | null>(null);
@@ -235,13 +238,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
       // Try to fetch from Supabase first (authoritative source)
       if (isSupabaseConfigured()) {
-        const { deal: fetchedDeal, creatorProfile, error } = await getDealByPublicIdAction(resolvedParams.id);
+        const { deal: fetchedDeal, creatorProfile: fetchedCreator, recipientProfile: fetchedRecipient, error } = await getDealByPublicIdAction(resolvedParams.id);
 
         if (fetchedDeal && !error) {
           // If creatorProfile was returned, update the deal's creatorName with fresh data
-          if (creatorProfile?.name) {
-            fetchedDeal.creatorName = creatorProfile.name;
+          if (fetchedCreator?.name) {
+            fetchedDeal.creatorName = fetchedCreator.name;
           }
+          // Set profiles
+          setCreatorProfile(fetchedCreator || null);
+          setRecipientProfile(fetchedRecipient || null);
+
           setDbDeal(fetchedDeal);
 
           // Get token status for this deal (includes expiration check)
@@ -330,6 +337,39 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
   // The confirmed deal is either one we just sealed, or one that was already confirmed in DB
   const confirmedDeal = sealedDeal || (deal?.status === "confirmed" ? deal : null);
+
+  // Current deal data to display
+  const displayDeal = confirmedDeal || deal || demoDeal;
+
+  const isRecipient = !!(
+    (user && deal?.recipientId === user.id) ||
+    (user && deal?.recipientEmail?.toLowerCase() === user.email?.toLowerCase())
+  );
+
+  // Calculate status config
+  // Force "Action Required" for anonymous users on public page since they are here to sign
+  const config = useMemo(() => {
+    if (!deal) return getDealStatusConfig(displayDeal, user?.id, user?.email);
+
+    const baseConfig = getDealStatusConfig(deal, user?.id, user?.email);
+
+    // If pending and (anonymous OR not creator), we treat as recipient/action required for public page
+    if (deal.status === "pending" && (!user || deal.creatorId !== user.id)) {
+      return {
+        ...baseConfig,
+        label: "Action Required",
+        color: "text-rose-600 dark:text-rose-400",
+        bg: "bg-rose-500/10",
+        border: "border-rose-500/20",
+        // We use PenLine as it's already imported and similar enough, or we can trust the base config's icon if it was pending
+        icon: baseConfig.icon,
+        badgeVariant: "action" as const,
+      };
+    }
+    return baseConfig;
+  }, [deal, displayDeal, user]);
+
+  const StatusIcon = config.icon;
 
   // Pre-fill email when user becomes available (e.g., logs in after page load)
   useEffect(() => {
@@ -671,8 +711,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     );
   }
 
-  // Current deal data to display
-  const displayDeal = confirmedDeal || deal || demoDeal;
+
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/30 overflow-hidden">
@@ -1228,9 +1267,12 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
                       >
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-medium text-sm shadow-sm">
-                          {creatorInitials}
-                        </div>
+                        <Avatar className="h-10 w-10 border border-border/50 shadow-sm">
+                          <AvatarImage src={creatorProfile?.avatarUrl} alt={displayDeal.creatorName} />
+                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-medium text-sm">
+                            {creatorInitials}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-sm truncate">{displayDeal.creatorName}</p>
@@ -1248,14 +1290,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
                       >
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center font-medium text-sm text-muted-foreground shadow-sm">
-                          {(displayDeal.recipientName || user?.name || "You")
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </div>
+                        <Avatar className="h-10 w-10 border border-border/50 shadow-sm">
+                          <AvatarImage src={recipientProfile?.avatarUrl} alt={displayDeal.recipientName || user?.name || "Recipient"} />
+                          <AvatarFallback className="bg-muted font-medium text-sm text-muted-foreground">
+                            {(displayDeal.recipientName || user?.name || "You")
+                              .split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-sm truncate">{displayDeal.recipientName || user?.name || "You"}</p>
@@ -1296,9 +1341,9 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                             {formatDateTime(displayDeal.createdAt)}
                           </div>
                           <CopyableId id={displayDeal.publicId} />
-                          <Badge variant="outline" className="gap-1.5 bg-amber-500/10 border-amber-500/30 text-amber-700">
-                            <Clock className="h-3 w-3" />
-                            Pending
+                          <Badge variant="outline" className={cn("gap-1.5", config.bg, config.border, config.color)}>
+                            <StatusIcon className="h-3 w-3" />
+                            {config.label}
                           </Badge>
                         </div>
                       </div>
@@ -1367,7 +1412,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
               </div>
 
               <Button
-                className="w-full shadow-xl shadow-primary/25"
+                className="w-full"
                 size="xl"
                 onClick={handleProceedToSign}
               >
