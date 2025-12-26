@@ -86,6 +86,7 @@ export async function getServerUser(): Promise<User | null> {
     name: typedProfile.name || typedProfile.email.split("@")[0],
     avatarUrl: typedProfile.avatar_url || undefined,
     isPro: typedProfile.is_pro,
+    signatureUrl: typedProfile.signature_url || undefined,
     createdAt: typedProfile.created_at,
   };
 }

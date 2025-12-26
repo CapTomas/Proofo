@@ -196,9 +196,11 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Allow authenticated users to lookup profiles for recipient detection (registered user feature)
+-- Allow anyone (including anonymous users) to lookup profiles by email
+-- This is needed for the deal signing page to show recipient info (Proofo User badge)
 DROP POLICY IF EXISTS "Authenticated users can lookup profiles" ON public.profiles;
-CREATE POLICY "Authenticated users can lookup profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Anyone can lookup profiles by email" ON public.profiles;
+CREATE POLICY "Anyone can lookup profiles by email" ON public.profiles FOR SELECT USING (true);
 
 -- Deals
 DROP POLICY IF EXISTS "Creators can view their own deals" ON public.deals;

@@ -48,6 +48,8 @@ import {
   Send,
   Inbox,
   Command,
+  Loader2,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
@@ -63,6 +65,7 @@ import {
   validateViewTokenAction,
   getAuditLogsAction,
   logAuditEventAction,
+  lookupUserByEmailAction,
   TokenStatus,
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -143,13 +146,13 @@ const demoConfirmedDeal: Deal = {
 type Step =
   | "review"
   | "sign"
-  | "email"
   | "complete"
   | "already_signed"
   | "sealed_no_access"
   | "voided"
   | "not_found"
-  | "expired";
+  | "expired"
+  | "creator_view";
 
 // Template icon name mapping
 const templateIconNames: Record<string, string> = {
@@ -173,7 +176,7 @@ const KeyboardHint = ({ keys }: { keys: string }) => (
 );
 
 // Helper function to determine initial step
-function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus, hasAuthorizedAccess?: boolean): Step {
+function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus, hasAuthorizedAccess?: boolean, isCreator?: boolean): Step {
   if (!deal) return "not_found";
   // For confirmed deals, check if user has authorized access (token or authenticated party)
   if (deal.status === "confirmed") {
@@ -184,6 +187,8 @@ function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus, hasAuthori
   if (deal.status === "pending" && tokenStatus === "expired") return "expired";
   if (deal.status === "pending" && tokenStatus === "used") return "sealed_no_access"; // Was already signed, no access
   if (deal.status === "sealing") return "sign";
+  // If the logged-in user is the creator, show a special view instead of letting them sign
+  if (deal.status === "pending" && isCreator) return "creator_view";
   return "review";
 }
 
@@ -305,8 +310,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   // Track the step state - initial value depends on whether deal is loaded
   const [stepOverride, setStepOverride] = useState<Step | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
-  // Pre-fill email from signed-in user if available
-  const [email, setEmail] = useState(user?.email || "");
+  // Pre-fill email from deal's recipient email, then from signed-in user if available
+  const [email, setEmail] = useState("");
   const [isSealing, setIsSealing] = useState(false);
   // Track the deal that was confirmed by user action
   const [sealedDeal, setSealedDeal] = useState<Deal | null>(null);
@@ -317,6 +322,16 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  // Email lookup state (for registered Proofo users)
+  const [isLookingUpEmail, setIsLookingUpEmail] = useState(false);
+  const [registeredRecipient, setRegisteredRecipient] = useState<{
+    id: string;
+    name: string;
+    avatarUrl?: string;
+  } | null>(null);
+  const [isCreatorEmail, setIsCreatorEmail] = useState(false); // Track if email belongs to creator
+  // Track if we've already pre-filled email (to allow user to clear it)
+  const hasPrefilledEmailRef = useRef(false);
 
   // Calculate current step based on deal state and any user navigation
   const currentStep = useMemo(() => {
@@ -326,9 +341,11 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     if (isLoadingDeal) return "review";
     // If no deal, show not found
     if (!deal) return "not_found";
+    // Check if current user is the creator
+    const isCreatorUser = !!(user && deal.creatorId === user.id);
     // Otherwise determine from deal status (including token status and access authorization)
-    return getInitialStep(deal, tokenStatus, hasAuthorizedAccess);
-  }, [stepOverride, isLoadingDeal, deal, tokenStatus, hasAuthorizedAccess]);
+    return getInitialStep(deal, tokenStatus, hasAuthorizedAccess, isCreatorUser);
+  }, [stepOverride, isLoadingDeal, deal, tokenStatus, hasAuthorizedAccess, user]);
 
   // Helper to navigate to a step
   const setCurrentStep = (step: Step) => {
@@ -399,12 +416,64 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     ];
   }, [user, isCreator]);
 
-  // Pre-fill email when user becomes available (e.g., logs in after page load)
+  // Pre-fill email when deal or user becomes available (only once)
+  // Priority: 1) deal.recipientEmail 2) logged-in user's email
   useEffect(() => {
-    if (user?.email && !email) {
+    // Only pre-fill once - after that, user controls the value
+    if (hasPrefilledEmailRef.current) return;
+
+    if (deal?.recipientEmail) {
+      setEmail(deal.recipientEmail);
+      hasPrefilledEmailRef.current = true;
+    } else if (user?.email) {
       setEmail(user.email);
+      hasPrefilledEmailRef.current = true;
     }
-  }, [user?.email, email]);
+  }, [deal?.recipientEmail, user?.email]);
+
+  // Debounced email lookup for registered Proofo users
+  useEffect(() => {
+    // Skip lookup if user is already logged in (we use their account info)
+    if (user?.id) {
+      setRegisteredRecipient(null);
+      setIsCreatorEmail(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      setRegisteredRecipient(null);
+      setIsCreatorEmail(false);
+      return;
+    }
+
+    const debounceTimer = setTimeout(async () => {
+      setIsLookingUpEmail(true);
+      try {
+        const result = await lookupUserByEmailAction(email);
+        if (result.found && result.profile) {
+          // Check if this is the creator's email
+          if (deal && result.profile.id === deal.creatorId) {
+            setIsCreatorEmail(true);
+            setRegisteredRecipient(null);
+          } else {
+            setIsCreatorEmail(false);
+            setRegisteredRecipient(result.profile);
+          }
+        } else {
+          setIsCreatorEmail(false);
+          setRegisteredRecipient(null);
+        }
+      } catch {
+        setIsCreatorEmail(false);
+        setRegisteredRecipient(null);
+      } finally {
+        setIsLookingUpEmail(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [email, user?.id, deal]);
 
   // Log deal view for non-demo deals (using ref to track)
   useEffect(() => {
@@ -551,7 +620,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     if (deal.id === "demo123") {
       await new Promise((resolve) => setTimeout(resolve, 2500));
       setIsSealing(false);
-      setCurrentStep("email");
+      setCurrentStep("complete");
       return;
     }
 
@@ -583,15 +652,14 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
       setSignedAccessUrl(`${baseUrl}/d/public/${deal.publicId}?token=${accessToken}`);
 
-      // For logged-in users: skip email step entirely and go to complete
-      // Their user.id is already linked, and we can auto-send receipt
-      if (user?.id && user?.email) {
-        setIsSealing(false);
-        // Auto-send receipt email in background for logged-in users
-        sendReceiptForLoggedInUser(confirmedResult, user.email);
-        setCurrentStep("complete");
-        return;
+      // Auto-send receipt email in background if we have an email
+      if (recipientEmailToUse) {
+        sendReceiptForLoggedInUser(confirmedResult, recipientEmailToUse);
       }
+
+      setIsSealing(false);
+      setCurrentStep("complete");
+      return;
     } else {
       // Use local store (demo mode)
       const result = await storeConfirmDeal(deal.id, signature, recipientEmailToUse);
@@ -602,10 +670,6 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     }
 
     setIsSealing(false);
-    setCurrentStep("email");
-  };
-
-  const handleSkipEmail = () => {
     setCurrentStep("complete");
   };
 
@@ -650,55 +714,6 @@ export default function DealConfirmPage({ params }: DealPageProps) {
       setSealError("Failed to generate PDF. Please try again.");
     } finally {
       setIsGeneratingPDF(false);
-    }
-  };
-
-  // Send Receipt Email Handler
-  const handleSendReceiptEmail = async () => {
-    if (!email || !confirmedDeal) return;
-
-    setIsSendingEmail(true);
-    setEmailError(null);
-
-    try {
-      // First generate the PDF
-      const verificationUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/verify?id=${confirmedDeal.publicId}`
-          : `https://proofo.app/verify?id=${confirmedDeal.publicId}`;
-
-      const { pdfBlob } = await generateDealPDF({
-        deal: confirmedDeal,
-        signatureDataUrl: signature || confirmedDeal.signatureUrl,
-        isPro: user?.isPro || false,
-        verificationUrl,
-      });
-
-      // Convert PDF to base64 for email attachment
-      const pdfBase64 = await pdfBlobToBase64(pdfBlob);
-      const pdfFilename = generatePDFFilename(confirmedDeal);
-
-      // Send the email with PDF attachment
-      const { success, error } = await sendDealReceiptAction({
-        dealId: confirmedDeal.id,
-        publicId: confirmedDeal.publicId, // Pass publicId for RLS bypass
-        recipientEmail: email,
-        pdfBase64,
-        pdfFilename,
-      });
-
-      if (!success) {
-        setEmailError(error || "Failed to send email");
-      } else {
-        setEmailSent(true);
-        // Move to complete step after successful email
-        setTimeout(() => setCurrentStep("complete"), 1500);
-      }
-    } catch (error) {
-      console.error("Error sending receipt email:", error);
-      setEmailError("Failed to send email. Please try again.");
-    } finally {
-      setIsSendingEmail(false);
     }
   };
 
@@ -840,6 +855,129 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 </Link>
                 <Link href="/dashboard">
                   <Button>View Your Deals</Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Creator View State - When logged-in user is the deal creator */}
+          {currentStep === "creator_view" && displayDeal && (
+            <motion.div
+              key="creator_view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {/* Header Section - Matching Standardized Style */}
+              <div className="mb-8 pl-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 border border-amber-500/20">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">You Created This Deal</h1>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-700 border-amber-500/20">
+                        Cannot Sign
+                      </Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-border" />
+                        Logged in as {user?.name || user?.email}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Multi-Card Layout */}
+              <div className="space-y-4">
+                {/* Warning Card */}
+                <Card className="border border-amber-500/30 shadow-sm bg-card rounded-xl overflow-hidden">
+                  <motion.div
+                    className="h-1.5 w-full bg-amber-500/50"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    style={{ transformOrigin: "left" }}
+                  />
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <User className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-amber-700">Self-Signing Not Allowed</p>
+                        <p className="text-xs text-muted-foreground">
+                          You cannot sign an agreement that you created
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Deal Info Card */}
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Agreement</span>
+                        </div>
+                        <span className="font-medium">{displayDeal.title}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Recipient</span>
+                        </div>
+                        <span className="font-medium">{displayDeal.recipientName || "Pending"}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Hash className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Deal ID</span>
+                        </div>
+                        <CopyableId id={displayDeal.publicId} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* What to Do Card */}
+                <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                  <CardContent className="p-5">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Send className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-medium text-sm mb-1">What should you do?</p>
+                          <p className="text-xs text-muted-foreground">
+                            Share the signing link with {displayDeal.recipientName || "the recipient"} so they can review and sign.
+                            Or, log out if you need to sign as a different user for testing.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <Link href={`/d/${displayDeal.publicId}`}>
+                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                    <FileText className="h-4 w-4" />
+                    View in Dashboard
+                  </Button>
+                </Link>
+                <Link href="/auth/logout">
+                  <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                    <Lock className="h-4 w-4" />
+                    Log Out to Sign
+                  </Button>
                 </Link>
               </div>
             </motion.div>
@@ -1279,7 +1417,21 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       </Badge>
                       <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                         <span className="w-1 h-1 rounded-full bg-border" />
-                        Signing as <span className="font-semibold text-foreground">{user?.name || displayDeal.recipientName || "Recipient"}</span>
+                        Signing as <span className={cn(
+                          "font-semibold",
+                          user?.id ? "text-sky-600" : registeredRecipient ? "text-emerald-600" : "text-foreground"
+                        )}>{registeredRecipient?.name || user?.name || displayDeal.recipientName || "Recipient"}</span>
+                        {user?.id && (
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-sky-500/10 text-sky-600 border-sky-500/20">
+                            Logged In
+                          </Badge>
+                        )}
+                        {registeredRecipient && !user?.id && (
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
+                            <Check className="h-2.5 w-2.5" />
+                            Proofo User
+                          </Badge>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -1323,12 +1475,36 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       <motion.div
                         whileHover={{ scale: 1.02 }}
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                        className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
+                        className={cn(
+                          "flex items-center gap-3 p-4 rounded-xl border cursor-default transition-colors",
+                          user?.id
+                            ? "bg-sky-500/5 border-sky-500/30"
+                            : registeredRecipient
+                              ? "bg-emerald-500/5 border-emerald-500/30"
+                              : "bg-secondary/30 border-border/50"
+                        )}
                       >
-                        <Avatar className="h-10 w-10 border border-border/50 shadow-sm">
-                          <AvatarImage src={recipientProfile?.avatarUrl} alt={displayDeal.recipientName || user?.name || "Recipient"} />
-                          <AvatarFallback className="bg-muted font-medium text-sm text-muted-foreground">
-                            {(displayDeal.recipientName || user?.name || "You")
+                        <Avatar className={cn(
+                          "h-10 w-10 shadow-sm",
+                          user?.id
+                            ? "ring-2 ring-sky-500 ring-offset-2 ring-offset-background"
+                            : registeredRecipient
+                              ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-background"
+                              : "border border-border/50"
+                        )}>
+                          <AvatarImage
+                            src={user?.avatarUrl || registeredRecipient?.avatarUrl || recipientProfile?.avatarUrl}
+                            alt={user?.name || registeredRecipient?.name || displayDeal.recipientName || "Recipient"}
+                          />
+                          <AvatarFallback className={cn(
+                            "font-medium text-sm",
+                            user?.id
+                              ? "bg-sky-500/20 text-sky-600"
+                              : registeredRecipient
+                                ? "bg-emerald-500/20 text-emerald-600"
+                                : "bg-muted text-muted-foreground"
+                          )}>
+                            {(user?.name || registeredRecipient?.name || displayDeal.recipientName || "You")
                               .split(" ")
                               .map((n: string) => n[0])
                               .join("")
@@ -1338,12 +1514,28 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                         </Avatar>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm truncate">{displayDeal.recipientName || user?.name || "You"}</p>
-                            <Badge variant="secondary" className="text-[10px] h-4 shrink-0">You</Badge>
+                            <p className={cn(
+                              "font-medium text-sm truncate",
+                              user?.id ? "text-sky-600" : registeredRecipient && "text-emerald-700"
+                            )}>
+                              {user?.name || registeredRecipient?.name || displayDeal.recipientName || "You"}
+                            </p>
+                            {user?.id ? (
+                              <Badge variant="secondary" className="text-[10px] h-4 shrink-0 bg-sky-500/10 text-sky-600 border-sky-500/20">
+                                Logged In
+                              </Badge>
+                            ) : registeredRecipient ? (
+                              <Badge variant="secondary" className="text-[10px] h-4 shrink-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
+                                <Check className="h-2.5 w-2.5" />
+                                Proofo User
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px] h-4 shrink-0">You</Badge>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <Inbox className="h-3 w-3" />
-                            Recipient
+                            {user?.id ? "Your Account" : registeredRecipient ? "Verified Proofo User" : "Recipient"}
                           </p>
                         </div>
                       </motion.div>
@@ -1368,7 +1560,21 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       <div className="flex-1 min-w-0">
                         <h2 className="text-xl font-bold tracking-tight">{displayDeal.title}</h2>
                         <p className="text-sm text-muted-foreground mt-0.5">
-                          {displayDeal.description || "Agreement"}
+                          {(() => {
+                            const desc = displayDeal.description || "Agreement";
+                            // If we have a looked-up name and the description contains the original name, replace it
+                            if (registeredRecipient?.name && displayDeal.recipientName && desc.includes(displayDeal.recipientName)) {
+                              const parts = desc.split(displayDeal.recipientName);
+                              return (
+                                <>
+                                  {parts[0]}
+                                  <span className="text-emerald-600 font-medium">{registeredRecipient.name}</span>
+                                  {parts.slice(1).join(displayDeal.recipientName)}
+                                </>
+                              );
+                            }
+                            return desc;
+                          })()}
                         </p>
                         <div className="flex flex-wrap items-center gap-3 mt-3">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1481,7 +1687,21 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       </Badge>
                       <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                         <span className="w-1 h-1 rounded-full bg-border" />
-                        Signing as <span className="font-semibold text-foreground">{user?.name || user?.email || displayDeal.recipientName}</span>
+                        Signing as <span className={cn(
+                          "font-semibold",
+                          user?.id ? "text-sky-600" : registeredRecipient ? "text-emerald-600" : "text-foreground"
+                        )}>{registeredRecipient?.name || user?.name || user?.email || displayDeal.recipientName}</span>
+                        {user?.id && (
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-sky-500/10 text-sky-600 border-sky-500/20">
+                            Logged In
+                          </Badge>
+                        )}
+                        {registeredRecipient && !user?.id && (
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
+                            <Check className="h-2.5 w-2.5" />
+                            Proofo User
+                          </Badge>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -1522,6 +1742,97 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   </div>
                 </div>
 
+                {/* Recipient Email Section - Only show if not logged in */}
+                {!user?.id && (
+                  <Card className={cn(
+                    "border shadow-sm rounded-2xl overflow-hidden bg-card transition-colors",
+                    isCreatorEmail
+                      ? "border-destructive/50 bg-destructive/5"
+                      : registeredRecipient
+                        ? "border-emerald-500/30 bg-emerald-500/5"
+                        : "border-border/50"
+                  )}>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                              Your Email
+                            </span>
+                            {!displayDeal.recipientEmail && (
+                              <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-rose-500/10 text-rose-600 border-rose-500/20">
+                                Required
+                              </Badge>
+                            )}
+                          </div>
+                          {registeredRecipient && (
+                            <Badge variant="secondary" className="text-[9px] h-4 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5" />
+                              Proofo User
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="relative">
+                          {registeredRecipient?.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={registeredRecipient.avatarUrl}
+                              alt={registeredRecipient.name}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full object-cover ring-2 ring-emerald-500 ring-offset-1 ring-offset-background"
+                            />
+                          ) : (
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          )}
+                          <Input
+                            id="recipient-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="your@email.com"
+                            className={cn(
+                              registeredRecipient?.avatarUrl ? "pl-12" : "pl-10",
+                              "h-11 text-sm rounded-xl bg-muted/30 border-border focus:ring-1 transition-all",
+                              registeredRecipient && "border-emerald-500/30 bg-emerald-500/5"
+                            )}
+                          />
+                          {isLookingUpEmail && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                          {registeredRecipient && !isLookingUpEmail && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500"
+                            >
+                              <Check className="h-4 w-4" />
+                            </motion.div>
+                          )}
+                        </div>
+                        {registeredRecipient && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>Signing as</span>
+                            <span className="font-semibold text-foreground">{registeredRecipient.name}</span>
+                          </div>
+                        )}
+                        {isCreatorEmail && (
+                          <div className="flex items-center gap-2 text-xs text-destructive font-medium">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span>You cannot sign a deal you created. Use a different email.</span>
+                          </div>
+                        )}
+                        {displayDeal.recipientEmail && displayDeal.recipientEmail !== email && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Original email from creator: {displayDeal.recipientEmail}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Full Width Signature Pad */}
                 <div className="w-full">
                   {sealError && (
@@ -1546,6 +1857,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     <CardContent className="p-4 sm:p-10">
                       <SignaturePad
                         onSignatureChange={setSignature}
+                        savedSignatureUrl={user?.signatureUrl}
                       />
                     </CardContent>
                   </Card>
@@ -1565,7 +1877,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                       size="xl"
                       className="w-full sm:flex-1 rounded-2xl shadow-lg shadow-primary/20 gap-2 text-base font-bold transition-all hover:translate-y-[-1px] active:translate-y-[1px] order-1 sm:order-2"
                       onClick={handleSign}
-                      disabled={!signature || isSealing}
+                      disabled={!signature || isSealing || (!user?.id && !email) || isCreatorEmail}
                     >
                       {isSealing ? (
                         <>
@@ -1652,127 +1964,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
             </motion.div>
           )}
 
-          {/* Step 3: Email (Optional) */}
-          {currentStep === "email" && (
-            <motion.div
-              key="email"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              {/* Header Section - Matching Review/Sign Step Style */}
-              <div className="mb-8 pl-1">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Agreement Sealed</h1>
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
-                        Complete
-                      </Badge>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-border" />
-                        Get your receipt
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Card className="mb-6">
-                <CardContent className="p-6 sm:p-8 space-y-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="email" className="text-sm font-medium">
-                      Email Address{" "}
-                      <span className="text-muted-foreground">
-                        ({user?.email ? "Auto-filled" : "Optional"})
-                      </span>
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="your@email.com"
-                        className="pl-11"
-                        disabled={isSendingEmail || emailSent}
-                      />
-                    </div>
-                  </div>
-
-                  {emailError && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
-                      <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                      <p className="text-sm text-destructive">{emailError}</p>
-                    </div>
-                  )}
-
-                  {emailSent && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-                      <p className="text-sm text-emerald-700">
-                        Receipt sent successfully! Check your inbox.
-                      </p>
-                    </div>
-                  )}
-
-                  {!emailSent && (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/50 border">
-                      <AlertCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                      <p className="text-sm text-muted-foreground">
-                        We&apos;ll send you a PDF copy of this agreement with the cryptographic seal
-                        for your records. Your email is never shared.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="flex gap-4">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleSkipEmail}
-                  disabled={isSendingEmail}
-                >
-                  Skip for Now
-                </Button>
-                <Button
-                  className="flex-1 shadow-xl shadow-primary/25"
-                  onClick={handleSendReceiptEmail}
-                  disabled={!email || isSendingEmail || emailSent}
-                >
-                  {isSendingEmail ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                      </motion.div>
-                      Sending...
-                    </>
-                  ) : emailSent ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Sent!
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Receipt
-                    </>
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 4: Complete - Full Deal View */}
+          {/* Step 3: Complete - Full Deal View */}
           {currentStep === "complete" && (
             <motion.div
               key="complete"

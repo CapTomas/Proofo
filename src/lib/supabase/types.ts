@@ -12,6 +12,7 @@ export interface Database {
           name: string | null;
           avatar_url: string | null;
           is_pro: boolean;
+          signature_url: string | null;
           created_at: string;
           updated_at: string;
         };

@@ -3,24 +3,27 @@
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
-import { Eraser, Check, PenLine } from "lucide-react";
+import { Eraser, Check, PenLine, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SignaturePadProps {
   onSignatureChange?: (signatureData: string | null) => void;
   className?: string;
   disabled?: boolean;
+  savedSignatureUrl?: string; // URL of saved signature to load
 }
 
 export function SignaturePad({
   onSignatureChange,
   className,
   disabled = false,
+  savedSignatureUrl,
 }: SignaturePadProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
 
   // Handle responsive sizing
   useEffect(() => {
@@ -60,6 +63,54 @@ export function SignaturePad({
       }
     }
   }, [onSignatureChange]);
+
+  // Load saved signature
+  const handleLoadSaved = useCallback(async () => {
+    if (!savedSignatureUrl || !sigCanvas.current || canvasSize.width === 0) return;
+
+    setIsLoadingSaved(true);
+    try {
+      // Load the image and draw it on the canvas
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (sigCanvas.current) {
+          // Clear existing content
+          sigCanvas.current.clear();
+
+          // Get canvas context
+          const canvas = sigCanvas.current.getCanvas();
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            // Calculate scaling to fit the signature in the canvas
+            const scale = Math.min(
+              (canvasSize.width * 0.8) / img.width,
+              (canvasSize.height * 0.7) / img.height
+            );
+            const width = img.width * scale;
+            const height = img.height * scale;
+            const x = (canvasSize.width - width) / 2;
+            const y = (canvasSize.height - height) / 2 - 10; // Slightly above center for signature line
+
+            ctx.drawImage(img, x, y, width, height);
+          }
+
+          // Mark as not empty and get the data
+          setIsEmpty(false);
+          const signatureData = sigCanvas.current.toDataURL("image/png");
+          onSignatureChange?.(signatureData);
+        }
+        setIsLoadingSaved(false);
+      };
+      img.onerror = () => {
+        console.error("Failed to load saved signature");
+        setIsLoadingSaved(false);
+      };
+      img.src = savedSignatureUrl;
+    } catch {
+      setIsLoadingSaved(false);
+    }
+  }, [savedSignatureUrl, canvasSize, onSignatureChange]);
 
   return (
     <div className={cn("space-y-4 w-full", className)} ref={containerRef}>
@@ -112,19 +163,34 @@ export function SignaturePad({
       </div>
 
       <div className="flex justify-between items-center px-4">
-        <p className="text-xs text-muted-foreground">
-          {isEmpty ? (
-            <span className="flex items-center gap-1.5 opacity-50">
-              <PenLine className="h-3 w-3" />
-              Draw your signature
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-emerald-600 font-bold uppercase tracking-tighter">
-              <Check className="h-3.5 w-3.5" strokeWidth={3} />
-              Signature Captured
-            </span>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            {isEmpty ? (
+              <span className="flex items-center gap-1.5 opacity-50">
+                <PenLine className="h-3 w-3" />
+                Draw your signature
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-emerald-600 font-bold uppercase tracking-tighter">
+                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                Signature Captured
+              </span>
+            )}
+          </p>
+          {savedSignatureUrl && isEmpty && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleLoadSaved}
+              disabled={disabled || isLoadingSaved}
+              className="h-6 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 transition-colors rounded-lg px-2"
+            >
+              <Download className="h-3 w-3 mr-1" />
+              {isLoadingSaved ? "Loading..." : "Use Saved"}
+            </Button>
           )}
-        </p>
+        </div>
         <Button
           type="button"
           variant="ghost"
