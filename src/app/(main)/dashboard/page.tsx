@@ -150,6 +150,12 @@ const DealRow = ({
   const config = statusConfig[deal.status];
   const StatusIcon = config.icon;
 
+  // Use different styling for inbox pending items (needs your signature)
+  const isInboxPending = isInbox && deal.status === "pending";
+  const iconBg = isInboxPending ? "bg-blue-500/10" : config.bg;
+  const iconBorder = isInboxPending ? "border-blue-500/30" : config.border;
+  const iconColor = isInboxPending ? "text-blue-600" : config.color;
+
   return (
     <motion.div
       layout
@@ -161,12 +167,16 @@ const DealRow = ({
         <div
           className={cn(
             "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border shadow-sm transition-colors",
-            config.bg,
-            config.border,
-            config.color
+            iconBg,
+            iconBorder,
+            iconColor
           )}
         >
-          <StatusIcon className="h-4.5 w-4.5" />
+          {isInboxPending ? (
+            <Inbox className="h-4.5 w-4.5" />
+          ) : (
+            <StatusIcon className="h-4.5 w-4.5" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap mb-0.5">
@@ -174,16 +184,16 @@ const DealRow = ({
               {deal.title}
             </p>
 
-            <Badge
-              variant={config.badgeVariant}
-              className="h-5 px-1.5 text-[10px] font-medium border"
-            >
-              {config.label}
-            </Badge>
-
-            {isInbox && deal.status === "pending" && (
-              <Badge className="h-5 px-1.5 text-[10px] bg-amber-500 hover:bg-amber-600 text-white border-0 animate-pulse">
-                Action Required
+            {isInboxPending ? (
+              <Badge className="h-5 px-1.5 text-[10px] font-medium bg-blue-500 hover:bg-blue-600 text-white border-0">
+                Sign Required
+              </Badge>
+            ) : (
+              <Badge
+                variant={config.badgeVariant}
+                className="h-5 px-1.5 text-[10px] font-medium border"
+              >
+                {config.label}
               </Badge>
             )}
           </div>

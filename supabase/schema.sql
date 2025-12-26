@@ -196,6 +196,10 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- Allow authenticated users to lookup profiles for recipient detection (registered user feature)
+DROP POLICY IF EXISTS "Authenticated users can lookup profiles" ON public.profiles;
+CREATE POLICY "Authenticated users can lookup profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
+
 -- Deals
 DROP POLICY IF EXISTS "Creators can view their own deals" ON public.deals;
 CREATE POLICY "Creators can view their own deals" ON public.deals FOR SELECT USING (auth.uid() = creator_id);

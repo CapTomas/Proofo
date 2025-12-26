@@ -231,6 +231,10 @@ function NewDealContent() {
     // Prevent self-deals - don't match with your own email
     if (user?.email && recipientEmail.toLowerCase().trim() === user.email.toLowerCase()) {
       setRegisteredRecipient(null);
+      toast.error("You can't create a deal with yourself", {
+        description: "Please enter a different recipient email.",
+      });
+      setRecipientEmail("");
       return;
     }
 
@@ -1153,9 +1157,18 @@ function NewDealContent() {
                               transition={{ type: "spring", stiffness: 400, damping: 17 }}
                               className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
                             >
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-medium text-sm shadow-sm">
-                                {getUserInitials(user?.name || "G U")}
-                              </div>
+                              {user?.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={user.avatarUrl}
+                                  alt={user.name || "Creator"}
+                                  className="h-10 w-10 rounded-full object-cover shadow-sm"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-medium text-sm shadow-sm">
+                                  {getUserInitials(user?.name || "G U")}
+                                </div>
+                              )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="font-medium text-sm truncate">{user?.name || "Guest User"}</p>
