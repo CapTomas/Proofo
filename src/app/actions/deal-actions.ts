@@ -111,6 +111,48 @@ function transformDeal(dbDeal: Record<string, unknown>): Deal {
   };
 }
 
+// Lookup user profile by email (for registered recipient detection)
+export async function lookupUserByEmailAction(email: string): Promise<{
+  found: boolean;
+  profile?: { id: string; name: string; avatarUrl?: string };
+  error: string | null;
+}> {
+  try {
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return { found: false, error: null };
+    }
+
+    const supabase = await createServerSupabaseClient();
+
+    // Query profiles table by email
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, name, avatar_url, email")
+      .eq("email", email.toLowerCase().trim())
+      .single();
+
+    if (error || !data) {
+      // Not found is not an error, just not registered
+      return { found: false, error: null };
+    }
+
+    return {
+      found: true,
+      profile: {
+        id: data.id,
+        name: data.name || email.split("@")[0],
+        avatarUrl: data.avatar_url || undefined,
+      },
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error looking up user by email", error);
+    return { found: false, error: "Server error" };
+  }
+}
+
 // Create a new deal (server action)
 export async function createDealAction(data: {
   title: string;
@@ -118,6 +160,7 @@ export async function createDealAction(data: {
   templateId?: string;
   recipientName: string;
   recipientEmail?: string;
+  recipientId?: string; // Pre-linked if email matched a registered user
   terms: Array<{ label: string; value: string; type: string }>;
 }): Promise<{
   deal: Deal | null;
@@ -172,6 +215,7 @@ export async function createDealAction(data: {
         template_id: validatedData.templateId,
         recipient_name: validatedData.recipientName,
         recipient_email: validatedData.recipientEmail || null,
+        recipient_id: validatedData.recipientId || null,
         terms: validatedData.terms.map((t, i) => ({
           id: `term-${i}`,
           label: t.label,

@@ -47,6 +47,7 @@ export const createDealSchema = z.object({
     .max(100, "Recipient name must be 100 characters or less")
     .trim(),
   recipientEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
+  recipientId: z.string().uuid().optional(), // Pre-linked if email matched a registered user
   terms: z.array(dealTermSchema).max(LIMITS.MAX_TERMS, `Maximum ${LIMITS.MAX_TERMS} terms allowed`),
   templateId: z.string().optional(),
 });

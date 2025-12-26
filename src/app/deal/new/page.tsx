@@ -44,13 +44,15 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Download,
+  Bell,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
 import { DealTemplate, TemplateField, Deal } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
-import { createDealAction, getDealByIdAction } from "@/app/actions/deal-actions";
+import { createDealAction, getDealByIdAction, lookupUserByEmailAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { LoginModal } from "@/components/login-modal";
 import { cn, getUserInitials } from "@/lib/utils";
@@ -197,6 +199,12 @@ function NewDealContent() {
   const [reviewId] = useState(() => Date.now().toString(36).toUpperCase());
   const [restored, setRestored] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [registeredRecipient, setRegisteredRecipient] = useState<{
+    id: string;
+    name: string;
+    avatarUrl?: string;
+  } | null>(null);
+  const [isLookingUpEmail, setIsLookingUpEmail] = useState(false);
   const { copyToClipboard } = useCopyToClipboard();
 
   const dealCreationInProgressRef = useRef(false);
@@ -211,6 +219,48 @@ function NewDealContent() {
       setTimeout(() => firstInputRef.current?.focus(), 100);
     }
   }, [currentStep]);
+
+  // Debounced email lookup for registered recipients
+  useEffect(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+      setRegisteredRecipient(null);
+      return;
+    }
+
+    // Prevent self-deals - don't match with your own email
+    if (user?.email && recipientEmail.toLowerCase().trim() === user.email.toLowerCase()) {
+      setRegisteredRecipient(null);
+      return;
+    }
+
+    const debounceTimer = setTimeout(async () => {
+      setIsLookingUpEmail(true);
+      try {
+        const result = await lookupUserByEmailAction(recipientEmail);
+        if (result.found && result.profile) {
+          // Double-check the profile isn't the current user (in case user object wasn't available earlier)
+          if (result.profile.id === user?.id) {
+            setRegisteredRecipient(null);
+          } else {
+            setRegisteredRecipient(result.profile);
+            // Auto-fill name if empty or user hasn't typed anything
+            if (!recipientName || recipientName === "") {
+              setRecipientName(result.profile.name);
+            }
+          }
+        } else {
+          setRegisteredRecipient(null);
+        }
+      } catch {
+        setRegisteredRecipient(null);
+      } finally {
+        setIsLookingUpEmail(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [recipientEmail, user?.email, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to top on step change for mobile
   useEffect(() => {
@@ -391,6 +441,7 @@ function NewDealContent() {
         templateId: selectedTemplate.id,
         recipientName,
         recipientEmail: recipientEmail || undefined,
+        recipientId: registeredRecipient?.id,
         terms,
       });
 
@@ -435,7 +486,7 @@ function NewDealContent() {
       drift: 0,
       ticks: 300
     });
-  }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog]);
+  }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog, registeredRecipient]);
 
   const handleNext = useCallback(() => {
     if (currentStep === "details") {
@@ -901,46 +952,102 @@ function NewDealContent() {
                             </div>
 
                             {/* Recipient (Input) */}
-                            <div className="p-4 rounded-xl bg-background border border-primary/20 shadow-sm flex flex-col gap-3">
+                            <div className={cn(
+                              "p-4 rounded-xl bg-background border shadow-sm flex flex-col gap-3 transition-colors",
+                              registeredRecipient ? "border-emerald-500/40" : "border-primary/20"
+                            )}>
                               <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-xs">
-                                  {getUserInitials(recipientName) || <User className="h-4 w-4" />}
+                                {/* Avatar with registered user ring */}
+                                <div className="relative">
+                                  {registeredRecipient?.avatarUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={registeredRecipient.avatarUrl}
+                                      alt={registeredRecipient.name}
+                                      className={cn(
+                                        "h-8 w-8 rounded-full object-cover",
+                                        registeredRecipient && "ring-2 ring-emerald-500 ring-offset-2 ring-offset-background"
+                                      )}
+                                    />
+                                  ) : (
+                                    <div className={cn(
+                                      "h-8 w-8 rounded-full flex items-center justify-center font-medium text-xs",
+                                      registeredRecipient
+                                        ? "bg-emerald-500/20 text-emerald-600 ring-2 ring-emerald-500 ring-offset-2 ring-offset-background"
+                                        : "bg-muted text-muted-foreground"
+                                    )}>
+                                      {getUserInitials(recipientName) || <User className="h-4 w-4" />}
+                                    </div>
+                                  )}
+                                  {isLookingUpEmail && (
+                                    <div className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full bg-background flex items-center justify-center">
+                                      <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="font-medium text-sm truncate">{recipientName || "Recipient"}</span>
-                                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold uppercase tracking-tight">
-                                      Recipient
-                                    </Badge>
+                                    {registeredRecipient ? (
+                                      <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-bold uppercase tracking-tight bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                        Proofo User
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold uppercase tracking-tight">
+                                        Recipient
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                     <Inbox className="h-2.5 w-2.5" />
-                                    Signer
+                                    {registeredRecipient ? "Will be notified in-app" : "Signer"}
                                   </div>
                                 </div>
                               </div>
 
                               <div className="space-y-2.5 pt-0.5">
+                                {/* Email first */}
                                 <div className="grid gap-1.5">
-                                  <Label htmlFor="recipientName" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">Name</Label>
+                                  <Label htmlFor="recipientEmail" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">Email</Label>
+                                  <div className="relative">
+                                    <Input
+                                      id="recipientEmail"
+                                      ref={firstInputRef}
+                                      type="email"
+                                      placeholder="email@example.com"
+                                      value={recipientEmail}
+                                      onChange={(e) => setRecipientEmail(e.target.value)}
+                                      className={cn(
+                                        "h-9 text-sm rounded-lg bg-muted/30 border-border focus:ring-1 transition-all",
+                                        registeredRecipient && "border-emerald-500/30 bg-emerald-500/5"
+                                      )}
+                                    />
+                                    {registeredRecipient && (
+                                      <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </motion.div>
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Name second, with Required label */}
+                                <div className="grid gap-1.5">
+                                  <Label htmlFor="recipientName" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">
+                                    Name <span className="text-destructive">*</span>
+                                  </Label>
                                   <Input
                                     id="recipientName"
-                                    ref={firstInputRef}
                                     placeholder="e.g. John Doe"
                                     value={recipientName}
                                     onChange={(e) => setRecipientName(e.target.value)}
-                                    className={cn("h-9 text-sm rounded-lg bg-muted/30 border-border focus:ring-1 transition-all", shake && "border-destructive animate-pulse")}
-                                  />
-                                </div>
-                                <div className="grid gap-1.5">
-                                  <Label htmlFor="recipientEmail" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">Email (Optional)</Label>
-                                  <Input
-                                    id="recipientEmail"
-                                    type="email"
-                                    placeholder="email@example.com"
-                                    value={recipientEmail}
-                                    onChange={(e) => setRecipientEmail(e.target.value)}
-                                    className="h-9 text-sm rounded-lg bg-muted/30 border-border focus:ring-1 transition-all"
+                                    className={cn(
+                                      "h-9 text-sm rounded-lg bg-muted/30 border-border focus:ring-1 transition-all",
+                                      shake && "border-destructive animate-pulse",
+                                      registeredRecipient && "border-emerald-500/30 bg-emerald-500/5"
+                                    )}
                                   />
                                 </div>
                               </div>
@@ -1065,19 +1172,45 @@ function NewDealContent() {
                             <motion.div
                               whileHover={{ scale: 1.02 }}
                               transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                              className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
+                              className={cn(
+                                "flex items-center gap-3 p-4 rounded-xl border cursor-default",
+                                registeredRecipient
+                                  ? "bg-emerald-500/5 border-emerald-500/30"
+                                  : "bg-secondary/30 border-border/50"
+                              )}
                             >
-                              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-sm shadow-sm">
-                                {getUserInitials(recipientName) || <User className="h-4 w-4" />}
-                              </div>
+                              {registeredRecipient?.avatarUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={registeredRecipient.avatarUrl}
+                                  alt={registeredRecipient.name}
+                                  className="h-10 w-10 rounded-full object-cover ring-2 ring-emerald-500 ring-offset-2 ring-offset-background shadow-sm"
+                                />
+                              ) : (
+                                <div className={cn(
+                                  "h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm shadow-sm",
+                                  registeredRecipient
+                                    ? "bg-emerald-500/20 text-emerald-600 ring-2 ring-emerald-500 ring-offset-2 ring-offset-background"
+                                    : "bg-muted text-muted-foreground"
+                                )}>
+                                  {getUserInitials(recipientName) || <User className="h-4 w-4" />}
+                                </div>
+                              )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="font-medium text-sm truncate">{recipientName || "Recipient"}</p>
-                                  <Badge variant="outline" className="text-[10px] h-4 shrink-0">Recipient</Badge>
+                                  {registeredRecipient ? (
+                                    <Badge variant="secondary" className="text-[10px] h-4 shrink-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 flex items-center gap-1">
+                                      <Check className="h-2.5 w-2.5" />
+                                      Proofo User
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] h-4 shrink-0">Recipient</Badge>
+                                  )}
                                 </div>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                   <Inbox className="h-3 w-3" />
-                                  Signer
+                                  {registeredRecipient ? "Will be notified in-app" : "Signer"}
                                 </p>
                               </div>
                             </motion.div>
@@ -1290,6 +1423,32 @@ function NewDealContent() {
                               </div>
                             </CardContent>
                           </Card>
+
+                          {/* Recipient Notified Card - Only for registered recipients */}
+                          {registeredRecipient && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2 }}
+                            >
+                              <Card className="border border-blue-500/30 bg-blue-500/5 rounded-2xl overflow-hidden">
+                                <CardContent className="p-5 flex items-center gap-4">
+                                  <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                                    <Bell className="h-5 w-5 text-blue-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-sm text-foreground">Recipient notified in-app</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {registeredRecipient.name} will see this in their Inbox
+                                    </p>
+                                  </div>
+                                  <Badge variant="secondary" className="shrink-0 bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                    Proofo User
+                                  </Badge>
+                                </CardContent>
+                              </Card>
+                            </motion.div>
+                          )}
 
                           <div className="grid grid-cols-2 gap-3">
                             <Button
