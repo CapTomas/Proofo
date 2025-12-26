@@ -10,6 +10,21 @@ interface AuditTimelineProps {
   dealStatus?: DealStatus;
   className?: string;
   compact?: boolean;
+  privacyMode?: boolean;
+}
+
+/**
+ * Utility to mask emails for privacy (GDPR compliance)
+ * Example: tomas@example.com -> t***@e***.com
+ */
+function maskEmail(email: string): string {
+  if (!email || !email.includes("@")) return email;
+  const [local, domain] = email.split("@");
+  const maskedLocal = local[0] + "***";
+  const domainParts = domain.split(".");
+  const maskedDomain = domainParts[0][0] + "***";
+  const ext = domainParts.length > 1 ? "." + domainParts[domainParts.length - 1] : "";
+  return `${maskedLocal}@${maskedDomain}${ext}`;
 }
 
 // Event type configuration
@@ -98,6 +113,9 @@ const eventConfig: Record<string, {
     getDescription: (metadata) => {
       const emailType = metadata?.emailType as string;
       const recipient = metadata?.recipient as string;
+
+      // We'll mask here too if we can access the prop, but config is outside.
+      // Better to handle masking inside the component where the prop is available.
       if (emailType === "receipt") {
         return recipient ? `Receipt sent to ${recipient}` : "Receipt was emailed";
       } else if (emailType === "invitation") {
@@ -190,17 +208,28 @@ function getDeviceIcon(deviceType?: string) {
 }
 
 // Enhanced metadata display component
-function MetadataDisplay({ metadata }: { metadata: Record<string, unknown> }) {
+function MetadataDisplay({
+  metadata,
+  privacyMode = false
+}: {
+  metadata: Record<string, unknown>;
+  privacyMode?: boolean;
+}) {
   // Filter out internal/nested objects and only show useful top-level values
   const displayItems: Array<{ key: string; value: string }> = [];
 
   // Extract useful metadata for display
   if (metadata.client) {
     const client = metadata.client as Record<string, unknown>;
+
+    // In privacy mode, we hide exact technical fingerprints if they are too specific
     if (client.browser) {
       displayItems.push({ key: "Browser", value: String(client.browser) });
     }
-    if (client.timezone) {
+
+    // Timezone is usually okay, but we could hide it if extremely paranoid.
+    // For now keeping it as it helps verify "when" from "where" without exact IP.
+    if (client.timezone && !privacyMode) {
       displayItems.push({ key: "Timezone", value: String(client.timezone) });
     }
   }
@@ -209,8 +238,13 @@ function MetadataDisplay({ metadata }: { metadata: Record<string, unknown> }) {
   if (metadata.emailType) {
     displayItems.push({ key: "Type", value: String(metadata.emailType) });
   }
+
   if (metadata.recipient) {
-    displayItems.push({ key: "To", value: String(metadata.recipient) });
+    const recipient = String(metadata.recipient);
+    displayItems.push({
+      key: "To",
+      value: privacyMode ? maskEmail(recipient) : recipient
+    });
   }
 
   // Show verification result
@@ -270,6 +304,7 @@ export function AuditTimeline({
   dealStatus,
   className = "",
   compact = false,
+  privacyMode = false,
 }: AuditTimelineProps) {
   // Sort logs by date (newest first for display, but we'll reverse for timeline)
   const sortedLogs = [...logs].sort(
@@ -348,7 +383,10 @@ export function AuditTimeline({
                 )}
                 {/* Enhanced metadata display */}
                 {!compact && log.metadata && (
-                  <MetadataDisplay metadata={log.metadata as Record<string, unknown>} />
+                  <MetadataDisplay
+                    metadata={log.metadata as Record<string, unknown>}
+                    privacyMode={privacyMode}
+                  />
                 )}
               </div>
             </motion.div>

@@ -731,7 +731,7 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
   try {
     const supabase = await createServerSupabaseClient();
 
-    // Get the deal first
+    // Get the deal first using RPC to bypass RLS
     const { data: deal } = await supabase.rpc("get_deal_by_public_id", { p_public_id: publicId });
 
     if (!deal) return;
@@ -739,38 +739,49 @@ export async function markDealViewedAction(publicId: string): Promise<void> {
     const dealData = deal as Record<string, unknown>;
     const isFirstView = !dealData.viewed_at;
 
-    // Update viewed_at if not already set
+    // Update viewed_at if not already set (shortcut on deal table)
     if (isFirstView) {
-      // We need to use a function or service role for this update
-      // For now, we'll skip the RLS check by using the deal ID
       await supabase
         .from("deals")
         .update({ viewed_at: new Date().toISOString() })
         .eq("public_id", publicId);
     }
 
-    // Count how many times this deal has been viewed
+    // Count how many times this deal has been viewed for the view number
     const { count: viewCount } = await supabase
       .from("audit_log")
       .select("*", { count: "exact", head: true })
       .eq("deal_id", dealData.id as string)
       .eq("event_type", "deal_viewed");
 
-    // Add audit log with enhanced metadata
+    // Get the current user
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    await supabase.from("audit_log").insert({
-      deal_id: dealData.id as string,
-      event_type: "deal_viewed",
-      actor_id: user?.id || null,
-      actor_type: "recipient",
-      metadata: {
+    // Determine actor type based on who is viewing
+    // If it's the deal creator, mark as creator. Otherwise assume recipient/public viewer.
+    const isCreator = user?.id === dealData.creator_id;
+    const actorType = isCreator ? "creator" : "recipient";
+
+    // Get request headers for IP and User Agent
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for") || "unknown";
+    const userAgent = headersList.get("user-agent") || "unknown";
+
+    // Use RPC to log the event securely (bypassing RLS for anonymous view logging)
+    await supabase.rpc("log_audit_event", {
+      p_deal_id: dealData.id as string,
+      p_event_type: "deal_viewed",
+      p_actor_type: actorType,
+      p_actor_id: user?.id || null,
+      p_ip_address: ip,
+      p_user_agent: userAgent,
+      p_metadata: {
         isLoggedIn: !!user,
-        viewedAt: new Date().toISOString(),
         isFirstView,
         viewNumber: (viewCount || 0) + 1,
+        timestamp: new Date().toISOString(),
       },
     });
   } catch (error) {

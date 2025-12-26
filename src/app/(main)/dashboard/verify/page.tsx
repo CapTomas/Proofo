@@ -501,8 +501,8 @@ const VerificationResultCard = ({
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 max-h-48 overflow-y-auto custom-scrollbar">
-                    <AuditTimeline logs={auditLogs} compact />
+                  <div className="px-4 pb-4 max-h-80 overflow-y-auto custom-scrollbar">
+                    <AuditTimeline logs={auditLogs} privacyMode />
                   </div>
                 </motion.div>
               )}
@@ -623,13 +623,8 @@ function DashboardVerifyContent() {
       let logsToVerify: AuditLogEntry[] = [];
 
       try {
-        // First try local store
-        const localDeal = getDealByPublicId(searchId);
-        if (localDeal) {
-          dealToVerify = localDeal;
-          logsToVerify = getAuditLogsForDeal(localDeal.id);
-        } else if (isSupabaseConfigured()) {
-          // Try Supabase
+        // Always try Supabase first if configured
+        if (isSupabaseConfigured()) {
           const { deal, error } = await getDealByPublicIdAction(searchId);
           if (deal && !error) {
             dealToVerify = deal;
@@ -643,6 +638,15 @@ function DashboardVerifyContent() {
               metadata: log.metadata || {},
               createdAt: log.createdAt,
             }));
+          }
+        }
+
+        // If not in Supabase or not configured, try local store
+        if (!dealToVerify) {
+          const localDeal = getDealByPublicId(searchId);
+          if (localDeal) {
+            dealToVerify = localDeal;
+            logsToVerify = getAuditLogsForDeal(localDeal.id);
           }
         }
 

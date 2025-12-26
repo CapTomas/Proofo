@@ -235,19 +235,16 @@ function VerifyContent() {
         router.push(`/verify?id=${searchId}`, { scroll: false });
       }
 
-      // First try local store
-      const localDeal = getDealByPublicId(searchId);
-      if (localDeal) {
-        setSearchedDeal(localDeal);
-        const localLogs = getAuditLogsForDeal(localDeal.id);
-        setAuditLogs(localLogs);
-      } else if (isSupabaseConfigured()) {
-        // Try Supabase
+      let dealData: Deal | null = null;
+      let logEntries: AuditLogEntry[] = [];
+
+      // Always try Supabase first if configured
+      if (isSupabaseConfigured()) {
         const { deal, error } = await getDealByPublicIdAction(searchId);
         if (deal && !error) {
-          setSearchedDeal(deal);
+          dealData = deal;
           const { logs } = await getAuditLogsAction(deal.id);
-          const transformedLogs: AuditLogEntry[] = logs.map((log) => ({
+          logEntries = logs.map((log) => ({
             id: log.id,
             dealId: log.dealId,
             eventType: log.eventType as AuditLogEntry["eventType"],
@@ -256,15 +253,20 @@ function VerifyContent() {
             metadata: log.metadata || {},
             createdAt: log.createdAt,
           }));
-          setAuditLogs(transformedLogs);
-        } else {
-          setSearchedDeal(null);
-          setAuditLogs([]);
         }
-      } else {
-        setSearchedDeal(null);
-        setAuditLogs([]);
       }
+
+      // If not in Supabase or not configured, try local store
+      if (!dealData) {
+        const localDeal = getDealByPublicId(searchId);
+        if (localDeal) {
+          dealData = localDeal;
+          logEntries = getAuditLogsForDeal(localDeal.id);
+        }
+      }
+
+      setSearchedDeal(dealData);
+      setAuditLogs(logEntries);
 
       setHasSearched(true);
       setIsSearching(false);
@@ -756,8 +758,8 @@ function VerifyContent() {
                             <Sparkles className="h-3.5 w-3.5" />
                             Audit Trail
                           </h3>
-                          <div className="max-h-[200px] overflow-y-auto pr-2 custom-scrollbar mt-1">
-                            <AuditTimeline logs={auditLogs} compact />
+                          <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar mt-1">
+                            <AuditTimeline logs={auditLogs} privacyMode />
                           </div>
                         </div>
                       </div>

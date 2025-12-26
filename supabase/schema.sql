@@ -483,6 +483,80 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Function to log audit events (bypasses RLS for anonymous users)
+CREATE OR REPLACE FUNCTION public.log_audit_event(
+  p_deal_id UUID,
+  p_event_type audit_event_type,
+  p_actor_type actor_type,
+  p_metadata JSONB DEFAULT NULL,
+  p_actor_id UUID DEFAULT NULL,
+  p_ip_address INET DEFAULT NULL,
+  p_user_agent TEXT DEFAULT NULL
+)
+RETURNS UUID AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  INSERT INTO public.audit_log (
+    deal_id,
+    event_type,
+    actor_id,
+    actor_type,
+    metadata,
+    ip_address,
+    user_agent
+  )
+  VALUES (
+    p_deal_id,
+    p_event_type,
+    p_actor_id,
+    p_actor_type,
+    p_metadata,
+    p_ip_address,
+    p_user_agent
+  )
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get audit logs for a deal (with permission checks)
+-- For confirmed deals, audit logs are public (transparency for sealed agreements)
+CREATE OR REPLACE FUNCTION public.get_deal_audit_logs(p_deal_id UUID, p_token TEXT DEFAULT NULL)
+RETURNS SETOF audit_log AS $$
+BEGIN
+  -- For CONFIRMED deals, audit logs are public (transparency for sealed agreements)
+  IF EXISTS (
+    SELECT 1 FROM deals WHERE id = p_deal_id AND status = 'confirmed'
+  ) THEN
+    RETURN QUERY SELECT * FROM audit_log WHERE deal_id = p_deal_id ORDER BY created_at ASC;
+    RETURN;
+  END IF;
+
+  -- For non-confirmed deals, check if user is authenticated creator/recipient
+  IF EXISTS (
+    SELECT 1 FROM deals WHERE id = p_deal_id
+    AND (creator_id = auth.uid() OR recipient_id = auth.uid())
+  ) THEN
+    RETURN QUERY SELECT * FROM audit_log WHERE deal_id = p_deal_id ORDER BY created_at ASC;
+    RETURN;
+  END IF;
+
+  -- Check token (for pending deals with valid token access)
+  IF p_token IS NOT NULL AND EXISTS (
+    SELECT 1 FROM access_tokens
+    WHERE deal_id = p_deal_id AND token = p_token
+  ) THEN
+    RETURN QUERY SELECT * FROM audit_log WHERE deal_id = p_deal_id ORDER BY created_at ASC;
+    RETURN;
+  END IF;
+
+  -- Default deny (return empty)
+  RETURN;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 11. Permissions (Critical for API access)
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
@@ -495,6 +569,8 @@ GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authentica
 GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID, TIMESTAMPTZ) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_token_status_for_deal(UUID) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.log_audit_event(UUID, audit_event_type, actor_type, JSONB, UUID, INET, TEXT) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.get_deal_audit_logs(UUID, TEXT) TO authenticated, anon, service_role;
 
 -- ============================================
 -- STORAGE SETUP (Run in Supabase Dashboard)

@@ -17,7 +17,7 @@ import { Deal, AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime, timeAgo } from "@/lib/crypto";
 import { cn } from "@/lib/utils";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
-import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction, logAuditEventAction } from "@/app/actions/deal-actions";
+import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction, logAuditEventAction, markDealViewedAction } from "@/app/actions/deal-actions";
 import { useAppStore } from "@/store";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { toast } from "sonner";
@@ -258,6 +258,14 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
     if (!deal) return "";
     return `${typeof window !== "undefined" ? window.location.origin : ""}/d/public/${deal.publicId}`;
   }, [deal]);
+
+  // Log view event when deal is loaded (for creator auditing)
+  useEffect(() => {
+    if (deal && resolvedId) {
+      // Ensure we only log once per component mount to avoid noise
+      markDealViewedAction(resolvedId);
+    }
+  }, [deal?.id, resolvedId]);
 
   // Copy signing link
   const handleCopyLink = useCallback(async () => {
