@@ -552,7 +552,18 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
     <TooltipProvider delayDuration={300}>
       <div className="h-screen flex flex-col bg-background print:bg-white overflow-hidden">
         <div className="print:hidden">
-          <DealHeader title={deal?.title} />
+          <DealHeader
+            title={deal?.title}
+            breadcrumbItems={[
+              { label: "Dashboard", href: "/dashboard" },
+              { label: isCreator ? "Agreements" : "Inbox", href: isCreator ? "/dashboard/agreements" : "/dashboard/inbox" },
+              { label: "View" }
+            ]}
+            mobileBreadcrumbItems={[
+              { label: "Home", href: "/dashboard" },
+              { label: "View" }
+            ]}
+          />
         </div>
 
         <main className={cn(

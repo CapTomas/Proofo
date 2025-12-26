@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarAutoCollapse } from "@/hooks/useSidebarAutoCollapse";
+import { NavBreadcrumbs } from "./nav-breadcrumbs";
 
 // Magnetic Wrapper for header buttons
 const HeaderMagneticWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -63,6 +64,8 @@ interface DealHeaderProps {
   showBack?: boolean;
   hideLogo?: boolean;
   homeHref?: string;
+  breadcrumbItems?: { label: string; href?: string }[];
+  mobileBreadcrumbItems?: { label: string; href?: string }[];
 }
 
 export function DealHeader({
@@ -71,6 +74,8 @@ export function DealHeader({
   showBack = true,
   hideLogo = false,
   homeHref = "/dashboard",
+  breadcrumbItems,
+  mobileBreadcrumbItems,
 }: DealHeaderProps) {
   const { user, isSidebarCollapsed } = useAppStore();
 
@@ -92,15 +97,10 @@ export function DealHeader({
             />
           </div>
 
-          {/* Breadcrumb-style Slash & Title */}
-          {title && (
-            <div className="flex items-center px-4 sm:px-6 overflow-hidden">
-              <span className="text-muted-foreground/40 mx-2 font-light text-lg shrink-0">/</span>
-              <h2 className="text-sm font-semibold text-foreground truncate animate-in fade-in slide-in-from-left-2 duration-500">
-                {title}
-              </h2>
-            </div>
-          )}
+          {/* Responsive Breadcrumbs */}
+          <div className="flex items-center px-4 sm:px-6 overflow-hidden">
+            <NavBreadcrumbs customItems={breadcrumbItems} mobileItems={mobileBreadcrumbItems} />
+          </div>
         </div>
 
         {/* Right Actions */}

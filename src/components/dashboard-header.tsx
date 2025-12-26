@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { NavBreadcrumbs, BreadcrumbItem } from "@/components/nav-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Search, Plus, Menu, Bell, Command } from "lucide-react";
@@ -16,32 +17,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
   const pathname = usePathname();
 
-  // Generate breadcrumbs
   const segments = pathname.split("/").filter(Boolean);
-
-  // Logic to build breadcrumb items
-  // We always start with an implicit "Dashboard" if we are in the dashboard layout
-  // If the path is just /dashboard, segments is ['dashboard']
-  const breadcrumbItems = segments.map((segment, index) => {
-    const href = `/${segments.slice(0, index + 1).join("/")}`;
-    // Capitalize: "dashboard" -> "Dashboard", "new-deal" -> "New Deal"
-    const label = segment
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-
-    return {
-      href,
-      label,
-      isLast: index === segments.length - 1,
-      isRoot: segment === "dashboard" && index === 0,
-    };
-  });
-
-  // Check if we are on the root dashboard page to hide the second "Dashboard" if redundant
-  // Actually, standard pattern is / Dashboard / Page.
-  // If we are at /dashboard, it should just be / Dashboard.
-
   const showNewDeal = !pathname.startsWith("/deal/new");
 
   return (
@@ -59,30 +35,7 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
             <span className="sr-only">Menu</span>
           </Button>
 
-          {/* Breadcrumbs - The requested "/ Dashboard / Page" style */}
-          <nav className="flex items-center text-sm min-w-0 overflow-hidden select-none whitespace-nowrap">
-            {/* Root Slash */}
-            <span className="text-muted-foreground/40 mr-2 font-light text-lg">/</span>
-
-            {/* Breadcrumb Items */}
-            {breadcrumbItems.map((item, index) => (
-              <div key={item.href} className="flex items-center">
-                {index > 0 && <span className="text-muted-foreground/40 mx-2 font-light">/</span>}
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "transition-colors hover:text-foreground truncate",
-                    item.isLast
-                      ? "text-foreground font-semibold cursor-default"
-                      : "text-muted-foreground"
-                  )}
-                  aria-current={item.isLast ? "page" : undefined}
-                >
-                  {item.label}
-                </Link>
-              </div>
-            ))}
-          </nav>
+          <NavBreadcrumbs />
         </div>
 
         {/* Right: Actions & Tools */}

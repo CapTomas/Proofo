@@ -5,11 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { AnimatedLogo } from "@/components/animated-logo";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Check,
   Copy,
@@ -28,7 +29,21 @@ import {
   FileCheck,
   AlertCircle,
   ChevronLeft,
-  Users
+  Users,
+  User,
+  Inbox,
+  Clock,
+  Sparkles,
+  Key,
+  CheckCircle2,
+  Send,
+  FileText,
+  LayoutTemplate,
+  Shield,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
@@ -38,10 +53,12 @@ import { useAppStore, createNewDeal } from "@/store";
 import { createDealAction, getDealByIdAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { LoginModal } from "@/components/login-modal";
-import { cn } from "@/lib/utils";
+import { cn, getUserInitials } from "@/lib/utils";
 import { DealHeader } from "@/components/deal-header";
 import { SidebarLogo } from "@/components/sidebar-logo";
 import { SidebarNavItem } from "@/components/sidebar-nav-item";
+import { CopyableId } from "@/components/dashboard/shared-components";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import {
   Tooltip,
   TooltipContent,
@@ -50,15 +67,20 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
-import {
-  LayoutTemplate,
-  FileText,
-  Shield,
-  Send,
-  PanelLeft,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
+import { SealedDealView } from "@/components/sealed-deal-view";
+import { formatDateTime } from "@/lib/crypto";
+
+
+// --- CONFIGURATION ---
+
+const templateMetadata: Record<string, { category: string }> = {
+  "lend-item": { category: "Personal" },
+  "simple-agreement": { category: "General" },
+  "payment-promise": { category: "Financial" },
+  "service-exchange": { category: "Services" },
+  custom: { category: "General" },
+};
 
 // Enhanced Spring Physics for "Snappy" feel
 const springTransition = {
@@ -169,10 +191,13 @@ function NewDealContent() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [expandedTemplates, setExpandedTemplates] = useState<Record<string, boolean>>({});
   const [pendingDealCreation, setPendingDealCreation] = useState(false);
   const [shake, setShake] = useState(false);
   const [reviewId] = useState(() => Date.now().toString(36).toUpperCase());
   const [restored, setRestored] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const { copyToClipboard } = useCopyToClipboard();
 
   const dealCreationInProgressRef = useRef(false);
   const topRef = useRef<HTMLDivElement>(null);
@@ -307,6 +332,37 @@ function NewDealContent() {
 
   const dealLink = shareUrl || (createdDeal ? typeof window !== "undefined" ? `${window.location.origin}/d/public/${createdDeal.publicId}` : `https://proofo.app/d/public/${createdDeal.publicId}` : "");
 
+  const handleDownloadPDF = async () => {
+    if (!createdDeal) return;
+    setIsGeneratingPDF(true);
+    try {
+      const verificationUrl = typeof window !== "undefined"
+        ? `${window.location.origin}/verify?id=${createdDeal.publicId}`
+        : `https://proofo.app/verify?id=${createdDeal.publicId}`;
+
+      const { pdfBlob } = await generateDealPDF({
+        deal: createdDeal,
+        isPro: user?.isPro || false,
+        verificationUrl,
+      });
+
+      const filename = generatePDFFilename(createdDeal);
+      downloadPDF(pdfBlob, filename);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const copyToClipboardHandler = useCallback(() => {
+    copyToClipboard(dealLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success("Link copied!");
+  }, [copyToClipboard, dealLink]);
+
   const handleCreateDeal = useCallback(async () => {
     if (!selectedTemplate) return;
     setIsCreating(true);
@@ -370,6 +426,15 @@ function NewDealContent() {
     }
     setIsCreating(false);
     setCurrentStep("share");
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#22c55e", "#10b981", "#34d399", "#A7F3D0"],
+      gravity: 1.2,
+      drift: 0,
+      ticks: 300
+    });
   }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog]);
 
   const handleNext = useCallback(() => {
@@ -471,16 +536,7 @@ function NewDealContent() {
     setFormData((prev) => ({ ...prev, [fieldId]: finalValue }));
   };
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(dealLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      try { toast.success("Link copied!"); } catch {}
-    } catch {
-       // fallback
-    }
-  };
+
 
   const handleShare = async () => {
     if (navigator.share && createdDeal && user) {
@@ -491,10 +547,10 @@ function NewDealContent() {
           url: dealLink,
         });
       } catch {
-        copyToClipboard();
+        copyToClipboardHandler();
       }
     } else {
-      copyToClipboard();
+      copyToClipboardHandler();
     }
   };
 
@@ -692,12 +748,12 @@ function NewDealContent() {
         <div className="flex flex-col flex-1 min-w-0 h-full relative">
           <DealHeader title="New Agreement" hideLogo />
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
+          <main className="flex-1 overflow-y-auto p-3 sm:p-8 pb-16 lg:pb-8 w-full scroll-smooth">
             <div className="max-w-7xl mx-auto w-full">
             <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start justify-center">
               <div className="flex-1 w-full min-w-0">
                 {/* Mobile Header (Progress simplified) */}
-                <div className="lg:hidden mb-8 flex items-center justify-between">
+                <div className="lg:hidden mb-6 flex items-center justify-between">
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">New Agreement</h1>
                     <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
@@ -716,9 +772,9 @@ function NewDealContent() {
                       key="template"
                       variants={containerVariants}
                       initial="hidden" animate="show" exit="exit"
-                      className="space-y-4"
+                      className="space-y-4 sm:space-y-6"
                     >
-                      <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
                         {dealTemplates.map((template, idx) => {
                           const Icon = iconMap[template.icon] || FileCheck;
                           return (
@@ -726,27 +782,80 @@ function NewDealContent() {
                               key={template.id}
                               variants={slideUp}
                               custom={idx}
-                              whileHover={{ y: -4, transition: springTransition }}
-                              whileTap={{ scale: 0.98 }}
+                              layout
+                              className="h-full"
                             >
                               <div
-                                className="group relative cursor-pointer overflow-hidden rounded-xl bg-card border border-border hover:border-foreground/20 shadow-sm hover:shadow-md transition-all duration-300 h-full p-5 flex flex-col items-start gap-4 select-none focus-visible:ring-2 focus-visible:ring-primary outline-none"
+                                className="group h-full flex flex-col overflow-hidden bg-card border hover:border-primary/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
                                 onClick={() => handleTemplateSelect(template)}
                                 tabIndex={0}
                                 role="button"
                                 aria-label={`Select ${template.name} template`}
                                 onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
                               >
-                                <div className="absolute inset-0 bg-secondary/0 group-hover:bg-muted/40 transition-colors duration-300" />
-                                <div className="h-10 w-10 rounded-lg bg-secondary/50 flex items-center justify-center shrink-0 group-hover:bg-foreground group-hover:text-background transition-colors duration-300">
-                                  <Icon className="h-5 w-5" />
-                                </div>
-                                <div className="space-y-1.5 relative z-10">
-                                  <h3 className="font-bold text-base tracking-tight">{template.name}</h3>
-                                  <p className="text-sm text-muted-foreground leading-relaxed">{template.description}</p>
-                                </div>
-                                <div className="mt-auto pt-3 flex items-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                                  Use Template <ArrowRight className="h-3 w-3 ml-1" />
+                                <div className="flex flex-col h-full">
+                                  <div className="flex-1 p-4 pb-0 flex flex-col">
+                                    {/* Header */}
+                                    <div className="flex justify-between items-start mb-4">
+                                      <div
+                                        className={cn(
+                                          "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
+                                          "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
+                                        )}
+                                      >
+                                        <Icon className="h-5 w-5" />
+                                      </div>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
+                                      >
+                                        {templateMetadata[template.id]?.category || "General"}
+                                      </Badge>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="mb-4 min-h-[4rem]">
+                                      <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                                        {template.name}
+                                      </h3>
+                                      <p className="text-sm text-muted-foreground line-clamp-2">
+                                        {template.description}
+                                      </p>
+                                    </div>
+
+                                    {/* Field Tags */}
+                                    <div className="flex flex-wrap gap-1.5 mb-4 content-start flex-1 items-start">
+                                      {(expandedTemplates[template.id] ? template.fields : template.fields.slice(0, 3)).map((field) => (
+                                        <Badge
+                                          key={field.id}
+                                          variant="secondary"
+                                          className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
+                                        >
+                                          {field.label}
+                                        </Badge>
+                                      ))}
+                                      {!expandedTemplates[template.id] && template.fields.length > 3 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed h-6 flex items-center cursor-pointer hover:bg-secondary hover:text-foreground transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedTemplates(prev => ({ ...prev, [template.id]: true }));
+                                          }}
+                                        >
+                                          +{template.fields.length - 3}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Footer Action Bar */}
+                                  <div className="mt-auto px-4 py-3 flex items-center justify-between">
+                                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                                      Use Template
+                                    </span>
+                                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                                  </div>
                                 </div>
                               </div>
                             </motion.div>
@@ -762,94 +871,133 @@ function NewDealContent() {
                       key="details"
                       variants={containerVariants}
                       initial="hidden" animate="show" exit="exit"
-                      className="space-y-5"
+                      className="space-y-6"
                     >
-                      <Card className="border border-border shadow-sm bg-card overflow-hidden rounded-xl">
-                        <div className="h-1 w-full bg-muted">
-                          <div className="h-full bg-foreground w-1/2 transition-all duration-500 ease-in-out" />
-                        </div>
-                        <div className="p-5 md:p-6 space-y-6">
-                          <section className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                            <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                              <Users className="h-4 w-4" /> Parties Involved
+                      {/* Parties Card */}
+                      <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                        <div className="p-5 md:p-6">
+                          <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                            <Users className="h-4 w-4" /> Parties Involved
+                          </div>
+
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            {/* Creator / Issuer (Static in this step) */}
+                            <div className="p-4 rounded-xl bg-secondary/30 border border-border/50 flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-medium text-sm shadow-sm">
+                                {getUserInitials(user?.name || "G U")}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm truncate">{user?.name || "Guest User"}</span>
+                                  <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold uppercase tracking-tight bg-primary/10 text-primary border-primary/20">
+                                    Creator
+                                  </Badge>
+                                </div>
+                                <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Send className="h-2.5 w-2.5" />
+                                  Issuer
+                                </div>
+                              </div>
                             </div>
-                            <div className="grid gap-5">
-                              <div className="grid gap-2">
-                                <Label htmlFor="recipientName" className="text-sm font-medium">Recipient Name <span className="text-destructive">*</span></Label>
-                                <div className="relative">
+
+                            {/* Recipient (Input) */}
+                            <div className="p-4 rounded-xl bg-background border border-primary/20 shadow-sm flex flex-col gap-3">
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-xs">
+                                  {getUserInitials(recipientName) || <User className="h-4 w-4" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm truncate">{recipientName || "Recipient"}</span>
+                                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold uppercase tracking-tight">
+                                      Recipient
+                                    </Badge>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <Inbox className="h-2.5 w-2.5" />
+                                    Signer
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2.5 pt-0.5">
+                                <div className="grid gap-1.5">
+                                  <Label htmlFor="recipientName" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">Name</Label>
                                   <Input
                                     id="recipientName"
                                     ref={firstInputRef}
-                                    placeholder="e.g. Acme Corp, John Doe"
+                                    placeholder="e.g. John Doe"
                                     value={recipientName}
                                     onChange={(e) => setRecipientName(e.target.value)}
-                                    className={cn("h-10 rounded-lg bg-background border-border focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all shadow-sm", shake && "border-destructive animate-pulse")}
+                                    className={cn("h-9 text-sm rounded-lg bg-muted/30 border-border focus:ring-1 transition-all", shake && "border-destructive animate-pulse")}
                                   />
-                                  <AnimatePresence>
-                                    {recipientName.length > 2 && (
-                                      <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
-                                        <Check className="h-4 w-4" />
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
                                 </div>
-                              </div>
-                              <div className="grid gap-2">
-                                <Label htmlFor="recipientEmail" className="text-sm font-medium">
-                                  Recipient Email <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
-                                </Label>
-                                <div className="relative group">
-                                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-foreground transition-colors" />
+                                <div className="grid gap-1.5">
+                                  <Label htmlFor="recipientEmail" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">Email (Optional)</Label>
                                   <Input
                                     id="recipientEmail"
                                     type="email"
                                     placeholder="email@example.com"
                                     value={recipientEmail}
                                     onChange={(e) => setRecipientEmail(e.target.value)}
-                                    className="h-10 pl-11 rounded-lg bg-background border-border focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all shadow-sm"
+                                    className="h-9 text-sm rounded-lg bg-muted/30 border-border focus:ring-1 transition-all"
                                   />
-                                  <AnimatePresence>
-                                    {isValidEmail(recipientEmail) && (
-                                      <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
-                                        <Check className="h-4 w-4" />
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
                                 </div>
                               </div>
                             </div>
-                          </section>
-                          <Separator />
-                          <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-                            <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                              <FileCheck className="h-4 w-4" /> Agreement Terms
-                            </div>
-                            <div className="grid gap-5">
-                              {selectedTemplate.fields.map((field) => (
-                                <div key={field.id} className="grid gap-2">
-                                  <Label htmlFor={field.id} className="text-sm font-medium">
-                                    {field.label} {field.required && <span className="text-destructive">*</span>}
-                                  </Label>
-                                  {renderField(field)}
-                                </div>
-                              ))}
-                            </div>
-                          </section>
-                          <div className="flex justify-between items-center pt-4">
-                            <Button variant="ghost" onClick={handleBack} className="hover:bg-muted">
-                              <ChevronLeft className="mr-2 h-4 w-4" /> Back
-                            </Button>
-                            <motion.div variants={shakeVariant} animate={shake ? "shake" : ""}>
-                              <Button
-                                onClick={handleNext}
-                                className="shadow-sm bg-foreground hover:bg-foreground/90 text-background px-8 h-10 rounded-lg font-medium transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
-                              >
-                                Review & Create <ArrowRight className="ml-2 h-4 w-4" />
-                              </Button>
-                            </motion.div>
                           </div>
                         </div>
                       </Card>
+
+                      {/* Terms Card */}
+                      <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                        <div className="p-5 md:p-6">
+                          <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                            <FileText className="h-4 w-4" /> Agreement Terms
+                          </div>
+
+                          <div className="space-y-1.5 sm:space-y-2">
+                            {selectedTemplate.fields.map((field) => (
+                              <div key={field.id} className="group relative">
+                                <div className="grid sm:grid-cols-2 gap-4 p-3 rounded-xl bg-secondary/20 transition-colors hover:bg-secondary/40 items-center">
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-1 h-5 w-5 rounded bg-background border border-border/50 flex items-center justify-center shrink-0">
+                                      {formData[field.id] && (
+                                        <motion.div
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          className="h-1.5 w-1.5 rounded-full bg-primary"
+                                        />
+                                      )}
+                                    </div>
+                                    <Label htmlFor={field.id} className="text-sm font-medium pt-1 cursor-pointer">
+                                      {field.label} {field.required && <span className="text-destructive">*</span>}
+                                    </Label>
+                                  </div>
+                                  <div className="w-full">
+                                    {renderField(field)}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* Action Buttons (Outside) */}
+                      <div className="flex justify-between items-center pt-2">
+                        <Button variant="ghost" onClick={handleBack} className="hover:bg-muted">
+                          <ChevronLeft className="mr-2 h-4 w-4" /> Back
+                        </Button>
+                        <motion.div variants={shakeVariant} animate={shake ? "shake" : ""}>
+                          <Button
+                            onClick={handleNext}
+                            className="shadow-sm bg-foreground hover:bg-foreground/90 text-background px-8 h-10 rounded-lg font-medium transition-all hover:translate-y-[-1px] active:translate-y-[1px]"
+                          >
+                            Review & Create <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        </motion.div>
+                      </div>
                     </motion.div>
                   )}
 
@@ -859,60 +1007,161 @@ function NewDealContent() {
                       key="review"
                       variants={containerVariants}
                       initial="hidden" animate="show" exit="exit"
-                      className="space-y-5"
+                      className="space-y-6"
                     >
-                      <div className="relative rounded-xl overflow-hidden bg-card border border-border shadow-sm duration-500 hover:shadow-md transition-shadow group mx-auto max-w-2xl">
-                        <div className="h-1.5 w-full bg-foreground" />
-                        <div className="p-6 space-y-6">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Draft Agreement</div>
-                              <div className="text-3xl font-bold tracking-tighter text-foreground">{selectedTemplate?.name}</div>
-                              <div className="text-sm text-muted-foreground tabular-nums">Version 1.0 • {new Date().toLocaleDateString()}</div>
-                            </div>
-                            <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center border border-border">
+                      {/* Page Header (Matching Unified Style) */}
+                      <div className="mb-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                          <div className="flex items-start gap-4">
+                            <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border shadow-sm bg-secondary/30 border-border/50">
                               <ShieldCheck className="h-6 w-6 text-foreground" />
                             </div>
-                          </div>
-                          <Separator className="border-dashed" />
-                          <div className="grid grid-cols-2 gap-8">
-                            <div className="space-y-1.5">
-                              <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Issuer</div>
-                              <div className="font-semibold text-foreground text-lg">{user?.name || "Guest User"}</div>
-                              <div className="text-sm text-muted-foreground font-mono">{user?.email || "No account"}</div>
-                            </div>
-                            <div className="space-y-1.5 text-right">
-                              <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Recipient</div>
-                              <div className="font-semibold text-foreground text-lg">{recipientName}</div>
-                              <div className="text-sm text-muted-foreground font-mono">{recipientEmail || "Direct Link"}</div>
-                            </div>
-                          </div>
-                          <div className="bg-muted/50 rounded-lg p-5 space-y-3 border border-border/50">
-                            {selectedTemplate?.fields.map(field => (
-                              <div key={field.id} className="flex justify-between text-sm items-baseline">
-                                <span className="text-muted-foreground font-medium">{field.label}</span>
-                                <span className="font-bold text-foreground font-mono tabular-nums">
-                                  {field.type === "currency" && "$"}{formData[field.id]}
+                            <div>
+                              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Draft Agreement</div>
+                              <h1 className="text-xl sm:text-3xl font-bold tracking-tight mb-1">{selectedTemplate?.name}</h1>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="gap-1.5 bg-muted/50 border-border/50 text-muted-foreground">
+                                  Version 1.0
+                                </Badge>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                  <Clock className="h-3 w-3" />
+                                  {new Date().toLocaleDateString()}
                                 </span>
                               </div>
-                            ))}
+                            </div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Parties Card */}
+                      <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden mt-4 sm:mt-6">
+                        <CardContent className="p-5 md:p-6">
+                          <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                            <Users className="h-4 w-4" /> Parties
+                          </div>
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            {/* Issuer */}
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                              className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
+                            >
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-medium text-sm shadow-sm">
+                                {getUserInitials(user?.name || "G U")}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm truncate">{user?.name || "Guest User"}</p>
+                                  <Badge variant="secondary" className="text-[10px] h-4 shrink-0 bg-primary/10 text-primary border-primary/20">Issuer</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Send className="h-3 w-3" />
+                                  Creator
+                                </p>
+                              </div>
+                            </motion.div>
+
+                            {/* Recipient */}
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                              className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 border border-border/50 cursor-default"
+                            >
+                              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium text-sm shadow-sm">
+                                {getUserInitials(recipientName) || <User className="h-4 w-4" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm truncate">{recipientName || "Recipient"}</p>
+                                  <Badge variant="outline" className="text-[10px] h-4 shrink-0">Recipient</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Inbox className="h-3 w-3" />
+                                  Signer
+                                </p>
+                              </div>
+                            </motion.div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Terms Card */}
+                      <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                        <CardContent className="p-5 md:p-6">
+                           <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+                              <FileText className="h-4 w-4" />
+                              Terms
+                            </div>
+                            <Badge variant="secondary" className="text-[10px]">
+                              {selectedTemplate?.fields.length} {selectedTemplate?.fields.length === 1 ? "term" : "terms"}
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-2">
+                            {selectedTemplate?.fields.map((field, index) => {
+                              const value = formData[field.id];
+                              const isFilled = !!value;
+
+                              return (
+                                <motion.div
+                                  key={field.id}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  whileHover={isFilled ? { scale: 1.01 } : {}}
+                                  className={cn(
+                                    "flex items-center justify-between py-3 px-4 rounded-lg transition-all",
+                                    isFilled
+                                      ? "bg-secondary/20 hover:bg-secondary/40 cursor-pointer group/term"
+                                      : "bg-secondary/5 opacity-40 cursor-default"
+                                  )}
+                                  onClick={() => {
+                                    if (!isFilled) return;
+                                    const displayVal = field.type === "currency" ? `$${value}` : value;
+                                    navigator.clipboard.writeText(`${field.label}: ${displayVal}`);
+                                    toast.success(`Copied: ${field.label}`);
+                                  }}
+                                >
+                                  <span className={cn(
+                                    "text-sm font-medium transition-all",
+                                    isFilled ? "text-muted-foreground" : "text-muted-foreground/50 line-through decoration-muted-foreground/30"
+                                  )}>
+                                    {field.label}
+                                  </span>
+                                  <span className="font-medium text-sm text-foreground flex items-center gap-2">
+                                    {isFilled ? (
+                                      <>
+                                        {field.type === "currency" && "$"}{value}
+                                        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/term:opacity-100 transition-opacity" />
+                                      </>
+                                    ) : (
+                                      <span className="text-[10px] uppercase tracking-wider opacity-30 font-bold italic">Omitted</span>
+                                    )}
+                                  </span>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+
                           {createError && (
-                            <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-4 rounded-lg flex items-center gap-3">
+                            <div className="mt-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm p-4 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
                               <AlertCircle className="h-5 w-5 shrink-0" />
                               <span className="font-medium">{createError}</span>
                             </div>
                           )}
-                        </div>
+                        </CardContent>
                         <div className="bg-muted/30 p-4 border-t border-border flex justify-between items-center backdrop-blur-sm">
-                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
-                            <Globe className="h-3.5 w-3.5" />
-                            <span>Secured by Proofo Network</span>
-                          </div>
-                          <div className="text-[10px] font-mono opacity-50">ID: {reviewId}</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2 max-w-2xl mx-auto">
+                           <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                             <Globe className="h-3.5 w-3.5" />
+                             <span>Proofo Managed Agreement</span>
+                           </div>
+                           <div className="text-[10px] font-mono opacity-50 uppercase tracking-wider">Draft: {reviewId}</div>
+                         </div>
+                      </Card>
+
+                      {/* Action Buttons (Outside) */}
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2 mx-auto">
                         <Button variant="outline" className="flex-1 h-11 rounded-lg border-border hover:bg-muted" onClick={handleBack} disabled={isCreating}>
                           Edit Details
                         </Button>
@@ -934,92 +1183,150 @@ function NewDealContent() {
                   )}
 
                   {/* STEP 4: SHARE */}
-                  {currentStep === "share" && (
+                  {currentStep === "share" && createdDeal && (
                     <motion.div
                       key="share"
                       variants={containerVariants}
-                      initial="hidden" animate="show"
-                      className="space-y-6 max-w-xl mx-auto text-center"
+                      initial="hidden" animate="show" exit="exit"
+                      className="max-w-4xl mx-auto space-y-8 py-4 flex-1 w-full"
                     >
-                      <div className="space-y-4">
-                        <motion.div
-                          initial={{ scale: 0, rotate: -180 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          transition={springTransition}
-                          className="h-20 w-20 bg-foreground rounded-full flex items-center justify-center shadow-lg relative z-10 text-background mx-auto"
-                        >
-                          <Check className="h-10 w-10" />
-                        </motion.div>
-                        <motion.h2
-                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                          className="text-2xl font-bold tracking-tight"
-                        >
-                          Agreement Ready!
-                        </motion.h2>
-                        <motion.p
-                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-                          className="text-muted-foreground max-w-xs mx-auto text-sm"
-                        >
-                          Your secure deal has been created and is ready to share.
-                        </motion.p>
+                      {/* Functional Success Header */}
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 border-b border-border pb-8">
+                        <div className="flex items-start gap-5">
+                          <motion.div
+                            initial={{ scale: 0.5, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                            className="h-14 w-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-sm shrink-0"
+                          >
+                            <ShieldCheck className="h-8 w-8 text-emerald-600" />
+                          </motion.div>
+                          <div className="space-y-1.5">
+                            <h1 className="text-3xl font-bold tracking-tight text-foreground">Agreement Ready!</h1>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary" className="gap-1.5 h-6 px-3 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium rounded-full">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Sealed & Verified
+                              </Badge>
+                              <CopyableId id={createdDeal.publicId} className="bg-muted/50 border-border/50 h-6" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Top Actions */}
+                        <div className="flex items-center gap-3 shrink-0">
+                          <Button
+                            variant="outline"
+                            className="h-11 px-5 gap-2 border-border hover:bg-secondary/50 rounded-xl transition-all"
+                            onClick={handleDownloadPDF}
+                            disabled={isGeneratingPDF}
+                          >
+                            {isGeneratingPDF ? <Sparkles className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            <span>Download PDF</span>
+                          </Button>
+                          <Link href={`/verify?id=${createdDeal.publicId}`} target="_blank">
+                            <Button variant="outline" className="h-11 px-5 gap-2 border-border hover:bg-secondary/50 rounded-xl transition-all">
+                              <Shield className="h-4 w-4" />
+                              <span>Verify</span>
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
 
-                      <Card className="overflow-hidden border border-border shadow-md rounded-2xl bg-card">
-                        <CardContent className="p-0">
-                          <div className="p-6 flex flex-col items-center bg-card border-b border-border text-foreground">
-                            <div className="p-2 rounded-xl bg-transparent">
-                              <QRCodeSVG
-                                value={dealLink}
-                                size={160}
-                                marginSize={2}
-                                bgColor="transparent"
-                                fgColor="currentColor"
-                              />
-                            </div>
-                            <div className="mt-4 flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-widest bg-muted px-3 py-1 rounded-full border border-border">
-                              <Zap className="h-3 w-3" /> Scan to Sign
-                            </div>
-                          </div>
-                          <div className="p-5 space-y-4 bg-background">
-                            <div className="space-y-2 text-left">
-                              <Label className="text-xs font-bold text-muted-foreground uppercase">Share Link</Label>
-                              <div className="flex gap-2">
-                                <Input
-                                  value={dealLink}
-                                  readOnly
-                                  className="font-mono text-xs h-10 bg-muted/50 border-border focus-visible:ring-1 focus-visible:ring-foreground"
-                                  onClick={(e) => e.currentTarget.select()}
-                                />
-                                <Button size="icon" onClick={copyToClipboard} className={cn("shrink-0 h-10 w-10 transition-all", copied && "bg-foreground text-background")}>
-                                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {/* Main Success Content Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        {/* QR Code & Digital Pass Card */}
+                        <Card className="overflow-hidden border border-border shadow-sm rounded-2xl bg-card">
+                          <CardContent className="p-0">
+                             <div className="p-6 flex flex-col items-center bg-gradient-to-b from-card to-background">
+                               <div className="p-4 rounded-2xl bg-white shadow-xl shadow-black/5 mb-4 border border-border/50">
+                                 <QRCodeSVG value={dealLink} size={160} marginSize={2} bgColor="transparent" fgColor="#000" />
+                               </div>
+                               <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-4 py-1.5 rounded-full border border-border/50 bg-background/50">
+                                 <Zap className="h-3 w-3 text-amber-500" /> Digital Sign Pass
+                               </div>
+                             </div>
+                             <div className="p-4 bg-muted/30 border-t border-border/50 flex flex-col gap-0.5 items-center text-center">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Public Access Point</p>
+                                <p className="text-[11px] font-mono text-foreground truncate w-full opacity-80">{dealLink}</p>
+                             </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Share & Dashboard Card */}
+                        <div className="space-y-4">
+                          <Card className="border border-emerald-500/30 shadow-sm bg-emerald-500/5 rounded-2xl overflow-hidden">
+                            <CardContent className="p-5 space-y-4">
+                              <div className="flex items-start gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                  <Sparkles className="h-5 w-5 text-emerald-600" />
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-sm text-foreground">Created successfully</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatDateTime(new Date().toISOString())} • Logged to Audit Trail
+                                  </p>
+                                </div>
+                              </div>
+                              <Separator className="bg-emerald-500/10" />
+                              <div className="relative group">
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full h-11 justify-between px-4 bg-background border-border/50 rounded-xl transition-all hover:border-primary/30",
+                                    copied && "border-emerald-500/50 bg-emerald-50/50"
+                                  )}
+                                  onClick={copyToClipboardHandler}
+                                >
+                                  <div className="flex items-center gap-3 truncate">
+                                    <Globe className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-xs font-mono text-muted-foreground truncate">{dealLink}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">{copied ? "Copied" : "Copy"}</span>
+                                  </div>
                                 </Button>
                               </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                              <Button variant="outline" className="h-11 gap-2 hover:bg-muted" onClick={handleShare}>
-                                <Share2 className="h-4 w-4" /> Share
-                              </Button>
-                              <Link href="/dashboard" className="w-full">
-                                <Button className="h-11 w-full gap-2 shadow-sm bg-foreground hover:bg-foreground/90 text-background">
-                                  Dashboard <ArrowRight className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                            </CardContent>
+                          </Card>
 
-                      <div className="pt-2">
-                        <Button variant="link" onClick={() => {
-                          setCurrentStep("template");
-                          setSelectedTemplate(null);
-                          setRecipientName("");
-                          setFormData({});
-                          setCreatedDeal(null);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }} className="text-muted-foreground hover:text-foreground">
-                          + Create Another Agreement
-                        </Button>
+                          <div className="grid grid-cols-2 gap-3">
+                            <Button
+                              variant="outline"
+                              className="h-12 gap-2 border-border hover:bg-secondary/50 rounded-xl font-medium transition-all"
+                              onClick={handleShare}
+                            >
+                              <Share2 className="h-4 w-4" /> Share
+                            </Button>
+                            <Link href="/dashboard" className="w-full">
+                              <Button className="h-12 w-full gap-2 rounded-xl bg-foreground text-background hover:bg-foreground/90 font-medium transition-all">
+                                Go to Dashboard <ArrowRight className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Seal Preview Section */}
+                      <div className="pt-8 space-y-6">
+                        <div className="flex items-center gap-3">
+                          <Separator className="flex-1" />
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">Sealed Agreement Preview</span>
+                          <Separator className="flex-1" />
+                        </div>
+
+                        <div className="opacity-90 grayscale-[0.2] pointer-events-none scale-[0.98] origin-top">
+                          <SealedDealView
+                            deal={createdDeal}
+                            creatorProfile={{ name: user?.name || "You" }}
+                            recipientProfile={{ name: recipientName }}
+                            isCreator={true}
+                            isRecipient={false}
+                            recipientStatusLabel="Pending Signature"
+                            showSignatureSeal={false}
+                          />
+                        </div>
                       </div>
                     </motion.div>
                   )}

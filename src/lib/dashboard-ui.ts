@@ -163,7 +163,7 @@ export const dashboardStyles = {
     "h-full border hover:border-primary/30 transition-all duration-300 hover:shadow-card overflow-hidden bg-card rounded-2xl cursor-pointer",
   cardContent: "p-4 flex flex-col h-full",
   cardFooter:
-    "mt-auto p-4 pt-3 flex items-center justify-between gap-2 bg-background dark:bg-background/50",
+    "mt-auto p-4 pt-3 flex items-center justify-between gap-2",
   cardFooterActions: "flex items-center gap-1",
   cardFooterActionButton:
     "h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors",
