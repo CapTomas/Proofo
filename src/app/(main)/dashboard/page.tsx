@@ -771,14 +771,16 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground/60 py-6">
-                    <div className="h-10 w-10 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
-                      <CalendarDays className="h-5 w-5 opacity-20" />
+                  <div className="h-full flex items-center justify-center gap-4 text-muted-foreground p-6">
+                    <div className="h-12 w-12 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
+                      <CalendarDays className="h-6 w-6 opacity-20" />
                     </div>
-                    <p className="text-xs font-medium text-foreground/80">No deadlines set</p>
-                    <p className="text-[10px] max-w-[180px] mt-0.5">
-                      Dates tracker will appear here when you add them to your agreements.
-                    </p>
+                    <div className="text-left">
+                      <p className="font-semibold text-foreground text-sm">No deadlines set</p>
+                      <p className="text-xs text-muted-foreground max-w-[300px] mt-0.5">
+                        Dates tracker will appear here when you add them to your agreements.
+                      </p>
+                    </div>
                   </div>
                 )}
               </CardContent>
