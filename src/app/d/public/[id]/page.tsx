@@ -371,6 +371,34 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
   const StatusIcon = config.icon;
 
+  // Determine breadcrumbs based on user state
+  const isCreator = user && deal?.creatorId === user.id;
+
+  const breadcrumbItems = useMemo(() => {
+    if (!user) {
+      return [
+        { label: "Proofo", href: "/" },
+        { label: "Review" }
+      ];
+    }
+
+    return [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: isCreator ? "Agreements" : "Inbox", href: isCreator ? "/dashboard/agreements" : "/dashboard/inbox" },
+      { label: "Review" }
+    ];
+  }, [user, isCreator]);
+
+  const mobileBreadcrumbItems = useMemo(() => {
+    if (!user) {
+      return [{ label: "Review" }];
+    }
+    return [
+      { label: isCreator ? "Agreements" : "Inbox", href: isCreator ? "/dashboard/agreements" : "/dashboard/inbox" },
+      { label: "Review" }
+    ];
+  }, [user, isCreator]);
+
   // Pre-fill email when user becomes available (e.g., logs in after page load)
   useEffect(() => {
     if (user?.email && !email) {
@@ -713,10 +741,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
 
 
+
+
   return (
     <div className="h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/30 overflow-hidden">
       {/* Header */}
-      <DealHeader title={displayDeal?.title} homeHref="/" />
+      <DealHeader
+        title={displayDeal?.title}
+        homeHref="/"
+        breadcrumbItems={breadcrumbItems}
+        mobileBreadcrumbItems={mobileBreadcrumbItems}
+      />
 
       <main className={cn(
         "flex-1 overflow-y-auto w-full transition-all duration-300 py-8 lg:py-12",
