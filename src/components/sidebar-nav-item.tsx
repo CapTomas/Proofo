@@ -52,7 +52,7 @@ export function SidebarNavItem({
     <Button
       variant={isActive || variant === "secondary" ? "secondary" : "ghost"}
       className={cn(
-        "w-full justify-start h-10 px-3 rounded-xl transition-all duration-200 group overflow-hidden",
+        "w-full justify-start h-10 px-3 rounded-xl transition-all duration-200 group overflow-hidden relative",
         isActive && "bg-primary/10 text-primary hover:bg-primary/15",
         className
       )}
@@ -91,12 +91,6 @@ export function SidebarNavItem({
           >
             <span className="text-sm font-medium truncate">{label}</span>
             {badge && <div className="ml-auto">{badge}</div>}
-            {showDot && isActive && (
-              <motion.div
-                layoutId="active-nav-dot"
-                className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
-              />
-            )}
           </motion.div>
         )}
       </AnimatePresence>

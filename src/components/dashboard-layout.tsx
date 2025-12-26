@@ -167,8 +167,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
-            {navItems.map((item) => {
+          <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative">
+            {navItems.map((item, idx) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -181,7 +181,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   href={item.href}
                   isActive={isActive}
                   isCollapsed={isSidebarCollapsed}
-                  showDot
+                  showDot={false}
                   hasNotification={
                     (item.label === "Inbox" && hasInboxNotifications) ||
                     (item.label === "Agreements" && hasAgreementsNotifications)
@@ -191,6 +191,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               );
             })}
 
+            {/* Active indicator dot - single element that travels between items */}
+            {!isSidebarCollapsed && (() => {
+              const activeIndex = navItems.findIndex((item) =>
+                pathname === item.href ||
+                (item.href !== "/dashboard" && pathname.startsWith(item.href))
+              );
+              if (activeIndex === -1) return null;
+              // Each nav item is h-10 (40px) + gap-1 (4px)
+              const itemHeight = 44;
+              const navPaddingTop = 24; // py-6 = 24px
+              const dotY = navPaddingTop + activeIndex * itemHeight + 20; // Center in the item (h-10/2 = 20px)
+              return (
+                <motion.div
+                  // right-6 = nav px-3 (12px) + button internal px-3 (12px) = 24px = right-6
+                  className="absolute right-6 w-1.5 h-1.5 rounded-full bg-primary pointer-events-none"
+                  initial={false}
+                  animate={{ top: dotY }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30,
+                  }}
+                  style={{ marginTop: -3 }} // Center the dot vertically (1.5/2 = ~3px)
+                />
+              );
+            })()}
           </nav>
 
           {/* Footer Actions */}
