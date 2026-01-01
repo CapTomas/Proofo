@@ -96,8 +96,10 @@ CREATE TABLE IF NOT EXISTS public.deals (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   confirmed_at TIMESTAMPTZ,
   voided_at TIMESTAMPTZ,
-  viewed_at TIMESTAMPTZ
+  viewed_at TIMESTAMPTZ,
+  last_nudged_at TIMESTAMPTZ
 );
+
 
 -- 5. Access tokens table (for secure recipient access)
 CREATE TABLE IF NOT EXISTS public.access_tokens (

@@ -1,4 +1,6 @@
 import { nanoid } from "nanoid";
+import { logger } from "./logger";
+
 
 /**
  * Generate a unique public ID for a deal.
@@ -122,8 +124,9 @@ export async function calculateDealSeal(data: {
       const crypto = await import("crypto");
       return crypto.createHash("sha256").update(payload).digest("hex");
     } catch {
-      console.warn("Crypto module not available for hashing");
-      return `hash-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+      // SECURITY: Don't fall back to weak hash - throw error instead
+      logger.error("Crypto module not available for hashing");
+      throw new Error("Cryptographic hashing not available. Cannot generate secure hash.");
     }
   }
 

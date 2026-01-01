@@ -53,9 +53,31 @@ export const doNotDisturbSchema = z.object({
   durationMinutes: z.number().min(0).max(1440).optional(), // max 24 hours
 });
 
+/**
+ * Validation schema for notification preferences
+ */
+export const notificationPreferencesSchema = z.object({
+  notifyDealViewed: z.boolean().optional(),
+  notifyDealSigned: z.boolean().optional(),
+  notifyDealExpiring: z.boolean().optional(),
+  notifyDealComments: z.boolean().optional(),
+  notifyMessages: z.boolean().optional(),
+  notifyMentions: z.boolean().optional(),
+  notifyDeadlines: z.boolean().optional(),
+  notifyFollowups: z.boolean().optional(),
+  notifySecurity: z.boolean().optional(),
+  notifyProductUpdates: z.boolean().optional(),
+  emailFrequency: z.enum(["instant", "daily", "weekly"]).optional(),
+  channelEmail: z.boolean().optional(),
+  channelPush: z.boolean().optional(),
+  channelMobile: z.boolean().optional(),
+});
+
 // Type exports
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type EmailInput = z.infer<typeof emailSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type AppearancePreferencesInput = z.infer<typeof appearancePreferencesSchema>;
 export type DoNotDisturbInput = z.infer<typeof doNotDisturbSchema>;
+export type NotificationPreferencesInput = z.infer<typeof notificationPreferencesSchema>;
+

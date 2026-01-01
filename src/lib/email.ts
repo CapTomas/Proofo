@@ -263,8 +263,9 @@ export async function sendDealReceiptEmail(params: {
     };
   }
 
-  // Validate email
-  if (!recipientEmail || !recipientEmail.includes("@")) {
+  // Validate email with proper regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
     return { success: false, error: "Invalid recipient email address" };
   }
 

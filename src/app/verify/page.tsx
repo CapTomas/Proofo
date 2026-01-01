@@ -425,13 +425,12 @@ function VerifyContent() {
 
               <h1 className="text-5xl sm:text-6xl font-bold tracking-tight mb-8 text-foreground leading-[1.1]">
                 Verify any <br />
-                <span className="text-muted-foreground">deal instantly.</span>
+                <span className="text-muted-foreground">Digital Handshake.</span>
               </h1>
 
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
                 Ensure the integrity of your agreements with our cryptographic verification tool.
-                Enter a Deal ID to audit the full history, view the agreed terms, and validate the
-                digital seal.
+                Enter a Deal ID to audit the full history or validate a seal instantly.
               </p>
             </motion.div>
 
@@ -444,16 +443,16 @@ function VerifyContent() {
             >
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm">
                 <div className="relative z-10">
-                  <h3 className="text-2xl font-bold mb-3">Ready to create real deals?</h3>
+                  <h3 className="text-2xl font-bold mb-3">Ready to proof it?</h3>
                   <p className="text-muted-foreground mb-8 text-base">
-                    Start creating enforceable agreements in seconds.
+                    Stop hoping they&apos;ll keep their word. Start proving they agreed.
                   </p>
                   <Link href="/dashboard">
                     <Button
                       size="xl"
                       className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
                     >
-                      Create Your First Proof
+                      Create a Deal
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>

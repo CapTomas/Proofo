@@ -141,12 +141,12 @@ export default function DemoPage() {
 
               <h1 className="text-5xl sm:text-6xl font-bold tracking-tight mb-8 text-foreground leading-[1.1]">
                 Experience the <br />
-                <span className="text-muted-foreground">recipient flow.</span>
+                <span className="text-muted-foreground">Digital Handshake.</span>
               </h1>
 
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                See exactly what your clients will see. <br />
-                Clean, professional, and friction-free.
+                See exactly what they will see. <br />
+                Fast, professional, and friction-free.
               </p>
             </motion.div>
 
@@ -159,16 +159,16 @@ export default function DemoPage() {
             >
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden">
                 <div className="relative z-10">
-                  <h3 className="text-2xl font-bold mb-3">Ready to create real deals?</h3>
+                  <h3 className="text-2xl font-bold mb-3">Ready to proof it?</h3>
                   <p className="text-muted-foreground mb-8 text-base">
-                    Start creating enforceable agreements in seconds.
+                    Stop hoping they&apos;ll keep their word. Start proving they agreed.
                   </p>
                   <Link href="/dashboard">
                     <Button
                       size="xl"
                       className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
                     >
-                      Create Your First Proof
+                      Create a Deal
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
@@ -381,7 +381,7 @@ export default function DemoPage() {
                             Deal Sealed
                           </h3>
                           <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80 mt-0.5">
-                            This document is now legally binding and cryptographically verified.
+                            Signed, sealed, and legally binding.
                           </p>
                         </div>
                       </div>
@@ -422,7 +422,7 @@ export default function DemoPage() {
                         <Link href="/dashboard" className="flex-1">
                           <Button className="w-full gap-2 shadow-md h-10 text-xs rounded-xl">
                             <Sparkles className="h-3.5 w-3.5" />
-                            Create Real Deal
+                            Create a Deal
                           </Button>
                         </Link>
                       </div>
@@ -437,16 +437,16 @@ export default function DemoPage() {
           <div className="lg:hidden pb-12">
             <div className="bg-secondary/30 rounded-3xl p-6 border border-border relative overflow-hidden">
               <div className="relative z-10 text-center">
-                <h3 className="text-xl font-bold mb-2">Ready to create real deals?</h3>
+                <h3 className="text-xl font-bold mb-2">Ready to proof it?</h3>
                 <p className="text-muted-foreground mb-4 text-sm">
-                  Start creating enforceable agreements in seconds.
+                  Stop hoping they&apos;ll keep their word. Start proving they agreed.
                 </p>
                 <Link href="/dashboard">
                   <Button
                     size="lg"
                     className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
                   >
-                    Create Your First Proof
+                    Create a Deal
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>

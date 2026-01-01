@@ -11,10 +11,16 @@ import {
   updateProfileSchema,
   appearancePreferencesSchema,
   doNotDisturbSchema,
+  notificationPreferencesSchema,
 } from "@/lib/validations/user";
+
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+
 // Helper to create Supabase server client
+// NOTE: This duplicates code from @/lib/supabase/server but is kept separate
+// to avoid type incompatibility with the Database type. Consolidation requires
+// updating all RPC calls to use proper type definitions.
 async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
@@ -31,7 +37,6 @@ async function createServerSupabaseClient() {
             cookieStore.set({ name, value, ...options });
           } catch {
             // Cookies can fail during static generation or in middleware
-            // This is expected behavior in Next.js and can be safely ignored
           }
         },
         remove(name: string, options) {
@@ -39,7 +44,6 @@ async function createServerSupabaseClient() {
             cookieStore.delete({ name, ...options });
           } catch {
             // Cookies can fail during static generation or in middleware
-            // This is expected behavior in Next.js and can be safely ignored
           }
         },
       },
@@ -113,6 +117,7 @@ function transformDeal(dbDeal: Record<string, unknown>): Deal {
 }
 
 // Lookup user profile by email (for registered recipient detection)
+// SECURITY: Requires authentication and rate limiting to prevent email enumeration
 export async function lookupUserByEmailAction(email: string): Promise<{
   found: boolean;
   profile?: { id: string; name: string; avatarUrl?: string };
@@ -127,24 +132,42 @@ export async function lookupUserByEmailAction(email: string): Promise<{
 
     const supabase = await createServerSupabaseClient();
 
-    // Query profiles table by email
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, name, avatar_url, email")
-      .eq("email", email.toLowerCase().trim())
-      .single();
+    // SECURITY: Require authentication for full profile lookup
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (error || !data) {
+    if (!user) {
+      // Anonymous users should use checkRecipientEmailForDealAction instead
+      return { found: false, error: null };
+    }
+
+    // SECURITY: Rate limit to prevent email enumeration
+    const rateLimitResult = await checkRateLimit("emailLookup", user.id);
+    if (!rateLimitResult.success) {
+      return { found: false, error: "Rate limit exceeded. Please try again later." };
+    }
+
+    // Use SECURITY DEFINER function to lookup profile (bypasses RLS for authenticated users)
+    // This allows authenticated users to find any user when creating deals
+    const { data, error } = await supabase.rpc("lookup_profile_by_email", {
+      p_email: email.toLowerCase().trim(),
+    });
+
+    if (error || !data || (Array.isArray(data) && data.length === 0)) {
       // Not found is not an error, just not registered
       return { found: false, error: null };
     }
 
+    // RPC returns array, take first result
+    const profile = Array.isArray(data) ? data[0] : data;
+
     return {
       found: true,
       profile: {
-        id: data.id,
-        name: data.name || email.split("@")[0],
-        avatarUrl: data.avatar_url || undefined,
+        id: profile.id,
+        name: profile.name || email.split("@")[0],
+        avatarUrl: profile.avatar_url || undefined,
       },
       error: null,
     };
@@ -153,6 +176,69 @@ export async function lookupUserByEmailAction(email: string): Promise<{
     return { found: false, error: "Server error" };
   }
 }
+
+// SECURITY: Deal-scoped email check for anonymous users on public signing page
+// Returns minimal boolean info only - no profile details exposed
+export async function checkRecipientEmailForDealAction(data: {
+  publicId: string;
+  email: string;
+}): Promise<{
+  isProofoUser: boolean;
+  isCreator: boolean;
+  userName?: string;
+  userAvatarUrl?: string;
+  error: string | null;
+}> {
+  try {
+    // Basic validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!data.email || !emailRegex.test(data.email) || !data.publicId) {
+      return { isProofoUser: false, isCreator: false, error: null };
+    }
+
+    const supabase = await createServerSupabaseClient();
+
+    // SECURITY: Rate limit by IP to prevent enumeration
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateLimitResult = await checkRateLimit("emailLookup", `ip:${ip}`);
+    if (!rateLimitResult.success) {
+      return { isProofoUser: false, isCreator: false, error: "Rate limit exceeded" };
+    }
+
+    // Use SECURITY DEFINER function that bypasses RLS for anonymous users
+    // This returns minimal info only (booleans + name/avatar if registered non-creator)
+    const { data: result, error } = await supabase.rpc("check_email_for_deal", {
+      p_public_id: data.publicId,
+      p_email: data.email.toLowerCase().trim(),
+    });
+
+    if (error) {
+      logger.error("Error checking email for deal", error);
+      return { isProofoUser: false, isCreator: false, error: "Server error" };
+    }
+
+    // RPC returns array with one row
+    const row = Array.isArray(result) && result.length > 0 ? result[0] : null;
+
+    if (!row) {
+      return { isProofoUser: false, isCreator: false, error: null };
+    }
+
+    return {
+      isProofoUser: row.is_proofo_user === true,
+      isCreator: row.is_creator === true,
+      userName: row.user_name || undefined,
+      userAvatarUrl: row.user_avatar_url || undefined,
+      error: null,
+    };
+  } catch (error) {
+    logger.error("Error checking recipient email for deal", error);
+    return { isProofoUser: false, isCreator: false, error: "Server error" };
+  }
+}
+
+
 
 // Create a new deal (server action)
 export async function createDealAction(data: {
@@ -334,8 +420,12 @@ export async function getDealByPublicIdAction(
         avatarUrl: profileData.avatar_url,
       };
     } else {
-      // Fall back to the RPC data
-      creatorProfile = { name: deal.creatorName || "Unknown" };
+      // Fall back to the RPC data (which now includes creator_avatar_url)
+      const rpcData = data as Record<string, unknown>;
+      creatorProfile = {
+        name: deal.creatorName || "Unknown",
+        avatarUrl: (rpcData.creator_avatar_url as string) || undefined,
+      };
     }
 
     // Fetch recipient profile data if recipient_id exists
@@ -415,12 +505,52 @@ export async function getDealByIdAction(
   }
 }
 
-// Get access token for a deal by public ID (bypasses RLS for anonymous recipients)
+// Get access token for a deal (for public signing page)
+// SECURITY: Requires valid publicId to prove caller has access to deal link
 export async function getAccessTokenAction(
-  dealId: string
+  dealId: string,
+  publicId?: string
 ): Promise<{ token: string | null; error: string | null }> {
   try {
+    // Validate inputs
+    if (!dealId || typeof dealId !== "string" || dealId.length < 10) {
+      return { token: null, error: "Invalid deal ID" };
+    }
+
     const supabase = await createServerSupabaseClient();
+
+    // SECURITY: If publicId provided, verify it matches the deal
+    // This proves the caller has access to the public deal link
+    if (publicId) {
+      const { data: deal } = await supabase.rpc("get_deal_by_public_id", { p_public_id: publicId });
+
+      if (!deal || (deal as Record<string, unknown>).id !== dealId) {
+        return { token: null, error: "Deal not found" };
+      }
+
+      // Only return token for pending deals (not confirmed/voided)
+      const dealStatus = (deal as Record<string, unknown>).status;
+      if (dealStatus !== "pending" && dealStatus !== "sealing") {
+        return { token: null, error: "Deal is not available for signing" };
+      }
+    } else {
+      // If no publicId, require authentication
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { token: null, error: "Authentication required" };
+      }
+
+      // Verify user is a party to this deal
+      const { data: deal } = await supabase
+        .from("deals")
+        .select("creator_id, recipient_id, status")
+        .eq("id", dealId)
+        .single();
+
+      if (!deal || (deal.creator_id !== user.id && deal.recipient_id !== user.id)) {
+        return { token: null, error: "Not authorized" };
+      }
+    }
 
     // Use RPC function that bypasses RLS to get the token
     const { data, error } = await supabase.rpc("get_access_token_for_deal", { p_deal_id: dealId });
@@ -436,6 +566,7 @@ export async function getAccessTokenAction(
     return { token: null, error: "Server error" };
   }
 }
+
 
 // Get access token for viewing a sealed deal (includes used tokens)
 // This is for creators to share the access link for confirmed deals
@@ -617,16 +748,42 @@ export async function validateViewTokenAction(
 }
 
 // Upload signature to Supabase Storage
+// SECURITY: Added input validation and file size limit
+const MAX_SIGNATURE_SIZE = 1024 * 1024; // 1MB max signature size
+
 export async function uploadSignatureAction(
   dealId: string,
   signatureBase64: string
 ): Promise<{ signatureUrl: string | null; error: string | null }> {
   try {
+    // Validate dealId
+    if (!dealId || typeof dealId !== "string" || dealId.length < 10) {
+      return { signatureUrl: null, error: "Invalid deal ID" };
+    }
+
+    // Validate signature exists and is a base64 image
+    if (!signatureBase64 || typeof signatureBase64 !== "string") {
+      return { signatureUrl: null, error: "Signature is required" };
+    }
+
+    // SECURITY: Strict MIME type validation - only allow PNG and JPEG
+    const allowedMimeTypes = ["data:image/png;base64,", "data:image/jpeg;base64,", "data:image/jpg;base64,"];
+    const hasValidMime = allowedMimeTypes.some(mime => signatureBase64.startsWith(mime));
+    if (!hasValidMime) {
+      return { signatureUrl: null, error: "Invalid signature format. Only PNG and JPEG allowed." };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     // Convert base64 to buffer
     const base64Data = signatureBase64.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
+
+    // SECURITY: Validate file size to prevent DoS
+    if (buffer.length > MAX_SIGNATURE_SIZE) {
+      return { signatureUrl: null, error: "Signature file is too large (max 1MB)" };
+    }
+
 
     // Generate unique filename
     const filename = `${dealId}/${nanoid(10)}.png`;
@@ -644,8 +801,9 @@ export async function uploadSignatureAction(
       // No base64 fallback - storage must be properly configured
       // Base64 storage in database causes performance issues and is bad practice
       logger.error("Error uploading signature", uploadError);
-      return { signatureUrl: null, error: `Failed to upload signature: ${uploadError.message}` };
+      return { signatureUrl: null, error: "Failed to upload signature. Please try again." };
     }
+
 
     // Get public URL
     const { data: urlData } = supabase.storage.from("signatures").getPublicUrl(filename);
@@ -758,9 +916,23 @@ export async function confirmDealAction(data: {
 }
 
 // Void a deal
+// SECURITY: Added CSRF protection and input validation
 export async function voidDealAction(dealId: string): Promise<{ error: string | null }> {
   try {
+    // Validate input
+    if (!dealId || typeof dealId !== "string" || dealId.length < 10) {
+      return { error: "Invalid deal ID" };
+    }
+
+    // SECURITY: Validate request origin
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
+
 
     const {
       data: { user },
@@ -800,7 +972,14 @@ export async function voidDealAction(dealId: string): Promise<{ error: string | 
 // Mark deal as viewed
 export async function markDealViewedAction(publicId: string): Promise<void> {
   try {
+    // Validate input
+    if (!publicId || typeof publicId !== "string" || publicId.length < 5 || publicId.length > 20) {
+      logger.warn("Invalid publicId in markDealViewedAction");
+      return;
+    }
+
     const supabase = await createServerSupabaseClient();
+
 
     // Get the deal first using RPC to bypass RLS
     const { data: deal } = await supabase.rpc("get_deal_by_public_id", { p_public_id: publicId });
@@ -991,10 +1170,25 @@ export async function updateProfileAction(updates: {
 }
 
 // Upload avatar to Supabase Storage
+// SECURITY: Added size limit and MIME type validation
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB max avatar size
+
 export async function uploadAvatarAction(
   avatarBase64: string
 ): Promise<{ avatarUrl: string | null; error: string | null }> {
   try {
+    // Validate input
+    if (!avatarBase64 || typeof avatarBase64 !== "string") {
+      return { avatarUrl: null, error: "Avatar is required" };
+    }
+
+    // SECURITY: Strict MIME type validation
+    const allowedMimeTypes = ["data:image/png;base64,", "data:image/jpeg;base64,", "data:image/jpg;base64,", "data:image/webp;base64,"];
+    const hasValidMime = allowedMimeTypes.some(mime => avatarBase64.startsWith(mime));
+    if (!hasValidMime) {
+      return { avatarUrl: null, error: "Invalid avatar format. Only PNG, JPEG, and WebP allowed." };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -1007,6 +1201,11 @@ export async function uploadAvatarAction(
     // Convert base64 to buffer
     const base64Data = avatarBase64.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
+
+    // SECURITY: Validate file size
+    if (buffer.length > MAX_AVATAR_SIZE) {
+      return { avatarUrl: null, error: "Avatar file is too large (max 2MB)" };
+    }
 
     // Generate unique filename
     const filename = `${user.id}/${nanoid(10)}.png`;
@@ -1313,6 +1512,24 @@ export async function sendDealReceiptAction(data: {
   try {
     const supabase = await createServerSupabaseClient();
 
+    // Get user or use IP for rate limiting
+    const { data: { user } } = await supabase.auth.getUser();
+    let rateLimitId: string;
+
+    if (user) {
+      rateLimitId = user.id;
+    } else {
+      // For anonymous users, use IP-based rate limiting
+      const headersList = await headers();
+      rateLimitId = `ip:${headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"}`;
+    }
+
+    // SECURITY: Rate limit email sending to prevent spam
+    const rateLimitResult = await checkRateLimit("email", rateLimitId);
+    if (!rateLimitResult.success) {
+      return { success: false, error: "Rate limit exceeded. Please try again later." };
+    }
+
     // Try normal select first (works for authenticated users)
     let dealData = null;
     let creatorName = "Unknown";
@@ -1402,6 +1619,18 @@ export async function sendDealInvitationAction(data: {
 }): Promise<{ success: boolean; error: string | null }> {
   try {
     const supabase = await createServerSupabaseClient();
+
+    // Get authenticated user (invitations require auth)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    // SECURITY: Rate limit email sending to prevent spam
+    const rateLimitResult = await checkRateLimit("email", user.id);
+    if (!rateLimitResult.success) {
+      return { success: false, error: "Rate limit exceeded. Please try again later." };
+    }
 
     // Fetch the deal with creator info
     const { data: dealData, error: fetchError } = await supabase
@@ -1618,7 +1847,15 @@ export async function updateNotificationPreferencesAction(
   preferences: Partial<NotificationPreferences>
 ): Promise<{ error: string | null }> {
   try {
+    // Validate input with Zod
+    const validation = notificationPreferencesSchema.safeParse(preferences);
+    if (!validation.success) {
+      return { error: validation.error.issues[0]?.message || "Invalid input" };
+    }
+    const validatedPrefs = validation.data;
+
     const supabase = await createServerSupabaseClient();
+
 
     const {
       data: { user },
@@ -1675,7 +1912,15 @@ export async function updateNotificationPreferencesAction(
 // Delete user account (cascade delete via DB constraints)
 export async function deleteUserAccountAction(): Promise<{ error: string | null }> {
   try {
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
+
 
     const {
       data: { user },
@@ -1927,10 +2172,23 @@ export async function toggleDoNotDisturbAction(
 }
 
 // Upload signature to user profile
+// SECURITY: Added size limit and MIME type validation
 export async function uploadProfileSignatureAction(
   signatureBase64: string
 ): Promise<{ signatureUrl: string | null; error: string | null }> {
   try {
+    // Validate input
+    if (!signatureBase64 || typeof signatureBase64 !== "string") {
+      return { signatureUrl: null, error: "Signature is required" };
+    }
+
+    // SECURITY: Strict MIME type validation - only allow PNG and JPEG
+    const allowedMimeTypes = ["data:image/png;base64,", "data:image/jpeg;base64,", "data:image/jpg;base64,"];
+    const hasValidMime = allowedMimeTypes.some(mime => signatureBase64.startsWith(mime));
+    if (!hasValidMime) {
+      return { signatureUrl: null, error: "Invalid signature format. Only PNG and JPEG allowed." };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -1943,6 +2201,11 @@ export async function uploadProfileSignatureAction(
     // Convert base64 to buffer
     const base64Data = signatureBase64.replace(/^data:image\/\w+;base64,/, "");
     const buffer = Buffer.from(base64Data, "base64");
+
+    // SECURITY: Validate file size (reuse MAX_SIGNATURE_SIZE)
+    if (buffer.length > MAX_SIGNATURE_SIZE) {
+      return { signatureUrl: null, error: "Signature file is too large (max 1MB)" };
+    }
 
     // Generate unique filename for user's signature
     const filename = `${user.id}/profile-signature-${nanoid(10)}.png`;

@@ -65,7 +65,7 @@ import {
   validateViewTokenAction,
   getAuditLogsAction,
   logAuditEventAction,
-  lookupUserByEmailAction,
+  checkRecipientEmailForDealAction,
   TokenStatus,
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -263,7 +263,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
 
           // Only get access token if status is valid
           if (status === "valid") {
-            const { token } = await getAccessTokenAction(fetchedDeal.id);
+            const { token } = await getAccessTokenAction(fetchedDeal.id, fetchedDeal.publicId);
             if (token) {
               setAccessToken(token);
             }
@@ -432,9 +432,17 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   }, [deal?.recipientEmail, user?.email]);
 
   // Debounced email lookup for registered Proofo users
+  // SECURITY: Uses deal-scoped action that returns minimal info for anonymous users
   useEffect(() => {
     // Skip lookup if user is already logged in (we use their account info)
     if (user?.id) {
+      setRegisteredRecipient(null);
+      setIsCreatorEmail(false);
+      return;
+    }
+
+    // Need deal public ID for the secure lookup
+    if (!deal?.publicId) {
       setRegisteredRecipient(null);
       setIsCreatorEmail(false);
       return;
@@ -450,17 +458,26 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     const debounceTimer = setTimeout(async () => {
       setIsLookingUpEmail(true);
       try {
-        const result = await lookupUserByEmailAction(email);
-        if (result.found && result.profile) {
-          // Check if this is the creator's email
-          if (deal && result.profile.id === deal.creatorId) {
-            setIsCreatorEmail(true);
-            setRegisteredRecipient(null);
-          } else {
-            setIsCreatorEmail(false);
-            setRegisteredRecipient(result.profile);
-          }
+        // Use secure deal-scoped action that returns minimal info
+        const result = await checkRecipientEmailForDealAction({
+          publicId: deal.publicId,
+          email: email,
+        });
+
+        if (result.isCreator) {
+          // Email belongs to the deal creator - prevent self-signing
+          setIsCreatorEmail(true);
+          setRegisteredRecipient(null);
+        } else if (result.isProofoUser) {
+          // Email belongs to a registered Proofo user (not creator)
+          setIsCreatorEmail(false);
+          setRegisteredRecipient({
+            id: "proofo-user", // Don't expose actual ID
+            name: result.userName || "Proofo User",
+            avatarUrl: result.userAvatarUrl,
+          });
         } else {
+          // Not a registered user
           setIsCreatorEmail(false);
           setRegisteredRecipient(null);
         }
@@ -473,7 +490,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     }, 500);
 
     return () => clearTimeout(debounceTimer);
-  }, [email, user?.id, deal]);
+  }, [email, user?.id, deal?.publicId]);
 
   // Log deal view for non-demo deals (using ref to track)
   useEffect(() => {

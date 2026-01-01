@@ -524,10 +524,10 @@ const BentoGrid = () => (
             <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
               <Users className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="text-3xl font-semibold tracking-tight">Zero friction for recipients</h3>
+            <h3 className="text-3xl font-semibold tracking-tight">Zero Friction for Them</h3>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              The core problem with other tools is that both sides need an account. With Proofo,{" "}
-              <strong>you register, they just sign.</strong>
+              They sign on any device. No account. No app download.{" "}
+              <strong>No reason to say no.</strong>
             </p>
           </div>
           <div className="mt-10 flex flex-wrap gap-3">
@@ -570,9 +570,10 @@ const BentoGrid = () => (
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-6 group-hover:bg-secondary/80 transition-colors">
             <PenLine className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-xl font-semibold mb-3">Visual Signatures</h3>
+          <h3 className="text-xl font-semibold mb-3">Signatures That Stick</h3>
           <p className="text-muted-foreground text-sm mb-8">
-            Draw-to-sign creates psychological trust that text messages can&apos;t match.
+            A drawn signature captures intent better than a text message. It&apos;s psychological
+            cement for your deal.
           </p>
           <div className="mt-auto bg-secondary/20 rounded-xl p-4 border border-dashed border-border flex items-center justify-center h-40 relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(#00000010_1px,transparent_1px)] bg-size-[16px_16px] opacity-50"></div>
@@ -598,9 +599,9 @@ const BentoGrid = () => (
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
             <AnimatedLock />
           </div>
-          <h3 className="text-lg font-semibold mb-2">SHA-256 Sealed</h3>
+          <h3 className="text-lg font-semibold mb-2">The Truth, Locked Forever</h3>
           <p className="text-muted-foreground text-sm mb-4">
-            Cryptographic hash verification ensures agreements are tamper-proof.
+            SHA-256 encryption seals your agreement. If a single pixel changes, the proof breaks.
           </p>
           <InteractiveHash />
         </CardContent>
@@ -620,9 +621,9 @@ const BentoGrid = () => (
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
             <Smartphone className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Mobile First</h3>
+          <h3 className="text-lg font-semibold mb-2">Deals Happen Anywhere</h3>
           <p className="text-muted-foreground text-sm">
-            Designed for the device in your pocket. Perfect for in-person deals.
+            Built for any device—phone, tablet, or laptop. Proofo is ready where you are.
           </p>
         </CardContent>
       </Card>
@@ -641,9 +642,9 @@ const BentoGrid = () => (
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
             <AnimatedDoc />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Instant Receipts</h3>
+          <h3 className="text-lg font-semibold mb-2">Instant Legal Receipts</h3>
           <p className="text-muted-foreground text-sm">
-            Professional PDF documentation delivered to both parties automatically.
+            Both parties get a professional, timestamped PDF receipt instantly. No chasing.
           </p>
         </CardContent>
       </Card>
@@ -658,10 +659,22 @@ const WorkflowSection = () => (
 
     <div className="grid md:grid-cols-4 gap-8 relative z-10">
       {[
-        { icon: AnimatedCreate, title: "Create", desc: "Choose a template or write terms." },
-        { icon: AnimatedQR, title: "Share", desc: "Show QR code or send a link." },
-        { icon: AnimatedSign, title: "Sign", desc: "They review and sign on their device." },
-        { icon: AnimatedProof, title: "Proof", desc: "Both get a sealed PDF receipt." },
+        {
+          icon: AnimatedCreate,
+          title: "1. Draft Instantly",
+          desc: "Templates for everything. Or write your own terms in seconds.",
+        },
+        {
+          icon: AnimatedQR,
+          title: "2. Send the Link",
+          desc: "QR code or URL. No app install needed for them.",
+        },
+        { icon: AnimatedSign, title: "3. They Sign", desc: "On any device. With their finger. Done." },
+        {
+          icon: AnimatedProof,
+          title: "4. You're Protected",
+          desc: "Instant PDF contracts sent to both inboxes.",
+        },
       ].map((step, i) => (
         <motion.div
           key={i}
@@ -690,10 +703,12 @@ const RealWorldSection = () => (
     {/* Left Column: Context & List */}
     <div className="space-y-10">
       <div className="space-y-4">
-        <h2 className="text-3xl font-bold tracking-tight">Built for the real world</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          The Operating System for the <br /> Digital Handshake.
+        </h2>
         <p className="text-muted-foreground text-lg leading-relaxed">
-          Proofo is designed for the millions of agreements that happen every day outside of
-          boardrooms. It&apos;s a trust-clarifier for casual interactions.
+          Deals happen everywhere. Now proof does too. Proofo is designed for the millions of
+          agreements that happen every day outside of boardrooms.
         </p>
       </div>
 
@@ -702,25 +717,25 @@ const RealWorldSection = () => (
           {
             icon: Smartphone,
             title: "Tech Flipping",
-            desc: "Buying a used phone? Confirm condition and IMEI to avoid 'it was broken' disputes.",
+            desc: "Don't get scammed on the condition. Agree before cash hands.",
             anim: "pulse" as const,
           },
           {
             icon: ShoppingBag,
             title: "Vintage & Fashion",
-            desc: "Selling rare collectibles. Mutual acknowledgement of authenticity before shipping.",
+            desc: "Selling rare collectibles. Document authenticity before shipping.",
             anim: "bounce" as const,
           },
           {
             icon: Wrench,
-            title: "Local Services",
-            desc: "Paying for a fence repair or delivery. Agree on scope and price instantly.",
+            title: "Freelancing",
+            desc: "Scope creep killer. Agree on deliverables and price instantly.",
             anim: "rotate" as const,
           },
           {
             icon: Gamepad2,
-            title: "Hobby Trading",
-            desc: "Exchanging cards or consoles. A digital handshake for the hobbyist economy.",
+            title: "Lending Stuff",
+            desc: "Get it back in one piece. Document it before it leaves.",
             anim: "shake" as const,
           },
         ].map((item, i) => (
@@ -835,13 +850,13 @@ const Pricing = () => (
     {/* Free Tier */}
     <Card className="relative bg-card border shadow-sm hover:border-primary/20 transition-colors">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Starter</CardTitle>
+        <CardTitle className="text-xl font-semibold">The Hobbyist</CardTitle>
         <div className="mt-4 flex items-baseline">
           <span className="text-4xl font-bold tracking-tight">$0</span>
           <span className="text-muted-foreground ml-2 text-sm">/ month</span>
         </div>
         <CardDescription className="mt-2">
-          Perfect for occasional deals and personal use.
+          Perfect for the occasional trade.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-4">
@@ -874,7 +889,7 @@ const Pricing = () => (
         <div className="pt-4">
           <Link href="/deal/new" className="block">
             <Button variant="outline" className="w-full h-11 border-border hover:bg-secondary">
-              Get Started
+              Create a Deal
             </Button>
           </Link>
         </div>
@@ -885,13 +900,13 @@ const Pricing = () => (
     <Card className="relative bg-secondary/30 border-primary/20 shadow-lg hover:border-primary/30 transition-colors">
       <ParallaxBadge />
       <CardHeader>
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">Pro</CardTitle>
+        <CardTitle className="text-xl font-semibold flex items-center gap-2">The Dealmaker</CardTitle>
         <div className="mt-4 flex items-baseline">
           <span className="text-4xl font-bold tracking-tight">$9</span>
           <span className="text-muted-foreground ml-2 text-sm">/ month</span>
         </div>
         <CardDescription className="mt-2 text-foreground/80">
-          For power users and small businesses.
+          For freelancers and traders who mean business.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-4">
@@ -963,18 +978,18 @@ export default function Home() {
           >
             <div className="inline-flex items-center gap-2 rounded-full border bg-secondary/50 px-3 py-1 text-sm text-muted-foreground mb-8">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Evidence that holds up
+              Digital Handshake
             </div>
 
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-8 text-foreground leading-[1.1]">
-              Agreements without <br className="hidden sm:block" />
-              <span className="text-muted-foreground">the awkwardness.</span>
+              Proof Any Deal. <br className="hidden sm:block" />
+              <span className="text-muted-foreground">Instantly.</span>
             </h1>
 
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed max-w-2xl mx-auto">
-              Create enforceable proof of any deal in 30 seconds.
-              <br className="hidden sm:block" />
-              Only you need an account. They just sign.
+              Stop relying on <em className="">&quot;I thought we agreed&quot;</em>. Get a{" "}
+              <strong>signed, sealed, and legally binding proof</strong> of any agreement in seconds. No
+              signup required for them.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -984,7 +999,7 @@ export default function Home() {
                     size="xl"
                     className="h-14 px-8 text-base rounded-full shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all"
                   >
-                    Create Your First Proof
+                    Create a Deal
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </MagneticWrapper>
@@ -1017,10 +1032,10 @@ export default function Home() {
         {/* Bento Grid Features */}
         <section id="features" className="mb-40 scroll-mt-24">
           <div className="container mx-auto px-4 mb-16 text-center max-w-2xl">
-            <h2 className="text-3xl font-bold tracking-tight mb-4">Everything you need</h2>
+            <h2 className="text-3xl font-bold tracking-tight mb-4">Why Proofo works</h2>
             <p className="text-muted-foreground text-lg">
-              Bridge the gap between a handshake and a lawyer with a suite of tools designed for
-              speed and security.
+              Bridge the gap between a handshake and a lawyer. Fast enough for casual deals,
+              secure enough for serious business.
             </p>
           </div>
           <BentoGrid />
@@ -1032,7 +1047,7 @@ export default function Home() {
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight mb-4">How it works</h2>
               <p className="text-muted-foreground">
-                From agreement to evidence in four simple steps.
+                From Deal to Proof in four simple steps.
               </p>
             </div>
             <WorkflowSection />
@@ -1049,8 +1064,8 @@ export default function Home() {
         {/* Pricing */}
         <section id="pricing" className="py-24 border-t bg-secondary/10 scroll-mt-24">
           <div className="container mx-auto px-4 text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight mb-4">Simple, transparent pricing</h2>
-            <p className="text-muted-foreground">Start for free, upgrade when you mean business.</p>
+            <h2 className="text-3xl font-bold tracking-tight mb-4">Pay for Proof. Not Overheads.</h2>
+            <p className="text-muted-foreground">Start for free. Upgrade to seal unlimited deals.</p>
           </div>
           <div className="container mx-auto px-4">
             <Pricing />
@@ -1062,9 +1077,9 @@ export default function Home() {
           <div className="container mx-auto px-4 text-center max-w-2xl">
             <div className="bg-secondary/30 rounded-3xl p-12 border border-border relative overflow-hidden">
               <div className="relative z-10">
-                <h2 className="text-3xl font-bold mb-4">Ready to secure your deals?</h2>
+                <h2 className="text-3xl font-bold mb-4">Ready to proof it?</h2>
                 <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
-                  Join thousands of freelancers, contractors, and friends who trust Proofo.
+                  Stop hoping they&apos;ll keep their word. Start proving they agreed.
                 </p>
                 <Link href="/deal/new">
                   <MagneticWrapper>
@@ -1072,7 +1087,7 @@ export default function Home() {
                       size="xl"
                       className="h-14 px-10 text-base rounded-full shadow-lg shadow-primary/10"
                     >
-                      Get Started Now
+                      Create a Deal
                     </Button>
                   </MagneticWrapper>
                 </Link>
