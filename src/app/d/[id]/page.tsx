@@ -12,11 +12,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DealHeader } from "@/components/deal-header";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { SealedDealView } from "@/components/sealed-deal-view";
-import { CopyableId, getDealStatusConfig } from "@/components/dashboard/shared-components";
+import { CopyableId, getDealStatusConfig, KeyboardHint } from "@/components/dashboard/shared-components";
+import { iconMap, templateIconNames } from "@/lib/templates";
 import { Deal, AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime, timeAgo } from "@/lib/crypto";
 import { cn } from "@/lib/utils";
-import { dashboardStyles, isStaleDeal } from "@/lib/dashboard-ui";
+import { isStaleDeal } from "@/lib/dashboard-ui";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
 import { getPrivateDealAction, voidDealAction, sendDealInvitationAction, getViewAccessTokenAction, logAuditEventAction, markDealViewedAction } from "@/app/actions/deal-actions";
 import { useAppStore } from "@/store";
@@ -28,7 +29,6 @@ import confetti from "canvas-confetti";
 import {
   Shield,
   CheckCircle2,
-  Clock,
   XCircle,
   RefreshCw,
   ArrowLeft,
@@ -38,10 +38,6 @@ import {
   Lock,
   AlertTriangle,
   Handshake,
-  Package,
-  DollarSign,
-  ArrowLeftRight,
-  LucideIcon,
   MoreHorizontal,
   ShieldCheck,
   Mail,
@@ -52,11 +48,8 @@ import {
   Printer,
   ExternalLink,
   Zap,
-  Command,
   Key,
   Trash2,
-  PenLine,
-  FileText,
   FileSignature,
 } from "lucide-react";
 import {
@@ -108,34 +101,6 @@ const slideUp = {
   show: { opacity: 1, y: 0, transition: springTransition },
 };
 
-// Keyboard hint component
-const KeyboardHint = ({ keys }: { keys: string }) => (
-  <kbd className="ml-2 hidden sm:inline-flex h-5 px-1.5 bg-muted border border-border/50 rounded text-[10px] font-mono text-muted-foreground items-center gap-0.5">
-    {keys.split("+").map((key, i) => (
-      <span key={i}>
-        {i > 0 && "+"}
-        {key === "cmd" ? <Command className="h-3 w-3" /> : key}
-      </span>
-    ))}
-  </kbd>
-);
-
-// Icon mapping for templates
-const iconMap: Record<string, LucideIcon> = {
-  Package,
-  Handshake,
-  DollarSign,
-  ArrowLeftRight,
-  PenLine,
-};
-
-const templateIconNames: Record<string, string> = {
-  "lend-item": "Package",
-  "simple-agreement": "Handshake",
-  "payment-promise": "DollarSign",
-  "service-exchange": "ArrowLeftRight",
-  custom: "PenLine",
-};
 
 
 
@@ -230,7 +195,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
       // Ensure we only log once per component mount to avoid noise
       markDealViewedAction(resolvedId);
     }
-  }, [deal?.id, resolvedId]);
+  }, [deal, deal?.id, resolvedId]);
 
   // Copy signing link
   const handleCopyLink = useCallback(async () => {
@@ -557,7 +522,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
               >
                 <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
                 Back to Agreements
-                <KeyboardHint keys="Esc" />
+                <KeyboardHint shortcut="Esc" />
               </Link>
             </motion.div>
 
@@ -605,7 +570,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                         <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Copy signing link <KeyboardHint keys="C" /></TooltipContent>
+                    <TooltipContent>Copy signing link <KeyboardHint shortcut="C" /></TooltipContent>
                   </Tooltip>
 
                   <Tooltip>
@@ -621,7 +586,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                         <span className="hidden sm:inline">PDF</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Download PDF <KeyboardHint keys="D" /></TooltipContent>
+                    <TooltipContent>Download PDF <KeyboardHint shortcut="D" /></TooltipContent>
                   </Tooltip>
 
                   <DropdownMenu>
@@ -634,23 +599,23 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                       <DropdownMenuItem onClick={() => setShowQRDialog(true)}>
                         <QrCode className="h-4 w-4 mr-2" />
                         Show QR Code
-                        <KeyboardHint keys="Q" />
+                        <KeyboardHint shortcut="Q" />
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleShare}>
                         <Share2 className="h-4 w-4 mr-2" />
                         Share
-                        <KeyboardHint keys="S" />
+                        <KeyboardHint shortcut="S" />
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handlePrint}>
                         <Printer className="h-4 w-4 mr-2" />
                         Print
-                        <KeyboardHint keys="P" />
+                        <KeyboardHint shortcut="P" />
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href={`/dashboard/verify?id=${deal.publicId}`}>
                           <ShieldCheck className="h-4 w-4 mr-2" />
                           Verify
-                          <KeyboardHint keys="V" />
+                          <KeyboardHint shortcut="V" />
                         </Link>
                       </DropdownMenuItem>
                       {accessToken && isCreator && deal.status === "confirmed" && (
@@ -665,7 +630,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                           >
                             <Key className="h-4 w-4 mr-2" />
                             Public Access Link
-                            <KeyboardHint keys="L" />
+                            <KeyboardHint shortcut="L" />
                           </DropdownMenuItem>
                         </>
                       )}
@@ -915,7 +880,7 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                   >
                     <ChevronRight className={cn("h-4 w-4 transition-transform", showAuditTrail && "rotate-90")} />
                     {showAuditTrail ? "Hide" : "Show"} Audit Trail
-                    <KeyboardHint keys="A" />
+                    <KeyboardHint shortcut="A" />
                   </Button>
 
                   <AnimatePresence>

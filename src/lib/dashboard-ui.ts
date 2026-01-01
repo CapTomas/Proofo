@@ -13,6 +13,48 @@ import { Deal } from "@/types";
 // =============================================================================
 
 /**
+ * Enhanced Spring Physics for "Snappy" feel
+ */
+export const springTransition = {
+  type: "spring" as const,
+  stiffness: 400,
+  damping: 30,
+};
+
+/**
+ * Spring-based container animation variants for staggered children
+ */
+export const springContainerVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.98 },
+  show: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      ...springTransition,
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+/**
+ * Slide up and fade in animation variant
+ */
+export const slideUp: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: springTransition },
+};
+
+/**
+ * Shake animation variant for validation errors
+ */
+export const shakeVariant: Variants = {
+  shake: {
+    x: [0, -4, 4, -4, 4, 0],
+    transition: { duration: 0.3 },
+  },
+};
+
+/**
  * Standard container animation variants for staggered children
  */
 export const containerVariants: Variants = {

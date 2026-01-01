@@ -18,7 +18,6 @@ import {
   Inbox,
   Users,
   Shield,
-  PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -34,6 +33,7 @@ import { DashboardHeader } from "./dashboard-header";
 import { ErrorBoundary } from "./error-boundary";
 
 import { useSidebarAutoCollapse } from "@/hooks/useSidebarAutoCollapse";
+import { isStaleDeal } from "@/lib/dashboard-ui";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -73,6 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Handle client-side mounting and hydration
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
 
     // Check if desktop
@@ -117,19 +118,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const hasInboxNotifications = React.useMemo(() => {
     return deals.some(
       (d) =>
-        d.recipientEmail === user?.email &&
+        ((user?.id && d.recipientId === user.id) || (user?.email && d.recipientEmail?.toLowerCase() === user.email.toLowerCase())) &&
         d.status === "pending"
     );
-  }, [deals, user?.email]);
+  }, [deals, user]);
 
   const hasAgreementsNotifications = React.useMemo(() => {
-    const { isStaleDeal } = require("@/lib/dashboard-ui");
     return deals.some(
       (d) =>
         d.creatorId === user?.id &&
-        isStaleDeal(d)
+        !((user?.id && d.recipientId === user.id) || (user?.email && d.recipientEmail?.toLowerCase() === user.email?.toLowerCase())) &&
+        isStaleDeal(d) &&
+        d.status === "pending"
     );
-  }, [deals, user?.id]);
+  }, [deals, user]);
 
   const userName = user?.name || "Guest";
   const userInitials = userName
@@ -168,7 +170,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative">
-            {navItems.map((item, idx) => {
+            {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));

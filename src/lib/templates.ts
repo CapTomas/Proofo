@@ -1,4 +1,21 @@
 import { DealTemplate } from "@/types";
+import { Package, Handshake, DollarSign, ArrowLeftRight, PenLine, LucideIcon } from "lucide-react";
+
+export const iconMap: Record<string, LucideIcon> = {
+  Package,
+  Handshake,
+  DollarSign,
+  ArrowLeftRight,
+  PenLine,
+};
+
+export const templateIconNames: Record<string, string> = {
+  "lend-item": "Package",
+  "simple-agreement": "Handshake",
+  "payment-promise": "DollarSign",
+  "service-exchange": "ArrowLeftRight",
+  custom: "PenLine",
+};
 
 export const dealTemplates: DealTemplate[] = [
   {

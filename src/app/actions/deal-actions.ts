@@ -1352,14 +1352,14 @@ export async function getAuditLogsAction(dealId: string, token?: string): Promis
       return { logs: [], error: "Failed to load audit logs" };
     }
 
-    const logs = ((data as any[]) || []).map((log) => ({
-      id: log.id,
-      dealId: log.deal_id,
-      eventType: log.event_type,
-      actorId: log.actor_id,
-      actorType: log.actor_type,
+    const logs = ((data as Record<string, unknown>[]) || []).map((log) => ({
+      id: log.id as string,
+      dealId: log.deal_id as string,
+      eventType: log.event_type as string,
+      actorId: log.actor_id as string | null,
+      actorType: log.actor_type as string,
       metadata: log.metadata as Record<string, unknown> | null,
-      createdAt: log.created_at,
+      createdAt: log.created_at as string,
     }));
 
     return { logs, error: null };
@@ -1933,21 +1933,21 @@ export async function updateNotificationPreferencesAction(
 
     // Build update object with snake_case keys
     const dbUpdates: Record<string, unknown> = { user_id: user.id };
-    if (preferences.notifyDealViewed !== undefined)
-      dbUpdates.notify_deal_viewed = preferences.notifyDealViewed;
-    if (preferences.notifyDealSigned !== undefined)
-      dbUpdates.notify_deal_signed = preferences.notifyDealSigned;
-    if (preferences.notifyDealExpiring !== undefined)
-      dbUpdates.notify_deal_expiring = preferences.notifyDealExpiring;
-    if (preferences.notifyDealComments !== undefined)
-      dbUpdates.notify_deal_comments = preferences.notifyDealComments;
-    if (preferences.notifyMessages !== undefined)
-      dbUpdates.notify_messages = preferences.notifyMessages;
-    if (preferences.notifyMentions !== undefined)
-      dbUpdates.notify_mentions = preferences.notifyMentions;
-    if (preferences.notifyDeadlines !== undefined)
-      dbUpdates.notify_deadlines = preferences.notifyDeadlines;
-    if (preferences.notifyFollowups !== undefined)
+    if (validatedPrefs.notifyDealViewed !== undefined)
+      dbUpdates.notify_deal_viewed = validatedPrefs.notifyDealViewed;
+    if (validatedPrefs.notifyDealSigned !== undefined)
+      dbUpdates.notify_deal_signed = validatedPrefs.notifyDealSigned;
+    if (validatedPrefs.notifyDealExpiring !== undefined)
+      dbUpdates.notify_deal_expiring = validatedPrefs.notifyDealExpiring;
+    if (validatedPrefs.notifyDealComments !== undefined)
+      dbUpdates.notify_deal_comments = validatedPrefs.notifyDealComments;
+    if (validatedPrefs.notifyMessages !== undefined)
+      dbUpdates.notify_messages = validatedPrefs.notifyMessages;
+    if (validatedPrefs.notifyMentions !== undefined)
+      dbUpdates.notify_mentions = validatedPrefs.notifyMentions;
+    if (validatedPrefs.notifyDeadlines !== undefined)
+      dbUpdates.notify_deadlines = validatedPrefs.notifyDeadlines;
+    if (validatedPrefs.notifyFollowups !== undefined)
       dbUpdates.notify_followups = preferences.notifyFollowups;
     if (preferences.notifySecurity !== undefined)
       dbUpdates.notify_security = preferences.notifySecurity;

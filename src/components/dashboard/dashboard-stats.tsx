@@ -7,6 +7,7 @@ import { Deal } from "@/types";
 
 interface DashboardStatsProps {
   deals: Deal[];
+  userId?: string;
   userEmail?: string;
   isLoading?: boolean;
 }
@@ -39,15 +40,43 @@ function formatCompletionRateTrend(trend: number): string | undefined {
   return `${trend > 0 ? "+" : ""}${Math.round(trend)}%`;
 }
 
-export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsProps) {
+export function DashboardStats({ deals, userId, userEmail, isLoading }: DashboardStatsProps) {
   const stats = useMemo(() => {
     if (isLoading) return null;
     const total = deals.length;
     // ... rest of useMemo logic
     const confirmed = deals.filter((d) => d.status === "confirmed").length;
-    const pending = deals.filter((d) => d.status === "pending").length;
+    // Inbox: deals WHERE user is recipient AND status is pending or sealing
     const inbox = deals.filter(
-      (d) => d.recipientEmail === userEmail && d.status === "pending"
+      (d) =>
+        ((userId && d.recipientId === userId) || (userEmail && d.recipientEmail?.toLowerCase() === userEmail.toLowerCase())) &&
+        (d.status === "pending" || d.status === "sealing")
+    ).length;
+
+    // Active Deals (Sent): deals WHERE user is creator AND status is pending or sealing
+    // Note: In this component, we don't have user.id, so we rely on creatorName or something?
+    // Actually, getUserDealsAction transforms db deals and creatorName is set to profile.name.
+    // If we only have userEmail, it's hard to be 100% sure without user.id.
+    // However, the original code used deals.filter((d) => d.status === "pending"),
+    // which includes both sent and received.
+    // The user wants: Agreements for creator only, Inbox for recipient only.
+    // So "Active Deals" on home should probably be Sent Pending deals.
+
+    // Let's assume for now that if we don't have creatorId matching email (which is impossible as IDs are UUIDs),
+    // we should have passed user.id to this component too.
+    // Let's check where DashboardStats is used. In src/app/(main)/dashboard/page.tsx
+
+    // The user wants: Agreements for creator only, Inbox for recipient only.
+    // So "Active Deals" on home should probably be Sent Pending deals.
+
+    // Let's assume for now that if we don't have creatorId matching email (which is impossible as IDs are UUIDs),
+    // we should have passed user.id to this component too.
+    // Active Deals (Sent): deals WHERE user is creator AND NOT recipient AND status is pending or sealing
+    const isRecipient = (d: Deal) =>
+      ((userId && d.recipientId === userId) || (userEmail && d.recipientEmail?.toLowerCase() === userEmail.toLowerCase()));
+
+    const pending = deals.filter(
+      (d) => d.creatorId === userId && !isRecipient(d) && (d.status === "pending" || d.status === "sealing")
     ).length;
 
     const signedDeals = deals.filter(
@@ -113,7 +142,7 @@ export function DashboardStats({ deals, userEmail, isLoading }: DashboardStatsPr
       completionRateTrend,
       avgTimeMinutesTrend,
     };
-  }, [deals, userEmail, isLoading]);
+  }, [deals, userId, userEmail, isLoading]);
 
   if (isLoading || !stats) {
     return (

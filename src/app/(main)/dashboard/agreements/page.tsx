@@ -58,7 +58,6 @@ import {
 import {
   CopyableId,
   StatCard,
-  statusConfig,
   getDealStatusConfig,
   useSearchShortcut,
   KeyboardHint,
@@ -68,11 +67,7 @@ import {
 } from "@/components/dashboard/shared-components";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
-// statusConfig imported from shared-components
 
-// CopyableId and StatCard imported from shared-components
-
-// StatCard imported from shared-components
 
 const DealCard = ({
   deal,
@@ -353,8 +348,12 @@ export default function AgreementsPage() {
 
   // Filtering
   const filteredDeals = useMemo(() => {
-    // Agreements only shows deals CREATED by the user
-    let deals = storeDeals.filter((deal) => deal.creatorId === user?.id);
+    // Agreements only shows deals CREATED by the user AND where the user is NOT the recipient
+    // (Self-deals are handled in the Inbox to avoid duplication)
+    let deals = storeDeals.filter((deal) =>
+      deal.creatorId === user?.id &&
+      !((user?.id && deal.recipientId === user.id) || (user?.email && deal.recipientEmail?.toLowerCase() === user.email?.toLowerCase()))
+    );
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -383,7 +382,10 @@ export default function AgreementsPage() {
 
   // Stats
   const stats = useMemo(() => {
-    const creatorDeals = storeDeals.filter((d) => d.creatorId === user?.id);
+    const creatorDeals = storeDeals.filter((d) =>
+      d.creatorId === user?.id &&
+      !((user?.id && d.recipientId === user.id) || (user?.email && d.recipientEmail?.toLowerCase() === user.email?.toLowerCase()))
+    );
     const active = creatorDeals.filter(
       (d) => d.status === "pending" || d.status === "sealing"
     ).length;

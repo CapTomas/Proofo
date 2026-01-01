@@ -2,11 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { NavBreadcrumbs, BreadcrumbItem } from "@/components/nav-breadcrumbs";
+import { NavBreadcrumbs } from "@/components/nav-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Search, Plus, Menu, Bell, Command } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardHeaderProps {
@@ -17,7 +16,6 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
   const pathname = usePathname();
 
-  const segments = pathname.split("/").filter(Boolean);
   const showNewDeal = !pathname.startsWith("/deal/new");
 
   return (

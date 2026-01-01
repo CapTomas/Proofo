@@ -10,10 +10,7 @@ import {
   Search,
   LayoutGrid,
   List as ListIcon,
-  Package,
-  Handshake,
   DollarSign,
-  ArrowLeftRight,
   PenLine,
   LucideIcon,
   Filter,
@@ -29,7 +26,7 @@ import {
   FileText,
 } from "lucide-react";
 import Link from "next/link";
-import { dealTemplates } from "@/lib/templates";
+import { dealTemplates, iconMap } from "@/lib/templates";
 import { DealTemplate, TemplateField } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -45,14 +42,6 @@ import { HighlightText, KeyboardHint } from "@/components/dashboard/shared-compo
 import { EmptyState } from "@/components/dashboard/empty-state";
 
 // --- CONFIGURATION ---
-
-const iconMap: Record<string, LucideIcon> = {
-  Package,
-  Handshake,
-  DollarSign,
-  ArrowLeftRight,
-  PenLine,
-};
 
 const fieldTypeIcons: Record<string, LucideIcon> = {
   text: Type,

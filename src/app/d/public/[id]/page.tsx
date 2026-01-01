@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SignaturePad } from "@/components/signature-pad";
+import { iconMap, templateIconNames } from "@/lib/templates";
+import { CopyableId, getDealStatusConfig, KeyboardHint } from "@/components/dashboard/shared-components";
 import { DealHeader } from "@/components/deal-header";
-import { CopyableId, getDealStatusConfig } from "@/components/dashboard/shared-components";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { AuditTimeline } from "@/components/audit-timeline";
 import {
@@ -27,15 +28,10 @@ import {
   ArrowLeft,
   Calendar,
   Lock,
-  Clock,
   Download,
   XCircle,
-  Package,
   Handshake,
-  DollarSign,
-  ArrowLeftRight,
   PenLine,
-  LucideIcon,
   User,
   Hash,
   TimerOff,
@@ -47,7 +43,6 @@ import {
   Users,
   Send,
   Inbox,
-  Command,
   Loader2,
   Check,
 } from "lucide-react";
@@ -70,7 +65,7 @@ import {
 } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { generateDealPDF, downloadPDF, generatePDFFilename, pdfBlobToBase64 } from "@/lib/pdf";
-import { getUserInitials, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { SealedDealView } from "@/components/sealed-deal-view";
 import { toast } from "sonner";
@@ -79,15 +74,6 @@ import { prepareAuditEvent } from "@/lib/audit-utils";
 interface DealPageProps {
   params: Promise<{ id: string }>;
 }
-
-// Icon mapping for templates
-const iconMap: Record<string, LucideIcon> = {
-  Package,
-  Handshake,
-  DollarSign,
-  ArrowLeftRight,
-  PenLine,
-};
 
 // Demo deal data for when deal is not found
 const demoDeal: Deal = {
@@ -153,27 +139,6 @@ type Step =
   | "not_found"
   | "expired"
   | "creator_view";
-
-// Template icon name mapping
-const templateIconNames: Record<string, string> = {
-  "lend-item": "Package",
-  "simple-agreement": "Handshake",
-  "payment-promise": "DollarSign",
-  "service-exchange": "ArrowLeftRight",
-  custom: "PenLine",
-};
-
-// Keyboard hint component
-const KeyboardHint = ({ keys }: { keys: string }) => (
-  <kbd className="ml-2 hidden sm:inline-flex h-5 px-1.5 bg-muted border border-border/50 rounded text-[10px] font-mono text-muted-foreground items-center gap-0.5">
-    {keys.split("+").map((key, i) => (
-      <span key={i}>
-        {i > 0 && "+"}
-        {key === "cmd" ? <Command className="h-3 w-3" /> : key}
-      </span>
-    ))}
-  </kbd>
-);
 
 // Helper function to determine initial step
 function getInitialStep(deal: Deal | null, tokenStatus?: TokenStatus, hasAuthorizedAccess?: boolean, isCreator?: boolean): Step {
@@ -319,9 +284,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [signedAccessUrl, setSignedAccessUrl] = useState<string | null>(null);
   // PDF generation state
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
   // Email lookup state (for registered Proofo users)
   const [isLookingUpEmail, setIsLookingUpEmail] = useState(false);
   const [registeredRecipient, setRegisteredRecipient] = useState<{
@@ -358,10 +321,6 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   // Current deal data to display
   const displayDeal = confirmedDeal || deal || demoDeal;
 
-  const isRecipient = !!(
-    (user && deal?.recipientId === user.id) ||
-    (user && deal?.recipientEmail?.toLowerCase() === user.email?.toLowerCase())
-  );
 
   // Calculate status config
   // Force "Action Required" for anonymous users on public page since they are here to sign
@@ -509,30 +468,6 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     }
   }, [deal, addAuditLog, user]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      // A = Toggle audit trail
-      if (e.key === "a" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        setShowAuditTrail(prev => !prev);
-      }
-      // D = Download PDF
-      else if (e.key === "d" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        handleDownloadPDF();
-      }
-      // V = Verify
-      else if (e.key === "v" && !e.metaKey && !e.ctrlKey && deal) {
-        e.preventDefault();
-        window.location.href = `/verify?id=${deal.publicId}`;
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deal]);
 
   // Get creator initials
   const creatorInitials = useMemo(() => {
@@ -691,7 +626,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   };
 
   // PDF Download Handler
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = useCallback(async () => {
     const targetDeal = confirmedDeal || deal;
     if (!targetDeal) return;
 
@@ -732,7 +667,32 @@ export default function DealConfirmPage({ params }: DealPageProps) {
     } finally {
       setIsGeneratingPDF(false);
     }
-  };
+  }, [confirmedDeal, deal, signature, user?.isPro]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // A = Toggle audit trail
+      if (e.key === "a" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setShowAuditTrail(prev => !prev);
+      }
+      // D = Download PDF
+      else if (e.key === "d" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleDownloadPDF();
+      }
+      // V = Verify
+      else if (e.key === "v" && !e.metaKey && !e.ctrlKey && deal) {
+        e.preventDefault();
+        window.location.href = `/verify?id=${deal.publicId}`;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deal, handleDownloadPDF]);
 
   // Show loading if deal is being fetched
   if (isLoadingDeal) {
@@ -1230,7 +1190,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                           PDF
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Download PDF <KeyboardHint keys="D" /></TooltipContent>
+                      <TooltipContent>Download PDF <KeyboardHint shortcut="D" /></TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -1242,7 +1202,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                           </Button>
                         </Link>
                       </TooltipTrigger>
-                      <TooltipContent>Verify Deal <KeyboardHint keys="V" /></TooltipContent>
+                      <TooltipContent>Verify Deal <KeyboardHint shortcut="V" /></TooltipContent>
                     </Tooltip>
                   </div>
                 </TooltipProvider>
@@ -1375,7 +1335,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                     >
                       <ChevronRight className={cn("h-4 w-4 transition-transform", showAuditTrail && "rotate-90")} />
                       {showAuditTrail ? "Hide" : "Show"} Audit Trail
-                      <KeyboardHint keys="A" />
+                      <KeyboardHint shortcut="A" />
                     </Button>
 
                     <AnimatePresence>

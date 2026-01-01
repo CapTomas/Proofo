@@ -10,6 +10,8 @@ const withSerwist = withSerwistInit({
 const nextConfig: NextConfig = {
   // Turbopack configuration - root is inferred automatically
   turbopack: {},
+  // Fix workspace root inference issues
+  outputFileTracingRoot: __dirname,
   // Security headers for production
   async headers() {
     return [

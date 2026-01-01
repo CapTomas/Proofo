@@ -30,6 +30,8 @@ import {
   Quote,
   Check,
   Copy,
+  Send,
+  Inbox,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -769,55 +771,106 @@ const RealWorldSection = () => (
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
         <div className="relative z-10 space-y-6">
-          {/* Mock Deal Card */}
+          {/* Mock Deal Card (New Design) */}
           <motion.div
-            className="bg-background rounded-xl border shadow-sm overflow-hidden"
+            className="bg-card rounded-xl border shadow-sm overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            <div className="bg-secondary/20 p-4 border-b flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-xs">
-                  AJ
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Alex Johnson</p>
-                  <p className="text-xs text-muted-foreground">Created just now</p>
-                </div>
+            {/* Top Status Bar */}
+            <div className="h-1.5 w-full bg-emerald-500" />
+
+            <div className="p-6">
+      <div className="bg-background rounded-2xl border shadow-2xl p-6 relative max-w-lg w-full mx-auto transform hover:scale-[1.01] transition-transform duration-500 space-y-6">
+
+              {/* 1. Page-like Header */}
+              <div className="flex flex-col gap-4">
+                 <div className="flex items-center justify-between">
+                     <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                           <h3 className="text-xl font-bold tracking-tight">Sale of MacBook Pro</h3>
+                           <div className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider">
+                              Verified
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                           <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md border border-border/50">
+                              <span className="font-mono">PR-8X92</span>
+                           </div>
+                           <span>•</span>
+                           <span>Signed just now</span>
+                        </div>
+                     </div>
+                 </div>
               </div>
-              <Badge variant="outline" className="bg-background/50 animate-pulse">
-                Pending
-              </Badge>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
-                  Agreement
-                </p>
-                <p className="font-medium">Sale of MacBook Pro M2</p>
+
+               {/* 2. Certificate Card */}
+              <div className="rounded-xl p-5 border bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/20 dark:via-background dark:to-emerald-900/10 border-emerald-200 dark:border-emerald-800 shadow-sm relative overflow-hidden">
+                 <div className="absolute -right-12 -top-12 h-40 w-40 bg-emerald-500/10 rounded-full blur-3xl" />
+                 <div className="flex items-start gap-4 relative z-10">
+                    <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                       <div className="flex items-center justify-between font-bold text-emerald-800 dark:text-emerald-400">
+                           <p>Legally Binding Agreement</p>
+                           <Shield className="h-4 w-4 opacity-50" />
+                       </div>
+                       <p className="text-xs opacity-90 text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed">
+                           Digital certificate confirms that this agreement was irrevocably signed by all parties.
+                       </p>
+                       <div className="pt-3 mt-3 border-t border-emerald-200/50 dark:border-emerald-800/30 text-[10px] font-mono text-emerald-600 dark:text-emerald-500">
+                           SEAL: 9f86d081884c7d659a2feaa0c55...
+                       </div>
+                    </div>
+                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
-                    Price
-                  </p>
-                  <p className="font-medium">$1,200.00</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
-                    Condition
-                  </p>
-                  <p className="font-medium">Like New</p>
-                </div>
+
+              {/* 3. Parties Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl border bg-secondary/30 flex items-center gap-3">
+                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                        AJ
+                     </div>
+                     <div className="min-w-0">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                          <Send className="h-3 w-3" /> Creator
+                        </p>
+                        <p className="text-sm font-bold truncate">Alex Johnson</p>
+                     </div>
+                  </div>
+                  <div className="p-3 rounded-xl border bg-secondary/30 flex items-center gap-3">
+                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                        SS
+                     </div>
+                     <div className="min-w-0">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                          <Inbox className="h-3 w-3" /> Recipient
+                        </p>
+                        <p className="text-sm font-bold truncate">Sarah Smith</p>
+                     </div>
+                  </div>
               </div>
-            </div>
-            <div className="bg-secondary/10 p-3 border-t text-center">
-              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-                <Shield className="h-3 w-3" />
-                Cryptographically Sealed
-              </p>
+
+      </div>
+
+              {/* Terms */}
+              <div className="space-y-3">
+                 <div className="flex justify-between text-sm border-b pb-2">
+                    <span className="text-muted-foreground">Price</span>
+                    <span className="font-medium">$1,200.00</span>
+                 </div>
+                 <div className="flex justify-between text-sm border-b pb-2">
+                     <span className="text-muted-foreground">Condition</span>
+                     <span className="font-medium">Like New</span>
+                 </div>
+                 <div className="flex justify-between text-sm">
+                     <span className="text-muted-foreground">Seller</span>
+                     <span className="font-medium">Alex Johnson</span>
+                 </div>
+              </div>
             </div>
           </motion.div>
 

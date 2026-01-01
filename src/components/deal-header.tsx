@@ -5,7 +5,6 @@ import { motion, useMotionValue, useSpring } from "framer-motion";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AnimatedLogo } from "@/components/animated-logo";
 import { SidebarLogo } from "@/components/sidebar-logo";
 import { useAppStore } from "@/store";
 import {
@@ -69,7 +68,6 @@ interface DealHeaderProps {
 }
 
 export function DealHeader({
-  title,
   backHref = "/dashboard",
   showBack = true,
   hideLogo = false,

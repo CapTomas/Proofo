@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle, FileSignature } from "lucide-react";
+import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle, FileSignature, Command } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, getStatCardClass } from "@/lib/dashboard-ui";
@@ -76,7 +76,7 @@ export const statusConfig: Record<DealStatus, StatusStyle> = {
  * Gets the contextual status configuration for a deal based on the current user.
  * This differentiates between "Waiting for Others" and "Action Required".
  */
-export function getDealStatusConfig(deal: any, userId?: string, userEmail?: string): StatusStyle {
+export function getDealStatusConfig(deal: { status: string; recipientId?: string; recipientEmail?: string }, userId?: string, userEmail?: string): StatusStyle {
   const baseConfig = statusConfig[deal.status as DealStatus] || statusConfig.pending;
 
   if (deal.status === "pending") {
@@ -149,30 +149,52 @@ export function useSearchShortcut(inputRef: React.RefObject<HTMLInputElement | n
 // =============================================================================
 
 /**
- * KeyboardHint - Shows a keyboard shortcut hint (e.g., ⌘/)
- * Used in search bars across all dashboard pages
+ * KeyboardHint - Shows a keyboard shortcut hint (e.g., ⌘K or Esc)
+ * Can be used absolutely (like in search bars) or inline (like in tooltips)
  */
 export const KeyboardHint = ({
   shortcut = "/",
-  showCommand = true,
+  showCommand = false,
   className,
+  variant = "absolute",
 }: {
   shortcut?: string;
   showCommand?: boolean;
   className?: string;
-}) => (
-  <div
-    className={cn(
-      "absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center pointer-events-none",
+  variant?: "absolute" | "inline";
+}) => {
+  const keys = shortcut.split("+");
+
+  const content = (
+    <kbd className={cn(
+      "hidden sm:inline-flex h-5 px-1.5 bg-muted border border-border/50 rounded text-[10px] font-mono text-muted-foreground items-center gap-0.5 whitespace-nowrap",
+      variant === "absolute" ? "pointer-events-none" : "ml-2",
       className
-    )}
-  >
-    <kbd className={dashboardStyles.keyboardHint}>
-      {showCommand && <span className="text-[15px] mr-1">⌘</span>}
-      {shortcut}
+    )}>
+      {showCommand && <Command className="h-3 w-3" />}
+      {keys.map((key, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && "+"}
+          {key.toLowerCase() === "cmd" || key.toLowerCase() === "command" ? (
+            <Command className="h-2.5 w-2.5" />
+          ) : (
+            key
+          )}
+        </React.Fragment>
+      ))}
     </kbd>
-  </div>
-);
+  );
+
+  if (variant === "absolute") {
+    return (
+      <div className={cn("absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none", className)}>
+        {content}
+      </div>
+    );
+  }
+
+  return content;
+};
 
 /**
  * CopyableId - A badge that copies an ID to clipboard on click

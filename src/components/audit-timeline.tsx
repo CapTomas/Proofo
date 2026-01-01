@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { AuditLogEntry, DealStatus } from "@/types";
 import { formatDateTime } from "@/lib/crypto";
-import { FileCheck, Eye, PenLine, CheckCircle2, XCircle, Mail, FileText, Download, ShieldCheck, Copy, Link, Smartphone, Monitor, Tablet, Key } from "lucide-react";
+import { FileCheck, Eye, PenLine, CheckCircle2, XCircle, Mail, FileText, Download, ShieldCheck, Link, Smartphone, Monitor, Tablet, Key } from "lucide-react";
 
 interface AuditTimelineProps {
   logs: AuditLogEntry[];

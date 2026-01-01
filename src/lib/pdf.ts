@@ -13,26 +13,7 @@ import { formatDateTime } from "./crypto";
  * - Timestamp and metadata
  */
 
-/**
- * Sanitize text for safe PDF rendering
- * Removes or escapes characters that could cause rendering issues
- */
-function sanitizeText(text: string | null | undefined): string {
-  if (!text) return "";
-
-  return text
-    // Remove null characters
-    .replace(/\0/g, "")
-    // Remove control characters (except newlines/tabs)
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
-    // Normalize whitespace
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    // Limit consecutive newlines
-    .replace(/\n{3,}/g, "\n\n")
-    // Trim
-    .trim();
-}
+// --- PDF Theme Utilities ---
 
 type ThemeType = "light" | "dark";
 
@@ -158,7 +139,8 @@ export async function generateDealPDF(options: GeneratePDFOptions): Promise<{
   let yPosition = PAGE.margin;
 
   // === HEADER SECTION ===
-  yPosition = drawHeader(doc, yPosition, isPro, colors);
+  void drawHeader(doc, yPosition, isPro, colors);
+  yPosition += 25;
 
   // === DEAL CARD ===
   yPosition = drawDealCard(doc, yPosition, deal, colors);

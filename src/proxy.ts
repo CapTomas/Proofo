@@ -9,7 +9,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
  * 2. Protects dashboard routes from unauthenticated access
  * 3. Redirects authenticated users away from login page
  */
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Static files and assets - skip entirely
@@ -23,7 +23,7 @@ export async function proxy(request: NextRequest) {
 
   // Public routes that don't require authentication
   const publicRoutes = ["/", "/login", "/deal/new", "/demo", "/privacy", "/terms", "/verify"];
-  const publicPrefixes = ["/d/", "/auth/", "/api/"];
+  const publicPrefixes = ["/d/public/", "/auth/", "/api/"];
 
   const isPublicRoute = publicRoutes.includes(pathname);
   const isPublicPrefix = publicPrefixes.some((prefix) => pathname.startsWith(prefix));

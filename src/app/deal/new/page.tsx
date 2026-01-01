@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { AnimatedLogo } from "@/components/animated-logo";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -15,13 +14,6 @@ import {
   Check,
   Copy,
   Share2,
-  Mail,
-  Package,
-  Handshake,
-  DollarSign,
-  ArrowLeftRight,
-  PenLine,
-  LucideIcon,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -34,13 +26,11 @@ import {
   Inbox,
   Clock,
   Sparkles,
-  Key,
   CheckCircle2,
   Send,
   FileText,
   LayoutTemplate,
   Shield,
-  PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
   Download,
@@ -61,6 +51,12 @@ import { SidebarLogo } from "@/components/sidebar-logo";
 import { SidebarNavItem } from "@/components/sidebar-nav-item";
 import { CopyableId } from "@/components/dashboard/shared-components";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import {
+  slideUp,
+  springContainerVariants,
+  shakeVariant,
+} from "@/lib/dashboard-ui";
+import { iconMap } from "@/lib/templates";
 import {
   Tooltip,
   TooltipContent,
@@ -84,51 +80,7 @@ const templateMetadata: Record<string, { category: string }> = {
   custom: { category: "General" },
 };
 
-// Enhanced Spring Physics for "Snappy" feel
-const springTransition = {
-  type: "spring" as const,
-  stiffness: 400,
-  damping: 30,
-};
-
-const slideUp = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: springTransition }
-};
-
-const shakeVariant = {
-  shake: {
-    x: [0, -4, 4, -4, 4, 0],
-    transition: { duration: 0.3 }
-  }
-};
-
-const containerVariants = {
-  hidden: { opacity: 0, scale: 0.98 },
-  show: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      type: "spring" as const,
-      stiffness: 400,
-      damping: 30,
-      staggerChildren: 0.05
-    }
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.98,
-    transition: { duration: 0.15 }
-  }
-};
-
-const iconMap: Record<string, LucideIcon> = {
-  Package,
-  Handshake,
-  DollarSign,
-  ArrowLeftRight,
-  PenLine,
-};
+// Local animation and icon definitions replaced by shared ones
 
 type Step = "template" | "details" | "review" | "share";
 
@@ -168,8 +120,6 @@ const formatCurrency = (val: string) => {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return parts.join(".");
 };
-
-const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const STEPS: Step[] = ["template", "details", "review", "share"];
 
@@ -264,7 +214,7 @@ function NewDealContent() {
     }, 500);
 
     return () => clearTimeout(debounceTimer);
-  }, [recipientEmail, user?.email, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [recipientEmail, user?.email, user?.id, recipientName]);
 
   // Scroll to top on step change for mobile
   useEffect(() => {
@@ -307,7 +257,6 @@ function NewDealContent() {
             if (progress.selectedTemplate) {
               const template = dealTemplates.find((t) => t.id === progress.selectedTemplate);
               if (template) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSelectedTemplate(template);
                 setCurrentStep("details");
                 restoredAny = true;
@@ -849,7 +798,7 @@ function NewDealContent() {
                   {currentStep === "template" && (
                     <motion.div
                       key="template"
-                      variants={containerVariants}
+                      variants={springContainerVariants}
                       initial="hidden" animate="show" exit="exit"
                       className="space-y-4 sm:space-y-6"
                     >
@@ -948,7 +897,7 @@ function NewDealContent() {
                   {currentStep === "details" && selectedTemplate && (
                     <motion.div
                       key="details"
-                      variants={containerVariants}
+                      variants={springContainerVariants}
                       initial="hidden" animate="show" exit="exit"
                       className="space-y-6"
                     >
@@ -1140,7 +1089,7 @@ function NewDealContent() {
                   {currentStep === "review" && (
                     <motion.div
                       key="review"
-                      variants={containerVariants}
+                      variants={springContainerVariants}
                       initial="hidden" animate="show" exit="exit"
                       className="space-y-6"
                     >
@@ -1356,7 +1305,7 @@ function NewDealContent() {
                   {currentStep === "share" && createdDeal && (
                     <motion.div
                       key="share"
-                      variants={containerVariants}
+                      variants={springContainerVariants}
                       initial="hidden" animate="show" exit="exit"
                       className="max-w-4xl mx-auto space-y-8 py-4 flex-1 w-full"
                     >

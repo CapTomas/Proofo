@@ -38,7 +38,6 @@ import {
 import {
   CopyableId,
   StatCard,
-  statusConfig,
   useSearchShortcut,
   KeyboardHint,
   StatCardSkeleton,
@@ -48,9 +47,7 @@ import {
 } from "@/components/dashboard/shared-components";
 
 
-// CopyableId and StatCard imported from shared-components
 
-// StatCard imported from shared-components
 
 const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: string) => void }) => {
   const { user } = useAppStore();
@@ -225,13 +222,11 @@ export default function InboxPage() {
 
   // Data Logic
   const inboxDeals = useMemo(() => {
-    if (!user?.email) return []; // No demo data fallback
-
-    // Filter deals where the user is the recipient (by email)
+    // Filter deals where the user is the recipient (by ID or email)
     return storeDeals.filter(
       (deal) =>
-        deal.recipientEmail?.toLowerCase() === user.email.toLowerCase() &&
-        deal.creatorId !== user.id
+        (user?.id && deal.recipientId === user.id) ||
+        (user?.email && deal.recipientEmail?.toLowerCase() === user.email.toLowerCase())
     );
   }, [storeDeals, user]);
 

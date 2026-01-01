@@ -3,15 +3,14 @@ import { useAppStore } from "@/store";
 
 export function useSidebarAutoCollapse() {
   const {
-    isSidebarCollapsed,
     setIsSidebarCollapsed,
     sidebarUserPreference,
-    setSidebarUserPreference,
   } = useAppStore();
 
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

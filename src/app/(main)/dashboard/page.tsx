@@ -20,12 +20,10 @@ import {
   ChevronRight,
   FileClock,
   Send,
-  Download,
   Copy,
   Zap,
   BarChart3,
   Fingerprint,
-  Mail,
   FileSignature,
 } from "lucide-react";
 import Link from "next/link";
@@ -41,7 +39,6 @@ import { cn } from "@/lib/utils";
 import { dashboardStyles, isStaleDeal } from "@/lib/dashboard-ui";
 import {
   CopyableId,
-  statusConfig,
   getDealStatusConfig,
   DealRowSkeleton,
 } from "@/components/dashboard/shared-components";
@@ -368,6 +365,8 @@ const ActivitySparkline = ({ data }: { data: number[] }) => {
 export default function DashboardPage() {
   const router = useRouter();
   const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding } = useAppStore();
+  const userId = user?.id;
+  const userEmail = user?.email;
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
   const [verifyId, setVerifyId] = useState("");
   const [nudgeLoading, setNudgeLoading] = useState<string | null>(null);
@@ -432,24 +431,36 @@ export default function DashboardPage() {
   // Simplified local stats for UI elements outside the main stats grid
   const localStats = useMemo(() => {
     const inbox = storeDeals.filter(
-      (d) => d.recipientEmail === user?.email && d.status === "pending"
+      (d) =>
+        ((userId && d.recipientId === userId) || (userEmail && d.recipientEmail?.toLowerCase() === userEmail.toLowerCase())) &&
+        d.status === "pending"
     ).length;
     return { inbox };
-  }, [storeDeals, user?.email]);
+  }, [storeDeals, userId, userEmail]);
 
   const priorityQueue = useMemo(() => {
     const inbox = storeDeals
-      .filter((d) => d.recipientEmail === user?.email && d.status === "pending")
+      .filter((d) =>
+        ((userId && d.recipientId === userId) || (userEmail && d.recipientEmail?.toLowerCase() === userEmail.toLowerCase())) &&
+        (d.status === "pending" || d.status === "sealing")
+      )
       .map((d) => ({ ...d, queueType: "inbox" as const }));
 
+    const isRecipient = (d: Deal) =>
+      ((userId && d.recipientId === userId) || (userEmail && d.recipientEmail?.toLowerCase() === userEmail.toLowerCase()));
+
     const pending = storeDeals
-      .filter((d) => d.creatorId === user?.id && d.status === "pending")
+      .filter((d) =>
+        d.creatorId === userId &&
+        !isRecipient(d) &&
+        (d.status === "pending" || d.status === "sealing")
+      )
       .map((d) => ({ ...d, queueType: "pending" as const }));
 
     return [...inbox, ...pending]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5);
-  }, [storeDeals, user?.id, user?.email]);
+  }, [storeDeals, userId, userEmail]);
 
   const recentDeals = useMemo(() => {
     return [...storeDeals]
@@ -579,7 +590,7 @@ export default function DashboardPage() {
         <MobileCreateAction />
 
         {/* KPI Grid */}
-        <DashboardStats deals={storeDeals} userEmail={user?.email} isLoading={!isLoaded} />
+        <DashboardStats deals={storeDeals} userId={user?.id} userEmail={user?.email} isLoading={!isLoaded} />
 
         {/* Main Dashboard Area */}
         <div className="grid lg:grid-cols-3 gap-6">

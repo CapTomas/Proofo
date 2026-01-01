@@ -19,6 +19,3 @@ export {
 
 // Note: Deal operations (create, confirm, void, etc.) are now handled by
 // server actions in "@/app/actions/deal-actions" for better security.
-
-// Middleware exports
-export { createSupabaseMiddlewareClient } from "./middleware";

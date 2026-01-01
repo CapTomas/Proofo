@@ -44,7 +44,6 @@ export function SidebarNavItem({
   className,
   isCompleted,
   index,
-  showDot,
   hasNotification,
   notificationColor = "rose",
 }: SidebarNavItemProps) {
