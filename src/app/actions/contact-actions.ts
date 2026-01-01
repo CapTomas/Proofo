@@ -75,7 +75,7 @@ export async function getContactsAction(): Promise<{
 
     if (error) {
       logger.error("Error fetching contacts", error);
-      return { contacts: [], error: error.message };
+      return { contacts: [], error: "Failed to load contacts" };
     }
 
     const contactRows = (data || []) as ContactRow[];
@@ -118,6 +118,13 @@ export async function createContactAction(data: {
     }
     const validatedData = validation.data;
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { contact: null, error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -146,7 +153,7 @@ export async function createContactAction(data: {
         return { contact: null, error: "A contact with this email already exists" };
       }
       logger.error("Error creating contact", error);
-      return { contact: null, error: error.message };
+      return { contact: null, error: "Failed to create contact" };
     }
 
     const contactRow = contact as ContactRow;
@@ -192,6 +199,13 @@ export async function updateContactAction(data: {
     }
     const validatedData = validation.data;
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -216,7 +230,7 @@ export async function updateContactAction(data: {
 
     if (error) {
       logger.error("Error updating contact", error);
-      return { error: error.message };
+      return { error: "Failed to update contact" };
     }
 
     return { error: null };
@@ -240,6 +254,13 @@ export async function deleteContactAction(contactId: string): Promise<{ error: s
       return { error: "Invalid contact ID" };
     }
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -257,7 +278,7 @@ export async function deleteContactAction(contactId: string): Promise<{ error: s
 
     if (error) {
       logger.error("Error deleting contact", error);
-      return { error: error.message };
+      return { error: "Failed to delete contact" };
     }
 
     return { error: null };

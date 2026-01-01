@@ -17,10 +17,11 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
-// Helper to create Supabase server client
-// NOTE: This duplicates code from @/lib/supabase/server but is kept separate
-// to avoid type incompatibility with the Database type. Consolidation requires
-// updating all RPC calls to use proper type definitions.
+// Helper to create Supabase server client (untyped version)
+// NOTE: This intentionally does NOT use the Database type to allow flexible RPC calls.
+// The typed version in @/lib/supabase/server requires all RPC functions to be defined
+// in the Database type, which would require regenerating types after each schema change.
+// See: https://supabase.com/docs/guides/api/generating-types
 async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
@@ -268,6 +269,13 @@ export async function createDealAction(data: {
     }
     const validatedData = validation.data;
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { deal: null, shareUrl: null, accessToken: null, error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -512,8 +520,9 @@ export async function getAccessTokenAction(
   publicId?: string
 ): Promise<{ token: string | null; error: string | null }> {
   try {
-    // Validate inputs
-    if (!dealId || typeof dealId !== "string" || dealId.length < 10) {
+    // Validate inputs - dealId should be a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!dealId || typeof dealId !== "string" || !uuidRegex.test(dealId)) {
       return { token: null, error: "Invalid deal ID" };
     }
 
@@ -642,7 +651,7 @@ export async function getTokenStatusAction(dealId: string): Promise<{
         return { status: "valid", expiresAt: null, error: null };
       }
       logger.error("Error fetching token status", error);
-      return { status: "not_found", expiresAt: null, error: error.message };
+      return { status: "not_found", expiresAt: null, error: "Failed to get token status" };
     }
 
     if (!data) {
@@ -757,7 +766,9 @@ export async function uploadSignatureAction(
 ): Promise<{ signatureUrl: string | null; error: string | null }> {
   try {
     // Validate dealId
-    if (!dealId || typeof dealId !== "string" || dealId.length < 10) {
+    // Validate dealId - should be a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!dealId || typeof dealId !== "string" || !uuidRegex.test(dealId)) {
       return { signatureUrl: null, error: "Invalid deal ID" };
     }
 
@@ -773,6 +784,14 @@ export async function uploadSignatureAction(
       return { signatureUrl: null, error: "Invalid signature format. Only PNG and JPEG allowed." };
     }
 
+    // SECURITY: Rate limit by IP to prevent upload abuse
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateLimitResult = await checkRateLimit("general", `upload:${ip}`);
+    if (!rateLimitResult.success) {
+      return { signatureUrl: null, error: "Rate limit exceeded. Please try again later." };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     // Convert base64 to buffer
@@ -786,13 +805,17 @@ export async function uploadSignatureAction(
 
 
     // Generate unique filename
-    const filename = `${dealId}/${nanoid(10)}.png`;
+    // Detect the actual MIME type from the base64 header
+    const isPng = signatureBase64.startsWith("data:image/png");
+    const extension = isPng ? "png" : "jpg";
+    const contentType = isPng ? "image/png" : "image/jpeg";
+    const filename = `${dealId}/${nanoid(10)}.${extension}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("signatures")
       .upload(filename, buffer, {
-        contentType: "image/png",
+        contentType,
         cacheControl: "3600",
         upsert: false,
       });
@@ -824,6 +847,21 @@ export async function confirmDealAction(data: {
   recipientEmail?: string;
 }): Promise<{ deal: Deal | null; error: string | null }> {
   try {
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { deal: null, error: originCheck.error || "Invalid request" };
+    }
+
+    // SECURITY: Rate limit by IP to prevent deal confirmation abuse
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateLimitResult = await checkRateLimit("general", `confirm:${ip}`);
+    if (!rateLimitResult.success) {
+      return { deal: null, error: "Rate limit exceeded. Please try again later." };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     // Check if current user is logged in
@@ -919,8 +957,9 @@ export async function confirmDealAction(data: {
 // SECURITY: Added CSRF protection and input validation
 export async function voidDealAction(dealId: string): Promise<{ error: string | null }> {
   try {
-    // Validate input
-    if (!dealId || typeof dealId !== "string" || dealId.length < 10) {
+    // Validate input - dealId should be a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!dealId || typeof dealId !== "string" || !uuidRegex.test(dealId)) {
       return { error: "Invalid deal ID" };
     }
 
@@ -951,7 +990,7 @@ export async function voidDealAction(dealId: string): Promise<{ error: string | 
       .eq("creator_id", user.id);
 
     if (error) {
-      return { error: error.message };
+      return { error: "Failed to void deal" };
     }
 
     // Add audit log
@@ -1133,6 +1172,13 @@ export async function updateProfileAction(updates: {
     }
     const validatedUpdates = validation.data;
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -1159,7 +1205,7 @@ export async function updateProfileAction(updates: {
     const { error } = await supabase.from("profiles").update(dbUpdates).eq("id", user.id);
 
     if (error) {
-      return { error: error.message };
+      return { error: "Failed to update profile" };
     }
 
     return { error: null };
@@ -1187,6 +1233,13 @@ export async function uploadAvatarAction(
     const hasValidMime = allowedMimeTypes.some(mime => avatarBase64.startsWith(mime));
     if (!hasValidMime) {
       return { avatarUrl: null, error: "Invalid avatar format. Only PNG, JPEG, and WebP allowed." };
+    }
+
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { avatarUrl: null, error: originCheck.error || "Invalid request" };
     }
 
     const supabase = await createServerSupabaseClient();
@@ -1258,7 +1311,7 @@ export async function getUserDealsAction(): Promise<{ deals: Deal[]; error: stri
       .order("created_at", { ascending: false });
 
     if (error) {
-      return { deals: [], error: error.message };
+      return { deals: [], error: "Failed to load deals" };
     }
 
     const deals = (data || []).map((deal) => ({
@@ -1296,7 +1349,7 @@ export async function getAuditLogsAction(dealId: string, token?: string): Promis
     });
 
     if (error) {
-      return { logs: [], error: error.message };
+      return { logs: [], error: "Failed to load audit logs" };
     }
 
     const logs = ((data as any[]) || []).map((log) => ({
@@ -1618,6 +1671,13 @@ export async function sendDealInvitationAction(data: {
   recipientEmail: string;
 }): Promise<{ success: boolean; error: string | null }> {
   try {
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { success: false, error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     // Get authenticated user (invitations require auth)
@@ -1854,6 +1914,13 @@ export async function updateNotificationPreferencesAction(
     }
     const validatedPrefs = validation.data;
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
 
@@ -1899,7 +1966,7 @@ export async function updateNotificationPreferencesAction(
       .upsert(dbUpdates, { onConflict: "user_id" });
 
     if (error) {
-      return { error: error.message };
+      return { error: "Failed to update preferences" };
     }
 
     return { error: null };
@@ -2034,6 +2101,13 @@ export async function updateAppearancePreferencesAction(
       return { error: validation.error.issues[0]?.message || "Invalid input" };
     }
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -2056,7 +2130,7 @@ export async function updateAppearancePreferencesAction(
       .upsert(dbUpdates, { onConflict: "user_id" });
 
     if (error) {
-      return { error: error.message };
+      return { error: "Failed to update preferences" };
     }
 
     return { error: null };
@@ -2133,6 +2207,13 @@ export async function toggleDoNotDisturbAction(
       return { error: validation.error.issues[0]?.message || "Invalid input" };
     }
 
+    // SECURITY: Validate request origin (CSRF protection)
+    const { validateOrigin } = await import("@/lib/security");
+    const originCheck = await validateOrigin();
+    if (!originCheck.isValid) {
+      return { error: originCheck.error || "Invalid request" };
+    }
+
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -2161,7 +2242,7 @@ export async function toggleDoNotDisturbAction(
     );
 
     if (error) {
-      return { error: error.message };
+      return { error: "Failed to update schedule" };
     }
 
     return { error: null };
@@ -2259,6 +2340,12 @@ export async function downloadUserDataAction(): Promise<{
       return { data: null, error: "Not authenticated" };
     }
 
+    // SECURITY: Rate limit data export to prevent abuse
+    const rateLimitResult = await checkRateLimit("general", `export:${user.id}`);
+    if (!rateLimitResult.success) {
+      return { data: null, error: "Rate limit exceeded. Please try again later." };
+    }
+
     // Fetch all user data in parallel
     const [
       { data: profile },
@@ -2275,13 +2362,22 @@ export async function downloadUserDataAction(): Promise<{
       supabase.from("audit_log").select("*").eq("actor_id", user.id),
     ]);
 
+    // Build sanitized export data - only include safe fields
+    // Excludes: tokens, internal auth metadata, session data
+    const safeUserInfo = {
+      id: user.id,
+      email: user.email,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    };
+
     const exportData = {
       exportInfo: {
         generatedAt: new Date().toISOString(),
         environment: process.env.NODE_ENV,
         version: "1.0",
       },
-      user: { ...user, profile },
+      user: { ...safeUserInfo, profile },
       preferences: prefs || {},
       contacts: contacts || [],
       deals: deals || [],

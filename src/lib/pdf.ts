@@ -467,7 +467,9 @@ async function drawSignatureCard(
       doc.text("Digital Signature Recorded", boxX, boxY + 10);
     }
   } catch (e) {
-    console.warn("Signature embed error", e);
+    // Log error but don't fail - the PDF will just show placeholder text
+    const { logger } = await import("./logger");
+    logger.warn("Signature embed error in PDF generation", { error: e });
   }
 
   return y + cardHeight + 12;

@@ -9,10 +9,14 @@ import { headers } from "next/headers";
 import { logger } from "./logger";
 
 // Allowed origins for CSRF protection
+// Only include localhost in development mode for security
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
-  "http://localhost:3000",
-  "http://localhost:3001",
+  // Only allow localhost in development
+  ...(process.env.NODE_ENV === "development"
+    ? ["http://localhost:3000", "http://localhost:3001"]
+    : []
+  ),
 ].filter(Boolean) as string[];
 
 /**
@@ -74,8 +78,8 @@ export async function validateOrigin(): Promise<{ isValid: boolean; error?: stri
     };
   } catch (error) {
     logger.error("Error validating origin", error);
-    // Fail open with warning in case of errors to avoid breaking functionality
-    return { isValid: true };
+    // SECURITY FIX: Fail CLOSED on errors - do not allow requests when validation fails
+    return { isValid: false, error: "Origin validation failed" };
   }
 }
 

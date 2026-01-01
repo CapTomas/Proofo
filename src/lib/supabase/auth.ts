@@ -174,15 +174,17 @@ export async function updateProfile(
     return { error: new Error("Not authenticated") };
   }
 
-  // We use a broader cast here because the generated Database types are not being
-  // correctly inferred by the Supabase client in this context, leading to 'never' type errors.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  // Build the update object
+  // Note: Using type assertion due to TypeScript inference limitations with
+  // the Supabase client's generic types. This is safer than 'any' as it's scoped.
+  const profileUpdate = {
+    name: updates.name ?? null,
+    avatar_url: updates.avatarUrl ?? null,
+  } as Database["public"]["Tables"]["profiles"]["Update"];
+
+  const { error } = await supabase
     .from("profiles")
-    .update({
-      name: updates.name ?? null,
-      avatar_url: updates.avatarUrl ?? null,
-    })
+    .update(profileUpdate as never)
     .eq("id", authUser.id);
 
   return { error: error ? new Error(error.message) : null };

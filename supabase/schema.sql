@@ -198,11 +198,36 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Allow anyone (including anonymous users) to lookup profiles by email
--- This is needed for the deal signing page to show recipient info (Proofo User badge)
+-- SECURE Profile RLS Policies (replaces the dangerous USING(true) policy)
+-- Users can only view:
+-- 1. Their own profile
+-- 2. Profiles of people they have deals with (as creator or recipient)
 DROP POLICY IF EXISTS "Authenticated users can lookup profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Anyone can lookup profiles by email" ON public.profiles;
-CREATE POLICY "Anyone can lookup profiles by email" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "View deal party profiles" ON public.profiles;
+
+-- Allow users to view their own profile (basic requirement)
+CREATE POLICY "Users view own profile" ON public.profiles
+FOR SELECT USING (auth.uid() = id);
+
+-- Allow authenticated users to view profiles of people they have deals with
+CREATE POLICY "View deal party profiles" ON public.profiles
+FOR SELECT USING (
+  auth.uid() IS NOT NULL AND (
+    -- View profiles of people you've created deals for
+    id IN (SELECT recipient_id FROM deals WHERE creator_id = auth.uid() AND recipient_id IS NOT NULL)
+    OR
+    -- View profiles of deal creators for deals you're a recipient of
+    id IN (SELECT creator_id FROM deals WHERE recipient_id = auth.uid())
+    OR
+    -- View profiles of deal creators by email match (for recipients not yet registered)
+    id IN (
+      SELECT creator_id FROM deals
+      WHERE recipient_email = (SELECT email FROM profiles WHERE id = auth.uid())
+    )
+  )
+);
 
 -- Deals
 DROP POLICY IF EXISTS "Creators can view their own deals" ON public.deals;
@@ -367,7 +392,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get deal by public ID (includes creator name for anonymous users)
+-- Function to get deal by public ID (includes creator name and avatar for anonymous users)
 CREATE OR REPLACE FUNCTION public.get_deal_by_public_id(p_public_id TEXT)
 RETURNS JSON AS $$
 DECLARE
@@ -378,6 +403,7 @@ BEGIN
     'public_id', d.public_id,
     'creator_id', d.creator_id,
     'creator_name', COALESCE(p.name, 'Unknown'),
+    'creator_avatar_url', p.avatar_url,
     'recipient_id', d.recipient_id,
     'recipient_name', d.recipient_name,
     'recipient_email', d.recipient_email,
@@ -391,7 +417,8 @@ BEGIN
     'created_at', d.created_at,
     'confirmed_at', d.confirmed_at,
     'voided_at', d.voided_at,
-    'viewed_at', d.viewed_at
+    'viewed_at', d.viewed_at,
+    'last_nudged_at', d.last_nudged_at
   ) INTO v_result
   FROM public.deals d
   LEFT JOIN public.profiles p ON d.creator_id = p.id
@@ -492,6 +519,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to log audit events (bypasses RLS for anonymous users)
+-- SECURITY: Validates deal exists before inserting to prevent fake audit entries
 CREATE OR REPLACE FUNCTION public.log_audit_event(
   p_deal_id UUID,
   p_event_type audit_event_type,
@@ -504,7 +532,15 @@ CREATE OR REPLACE FUNCTION public.log_audit_event(
 RETURNS UUID AS $$
 DECLARE
   v_id UUID;
+  v_deal_exists BOOLEAN;
 BEGIN
+  -- SECURITY: Validate that the deal exists before logging
+  SELECT EXISTS(SELECT 1 FROM public.deals WHERE id = p_deal_id) INTO v_deal_exists;
+
+  IF NOT v_deal_exists THEN
+    RAISE EXCEPTION 'Deal not found';
+  END IF;
+
   INSERT INTO public.audit_log (
     deal_id,
     event_type,
@@ -571,6 +607,68 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, servi
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 
+-- SECURITY DEFINER function for authenticated profile lookup
+-- Allows authenticated users to look up any profile by email when creating deals
+-- Security is enforced at the action level (authentication + rate limiting)
+CREATE OR REPLACE FUNCTION public.lookup_profile_by_email(p_email TEXT)
+RETURNS TABLE(id UUID, name TEXT, avatar_url TEXT) AS $$
+BEGIN
+  -- Only allow authenticated users to call this function
+  IF auth.uid() IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT profiles.id, profiles.name, profiles.avatar_url
+  FROM public.profiles
+  WHERE profiles.email = LOWER(TRIM(p_email));
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- SECURITY DEFINER function for anonymous email check on public signing page
+-- Returns minimal info: whether email is registered and if it's the deal creator
+-- Used by checkRecipientEmailForDealAction for anonymous users
+CREATE OR REPLACE FUNCTION public.check_email_for_deal(p_public_id TEXT, p_email TEXT)
+RETURNS TABLE(is_proofo_user BOOLEAN, is_creator BOOLEAN, user_name TEXT, user_avatar_url TEXT) AS $$
+DECLARE
+  v_deal_creator_id UUID;
+  v_profile_id UUID;
+  v_profile_name TEXT;
+  v_profile_avatar TEXT;
+BEGIN
+  -- Get the deal's creator_id
+  SELECT creator_id INTO v_deal_creator_id
+  FROM public.deals
+  WHERE public_id = p_public_id;
+
+  IF v_deal_creator_id IS NULL THEN
+    -- Deal not found
+    RETURN QUERY SELECT FALSE, FALSE, NULL::TEXT, NULL::TEXT;
+    RETURN;
+  END IF;
+
+  -- Check if email exists in profiles
+  SELECT profiles.id, profiles.name, profiles.avatar_url INTO v_profile_id, v_profile_name, v_profile_avatar
+  FROM public.profiles
+  WHERE email = LOWER(TRIM(p_email));
+
+  IF v_profile_id IS NULL THEN
+    -- Email not registered
+    RETURN QUERY SELECT FALSE, FALSE, NULL::TEXT, NULL::TEXT;
+    RETURN;
+  END IF;
+
+  -- Check if this is the creator
+  IF v_profile_id = v_deal_creator_id THEN
+    RETURN QUERY SELECT FALSE, TRUE, NULL::TEXT, NULL::TEXT;
+    RETURN;
+  END IF;
+
+  -- It's a registered Proofo user who is NOT the creator
+  RETURN QUERY SELECT TRUE, FALSE, v_profile_name, v_profile_avatar;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 12. Public Function Grants
 GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
@@ -579,6 +677,8 @@ GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticate
 GRANT EXECUTE ON FUNCTION public.get_token_status_for_deal(UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.log_audit_event(UUID, audit_event_type, actor_type, JSONB, UUID, INET, TEXT) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.get_deal_audit_logs(UUID, TEXT) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.lookup_profile_by_email(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.check_email_for_deal(TEXT, TEXT) TO authenticated, anon;
 
 -- ============================================
 -- STORAGE SETUP (Run in Supabase Dashboard)
