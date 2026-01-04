@@ -3,15 +3,18 @@
 import { useState, useEffect, useRef } from "react";
 import {
   motion,
-  useInView,
+  AnimatePresence,
   useScroll,
-  useTransform,
   useSpring,
+  useTransform,
+  useInView,
   useMotionValue,
 } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AnimatedLogo } from "@/components/animated-logo";
 import {
   Shield,
@@ -87,7 +90,26 @@ const MagneticWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// 2. Scroll Progress Line
+// 2. Grain Overlay
+const GrainOverlay = () => (
+  <div className="fixed inset-0 z-[100] pointer-events-none opacity-[0.08] mix-blend-soft-light">
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+      <filter id="noise">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.65"
+          numOctaves="3"
+          stitchTiles="stitch"
+        />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#noise)" />
+    </svg>
+  </div>
+);
+
+
+// 3. Scroll Progress Line
 const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -98,13 +120,11 @@ const ScrollProgress = () => {
 
   return (
     <motion.div
-      className="fixed top-0 left-0 right-0 h-[3px] bg-primary origin-left z-100"
+      className="fixed top-0 left-0 right-0 h-[3px] bg-foreground/10 origin-left z-[101]"
       style={{ scaleX }}
     />
   );
 };
-
-// 3. Signature Animation
 const SignatureAnimation = () => (
   <svg
     viewBox="0 0 200 100"
@@ -502,7 +522,7 @@ const ParallaxBadge = () => {
   return (
     <div ref={ref} className="absolute -top-3 right-6 overflow-visible z-10">
       <motion.div style={{ x }}>
-        <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 border-0 px-3 py-1 shadow-md">
+        <Badge className="bg-foreground text-background hover:bg-foreground/90 border-0 px-3 py-1 shadow-md text-[10px] font-bold uppercase tracking-widest">
           Most Popular
         </Badge>
       </motion.div>
@@ -521,11 +541,11 @@ const BentoGrid = () => (
       viewport={{ once: true }}
       className="md:col-span-2 row-span-2"
     >
-      <Card className="h-full bg-card border shadow-sm hover:border-primary/20 transition-colors group">
+      <Card className="h-full bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-foreground/5 hover:border-foreground/10 transition-all duration-500 group cursor-default">
         <CardContent className="p-8 flex flex-col justify-between h-full">
           <div className="space-y-6 max-w-lg">
-            <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-secondary/80 transition-colors">
-              <Users className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 rounded-lg bg-secondary/80 flex items-center justify-center border border-border/50 group-hover:bg-secondary transition-colors">
+              <Users className="h-6 w-6 text-foreground/70" />
             </div>
             <h3 className="text-3xl font-semibold tracking-tight">Zero Friction for Them</h3>
             <p className="text-muted-foreground text-lg leading-relaxed">
@@ -568,10 +588,10 @@ const BentoGrid = () => (
       transition={{ delay: 0.1 }}
       className="md:col-span-1 row-span-2"
     >
-      <Card className="h-full bg-card border shadow-sm hover:border-primary/20 transition-colors group">
+      <Card className="h-full bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-foreground/5 hover:border-foreground/10 transition-all duration-500 group cursor-default">
         <CardContent className="p-6 flex flex-col h-full">
-          <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-6 group-hover:bg-secondary/80 transition-colors">
-            <PenLine className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center mb-6 border border-border/50 group-hover:bg-secondary transition-colors">
+            <PenLine className="h-5 w-5 text-foreground/70" />
           </div>
           <h3 className="text-xl font-semibold mb-3">Signatures That Stick</h3>
           <p className="text-muted-foreground text-sm mb-8">
@@ -597,7 +617,7 @@ const BentoGrid = () => (
       transition={{ delay: 0.2 }}
       className="md:col-span-1"
     >
-      <Card className="h-full bg-card border shadow-sm hover:border-primary/20 transition-colors group">
+      <Card className="h-full bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-foreground/5 hover:border-foreground/10 transition-all duration-500 group cursor-default">
         <CardContent className="p-6">
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
             <AnimatedLock />
@@ -619,7 +639,7 @@ const BentoGrid = () => (
       transition={{ delay: 0.3 }}
       className="md:col-span-1"
     >
-      <Card className="h-full bg-card border shadow-sm hover:border-primary/20 transition-colors group">
+      <Card className="h-full bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-foreground/5 hover:border-foreground/10 transition-all duration-500 group cursor-default">
         <CardContent className="p-6">
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
             <Smartphone className="h-5 w-5 text-primary" />
@@ -640,9 +660,9 @@ const BentoGrid = () => (
       transition={{ delay: 0.4 }}
       className="md:col-span-1"
     >
-      <Card className="h-full bg-card border shadow-sm hover:border-primary/20 transition-colors group">
+      <Card className="h-full bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-foreground/5 hover:border-foreground/10 transition-all duration-500 group cursor-default">
         <CardContent className="p-6">
-          <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
+          <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center mb-4 border border-border/50 group-hover:bg-secondary transition-colors">
             <AnimatedDoc />
           </div>
           <h3 className="text-lg font-semibold mb-2">Instant Digital Receipts</h3>
@@ -687,7 +707,7 @@ const WorkflowSection = () => (
           viewport={{ once: true }}
           transition={{ delay: i * 0.1 }}
         >
-          <div className="bg-background h-20 w-20 rounded-2xl border shadow-sm flex items-center justify-center mb-6 mx-auto group-hover:border-primary group-hover:scale-105 transition-all duration-300">
+          <div className="bg-background h-20 w-20 rounded-2xl border border-border/50 shadow-sm flex items-center justify-center mb-6 mx-auto group-hover:border-foreground/20 group-hover:scale-[1.02] transition-all duration-500">
             <step.icon />
           </div>
           <div className="text-center px-2">
@@ -750,9 +770,9 @@ const RealWorldSection = () => (
             viewport={{ once: true }}
             transition={{ delay: i * 0.1 }}
           >
-            <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 group-hover:bg-secondary/80 transition-colors">
+            <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0 border border-border/50 group-hover:bg-secondary transition-colors">
               <HoverIcon type={item.anim}>
-                <item.icon className="h-5 w-5 text-primary" />
+                <item.icon className="h-5 w-5 text-foreground/60" />
               </HoverIcon>
             </div>
             <div>
@@ -897,105 +917,143 @@ const RealWorldSection = () => (
 );
 
 const Pricing = () => (
-  <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-    {/* Free Tier */}
-    <Card className="relative bg-card border shadow-sm hover:border-primary/20 transition-colors">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold">The Hobbyist</CardTitle>
-        <div className="mt-4 flex items-baseline">
-          <span className="text-4xl font-bold tracking-tight">$0</span>
-          <span className="text-muted-foreground ml-2 text-sm">/ month</span>
-        </div>
-        <CardDescription className="mt-2">
-          Perfect for the occasional trade.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 pt-4">
-        <ul className="space-y-3 text-sm">
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.2} className="text-primary w-3 h-3" />
-            </div>
-            Unlimited Deals
-          </li>
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.4} className="text-primary w-3 h-3" />
-            </div>
-            Visual Signatures
-          </li>
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.6} className="text-primary w-3 h-3" />
-            </div>
-            Secure PDF Receipts
-          </li>
-          <li className="flex items-center gap-3 text-muted-foreground">
-            <div className="h-5 w-5 flex items-center justify-center shrink-0">
-              <History className="h-3 w-3" />
-            </div>
-            90-day history retention
-          </li>
-        </ul>
-        <div className="pt-4">
-          <Link href="/deal/new" className="block">
-            <Button variant="outline" className="w-full h-11 border-border hover:bg-secondary">
-              Create a Deal
-            </Button>
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+  <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+    {/* Tier 1: Free */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+    >
+      <Card className="h-full bg-card border-border/50 shadow-sm hover:shadow-2xl hover:shadow-foreground/5 hover:-translate-y-1 transition-all duration-500 overflow-hidden group">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-bold">The Hobbyist</CardTitle>
+          <div className="mt-4 flex items-baseline">
+            <span className="text-4xl font-bold tracking-tight">$0</span>
+            <span className="text-muted-foreground ml-2 text-xs uppercase font-bold tracking-widest">/ free</span>
+          </div>
+          <CardDescription className="mt-2 text-xs">
+            Perfect for the occasional secured handshake.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Separator className="bg-border/50" />
+          <ul className="space-y-3.5">
+            {[
+              "Unlimited Deals",
+              "Visual Signatures",
+              "Secure PDF Receipts",
+              "90-day history retention"
+            ].map((feature, i) => (
+              <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground/90">
+                <Check className="h-3.5 w-3.5 text-foreground/40 shrink-0" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          <div className="pt-4">
+            <Link href="/deal/new" className="block">
+              <Button variant="outline" className="w-full h-11 rounded-full border-border/50 hover:bg-secondary transition-colors">
+                Start for Free
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
 
-    {/* Pro Tier */}
-    <Card className="relative bg-secondary/30 border-primary/20 shadow-lg hover:border-primary/30 transition-colors">
-      <ParallaxBadge />
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold flex items-center gap-2">The Dealmaker</CardTitle>
-        <div className="mt-4 flex items-baseline">
-          <span className="text-4xl font-bold tracking-tight">$9</span>
-          <span className="text-muted-foreground ml-2 text-sm">/ month</span>
+    {/* Tier 2: $4 */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6, delay: 0.1 }}
+    >
+      <Card className="h-full bg-card border-foreground/10 shadow-md hover:shadow-2xl hover:shadow-foreground/5 hover:-translate-y-1 transition-all duration-500 overflow-hidden relative group">
+        <div className="absolute top-0 right-0 px-3 py-1 bg-foreground text-background text-[10px] font-bold uppercase tracking-widest rounded-bl-lg">
+          Best Value
         </div>
-        <CardDescription className="mt-2 text-foreground/80">
-          For freelancers and traders who mean business.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 pt-4">
-        <ul className="space-y-3 text-sm">
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.2} className="text-emerald-600 w-3 h-3" />
-            </div>
-            Everything in Starter
-          </li>
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.4} className="text-emerald-600 w-3 h-3" />
-            </div>
-            <strong>Unlimited History</strong>
-          </li>
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.6} className="text-emerald-600 w-3 h-3" />
-            </div>
-            Custom Branding
-          </li>
-          <li className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-              <AnimatedCheck delay={0.8} className="text-emerald-600 w-3 h-3" />
-            </div>
-            No Watermarks on PDFs
-          </li>
-        </ul>
-        <div className="pt-4">
-          <Link href="/dashboard" className="block">
-            <MagneticWrapper>
-              <Button className="w-full h-11 shadow-md">Upgrade to Pro</Button>
-            </MagneticWrapper>
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-bold">The Specialist</CardTitle>
+          <div className="mt-4 flex items-baseline">
+            <span className="text-4xl font-bold tracking-tight">$4</span>
+            <span className="text-muted-foreground ml-2 text-xs uppercase font-bold tracking-widest">/ month</span>
+          </div>
+          <CardDescription className="mt-2 text-xs">
+            Enhanced privacy and history for active traders.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Separator className="bg-border/50" />
+          <ul className="space-y-3.5">
+            {[
+              "Everything in Hobbyist",
+              "1-Year History Retention",
+              "Priority Email Support",
+              "Custom Deal Templates",
+              "No 'Proofo' Watermarks"
+            ].map((feature, i) => (
+              <li key={i} className="flex items-center gap-3 text-xs font-medium">
+                <Check className="h-3.5 w-3.5 text-foreground shrink-0" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          <div className="pt-4">
+            <Link href="/deal/new" className="block">
+              <Button className="w-full h-11 rounded-full shadow-lg shadow-foreground/5 bg-foreground text-background hover:bg-foreground/90 transition-all">
+                Get Started
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+
+    {/* Tier 3: $9 */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+    >
+      <Card className="h-full bg-card border-border/50 shadow-sm hover:shadow-2xl hover:shadow-foreground/5 hover:-translate-y-1 transition-all duration-500 overflow-hidden group">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-bold">The Dealmaker</CardTitle>
+          <div className="mt-4 flex items-baseline">
+            <span className="text-4xl font-bold tracking-tight">$9</span>
+            <span className="text-muted-foreground ml-2 text-xs uppercase font-bold tracking-widest">/ month</span>
+          </div>
+          <CardDescription className="mt-2 text-xs">
+            The ultimate tool for high-volume professionals.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Separator className="bg-border/50" />
+          <ul className="space-y-3.5">
+            {[
+              "Everything in Specialist",
+              "Lifetime History Retention",
+              "API Access (Coming Soon)",
+              "Multi-User Teams",
+              "Premium Support"
+            ].map((feature, i) => (
+              <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground/90">
+                <Check className="h-3.5 w-3.5 text-foreground/40 shrink-0" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          <div className="pt-4">
+            <Link href="/deal/new" className="block">
+              <Button variant="outline" className="w-full h-11 rounded-full border-border/50 hover:bg-secondary transition-colors">
+                Contact Sales
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   </div>
 );
 
@@ -1012,6 +1070,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
+      <GrainOverlay />
       <ScrollProgress />
 
       {/* Top Right Gradient Decoration */}
@@ -1027,9 +1086,9 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="inline-flex items-center gap-2 rounded-full border bg-secondary/50 px-3 py-1 text-sm text-muted-foreground mb-8">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Digital Handshake
+            <div className="inline-flex items-center gap-2 rounded-full border bg-secondary/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-8">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              The Operating System for the Digital Handshake
             </div>
 
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-8 text-foreground leading-[1.1]">
@@ -1081,7 +1140,7 @@ export default function Home() {
         </div>
 
         {/* Bento Grid Features */}
-        <section id="features" className="mb-40 scroll-mt-24">
+        <section id="features" className="pt-10 pb-40 scroll-mt-24">
           <div className="container mx-auto px-4 mb-16 text-center max-w-2xl">
             <h2 className="text-3xl font-bold tracking-tight mb-4">Why Proofo works</h2>
             <p className="text-muted-foreground text-lg">
@@ -1093,7 +1152,7 @@ export default function Home() {
         </section>
 
         {/* Workflow Steps */}
-        <section id="how-it-works" className="py-32 border-y bg-secondary/30 scroll-mt-24">
+        <section id="how-it-works" className="py-40 border-y bg-secondary/10 scroll-mt-24">
           <div className="container mx-auto px-4 max-w-5xl">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight mb-4">How it works</h2>
@@ -1106,7 +1165,7 @@ export default function Home() {
         </section>
 
         {/* Real World Use Cases */}
-        <section className="py-32">
+        <section className="py-40">
           <div className="container mx-auto px-4 max-w-6xl">
             <RealWorldSection />
           </div>
@@ -1124,24 +1183,27 @@ export default function Home() {
         </section>
 
         {/* CTA */}
-        <section className="py-32">
-          <div className="container mx-auto px-4 text-center max-w-2xl">
-            <div className="bg-secondary/30 rounded-3xl p-12 border border-border relative overflow-hidden">
-              <div className="relative z-10">
-                <h2 className="text-3xl font-bold mb-4">Ready to proof it?</h2>
-                <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
+        <section className="py-40">
+          <div className="container mx-auto px-4 text-center max-w-3xl">
+            <div className="bg-secondary/20 rounded-[40px] p-20 border border-border/50 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
+              <div className="relative z-10 space-y-8">
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Ready to proof it?</h2>
+                <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
                   Stop hoping they&apos;ll keep their word. Start proving they agreed.
                 </p>
-                <Link href="/deal/new">
-                  <MagneticWrapper>
-                    <Button
-                      size="xl"
-                      className="h-14 px-10 text-base rounded-full shadow-lg shadow-primary/10"
-                    >
-                      Create a Deal
-                    </Button>
-                  </MagneticWrapper>
-                </Link>
+                <div className="pt-4">
+                  <Link href="/deal/new">
+                    <MagneticWrapper>
+                      <Button
+                        size="xl"
+                        className="h-16 px-12 text-lg rounded-full shadow-2xl shadow-foreground/5 bg-foreground text-background hover:bg-foreground/90 transition-all"
+                      >
+                        Create a Deal
+                      </Button>
+                    </MagneticWrapper>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

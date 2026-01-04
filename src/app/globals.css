@@ -74,6 +74,10 @@
   --input: #e5e5e5;
   --ring: #111111;
 
+  --primary-rgb: 17, 17, 17;
+  --foreground-rgb: 17, 17, 17;
+  --background-rgb: 249, 249, 249;
+
   --radius: 0.5rem; /* Tighter radius for a more technical feel */
 }
 
@@ -112,6 +116,10 @@
   --border: #262626; /* Subtle dark border */
   --input: #262626;
   --ring: #555555;
+
+  --primary-rgb: 237, 237, 237;
+  --foreground-rgb: 237, 237, 237;
+  --background-rgb: 10, 10, 10;
 }
 
 @layer base {
