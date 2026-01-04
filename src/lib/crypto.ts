@@ -37,24 +37,68 @@ export function generateAccessToken(): string {
   return nanoid(64);
 }
 
+export interface VerificationData {
+  email?: { verified: boolean; value?: string; verifiedAt?: string };
+  phone?: { verified: boolean; verifiedAt?: string };
+}
+
 /**
- * Deterministically stringify an object by sorting keys
- * This ensures {a:1, b:2} and {b:2, a:1} produce the same string
+ * Normalizes database verification records into a consistent structure for hashing.
+ * CRITICAL: Normalizes timestamps to ISO format to ensure consistency between
+ * Supabase client (returns "2024-01-01 12:00:00+00") and JSON/RPC (returns "2024-01-01T12:00:00+00:00")
+ */
+export function transformVerificationsForHash(records: any[] | null | undefined): VerificationData | undefined {
+  if (!records || records.length === 0) return undefined;
+
+  const verifications: VerificationData = {};
+  for (const record of records) {
+    // Handle both snake_case (DB) and camelCase (already transformed) inputs
+    const type = record.verification_type || record.type;
+    const value = record.verified_value || record.value;
+    const rawAt = record.verified_at || record.at || record.verifiedAt;
+
+    // CRITICAL: Normalize timestamp to ISO format for hash consistency
+    const at = rawAt ? new Date(rawAt).toISOString() : undefined;
+
+    if (type === "email") {
+      verifications.email = {
+        verified: true,
+        value: value,
+        verifiedAt: at,
+      };
+    } else if (type === "phone") {
+      verifications.phone = {
+        verified: true,
+        verifiedAt: at,
+      };
+    }
+  }
+  return Object.keys(verifications).length > 0 ? verifications : undefined;
+}
+
+/**
+ * Deterministically stringify an object by sorting keys.
+ * This ensures {a:1, b:2} and {b:2, a:1} produce the same string.
  */
 export function deterministicStringify(obj: unknown): string {
-  // 1. Handle primitives
-  if (obj === null || typeof obj !== "object") {
+  // 1. Handle Null
+  if (obj === null) return "null";
+
+  // 2. Handle Primitives
+  if (typeof obj !== "object") {
     return JSON.stringify(obj);
   }
 
-  // 2. Handle Arrays (keep order, but sort keys of items inside)
+  // 3. Handle Arrays (keep order, but sort keys of items inside)
   if (Array.isArray(obj)) {
     return "[" + obj.map(deterministicStringify).join(",") + "]";
   }
 
-  // 3. Handle Objects (sort keys alphabetically)
+  // 4. Handle Objects (sort keys alphabetically)
   const objRecord = obj as Record<string, unknown>;
-  const sortedKeys = Object.keys(objRecord).sort();
+  const sortedKeys = Object.keys(objRecord)
+    .filter((key) => objRecord[key] !== undefined)
+    .sort();
   const parts = sortedKeys.map((key) => {
     return `${JSON.stringify(key)}:${deterministicStringify(objRecord[key])}`;
   });
@@ -80,14 +124,16 @@ export function deterministicStringify(obj: unknown): string {
  * @param {string | Object} data.terms - The final agreed-upon terms.
  * @param {string} [data.signatureUrl] - Optional base64 or URL of the recipient's signature.
  * @param {string} data.timestamp - The ISO timestamp of when the deal was sealed.
+ * @param {Object} [data.verifications] - Optional verification metadata included in the seal.
  * @returns {Promise<string>} A hex-encoded SHA-256 hash string.
  * @throws {Error} If no cryptographic hashing method is available in the environment.
  */
 export async function calculateDealSeal(data: {
   dealId: string;
-  terms: string;
+  terms: string | any[];
   signatureUrl?: string;
   timestamp: string;
+  verifications?: VerificationData;
 }): Promise<string> {
   // 1. Parse terms if it's a string, so we can re-stringify it deterministically
   let termsObj;
@@ -101,12 +147,13 @@ export async function calculateDealSeal(data: {
   // Ensure we compare "2023-01-01T00:00:00.000Z" not "2023-01-01T00:00:00+00:00"
   const normalizedTimestamp = new Date(data.timestamp).toISOString();
 
-  // 3. Construct Payload
+  // 3. Construct Payload (including verifications if present)
   const payload = deterministicStringify({
     dealId: data.dealId,
     terms: termsObj,
     signatureUrl: data.signatureUrl || "",
-    timestamp: normalizedTimestamp, // Use normalized version
+    timestamp: normalizedTimestamp,
+    ...(data.verifications && { verifications: data.verifications }),
   });
 
   // Use Web Crypto API for SHA-256

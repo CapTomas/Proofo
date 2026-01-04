@@ -1,4 +1,5 @@
 export type DealStatus = "pending" | "sealing" | "confirmed" | "voided";
+export type TrustLevel = "basic" | "verified" | "strong" | "maximum";
 
 export interface Deal {
   id: string;
@@ -13,6 +14,7 @@ export interface Deal {
   templateId?: string;
   terms: DealTerm[];
   status: DealStatus;
+  trustLevel?: TrustLevel;
   createdAt: string;
   confirmedAt?: string;
   voidedAt?: string;
@@ -21,6 +23,11 @@ export interface Deal {
   dealSeal?: string;
   accessToken?: string;
   lastNudgedAt?: string;
+  verifications?: {
+    verification_type: "email" | "phone";
+    verified_value?: string;
+    verified_at: string;
+  }[];
 }
 
 export interface DealTerm {
@@ -82,7 +89,11 @@ export type AuditEventType =
   | "pdf_downloaded"
   | "deal_verified"
   | "deal_link_shared"
-  | "token_validated";
+  | "token_validated"
+  | "email_otp_sent"
+  | "email_verified"
+  | "phone_otp_sent"
+  | "phone_verified";
 
 export interface AuditLogEntry {
   id: string;

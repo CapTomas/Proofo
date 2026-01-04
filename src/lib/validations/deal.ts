@@ -50,6 +50,7 @@ export const createDealSchema = z.object({
   recipientId: z.string().uuid().optional(), // Pre-linked if email matched a registered user
   terms: z.array(dealTermSchema).max(LIMITS.MAX_TERMS, `Maximum ${LIMITS.MAX_TERMS} terms allowed`),
   templateId: z.string().optional(),
+  trustLevel: z.enum(["basic", "verified", "strong", "maximum"]).default("basic"),
 });
 
 /**

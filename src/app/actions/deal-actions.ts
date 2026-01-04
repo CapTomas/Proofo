@@ -5,7 +5,11 @@ import { cookies, headers } from "next/headers";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
-import { deterministicStringify } from "@/lib/crypto";
+import {
+  deterministicStringify,
+  calculateDealSeal,
+  transformVerificationsForHash
+} from "@/lib/crypto";
 import { createDealSchema } from "@/lib/validations";
 import {
   updateProfileSchema,
@@ -62,35 +66,6 @@ export async function generateSecureIds(): Promise<{ publicId: string; accessTok
   return { publicId, accessToken };
 }
 
-// Calculate deal seal hash on the server (secure)
-export async function calculateDealSealServer(data: {
-  dealId: string;
-  terms: string;
-  signatureUrl: string;
-  timestamp: string;
-}): Promise<string> {
-  // 1. Parse terms
-  let termsObj;
-  try {
-    termsObj = JSON.parse(data.terms);
-  } catch {
-    termsObj = data.terms;
-  }
-
-  // 2. Normalize Timestamp (CRITICAL FIX)
-  // Even though we just generated it, running it through the same normalizer guarantees consistency
-  const normalizedTimestamp = new Date(data.timestamp).toISOString();
-
-  // 3. Construct Payload
-  const payload = deterministicStringify({
-    dealId: data.dealId,
-    terms: termsObj,
-    signatureUrl: data.signatureUrl,
-    timestamp: normalizedTimestamp,
-  });
-
-  return crypto.createHash("sha256").update(payload).digest("hex");
-}
 
 // Transform database deal to app Deal type
 function transformDeal(dbDeal: Record<string, unknown>): Deal {
@@ -107,6 +82,7 @@ function transformDeal(dbDeal: Record<string, unknown>): Deal {
     templateId: dbDeal.template_id as string | undefined,
     terms: dbDeal.terms as DealTerm[],
     status: dbDeal.status as Deal["status"],
+    trustLevel: (dbDeal.trust_level as Deal["trustLevel"]) || "basic",
     createdAt: dbDeal.created_at as string,
     confirmedAt: dbDeal.confirmed_at as string | undefined,
     voidedAt: dbDeal.voided_at as string | undefined,
@@ -114,6 +90,7 @@ function transformDeal(dbDeal: Record<string, unknown>): Deal {
     signatureUrl: dbDeal.signature_url as string | undefined,
     dealSeal: dbDeal.deal_seal as string | undefined,
     lastNudgedAt: dbDeal.last_nudged_at as string | undefined,
+    verifications: dbDeal.verifications as Deal["verifications"],
   };
 }
 
@@ -250,6 +227,7 @@ export async function createDealAction(data: {
   recipientEmail?: string;
   recipientId?: string; // Pre-linked if email matched a registered user
   terms: Array<{ label: string; value: string; type: string }>;
+  trustLevel?: "basic" | "verified" | "strong" | "maximum";
 }): Promise<{
   deal: Deal | null;
   shareUrl: string | null;
@@ -318,6 +296,7 @@ export async function createDealAction(data: {
           type: t.type,
         })),
         status: "pending",
+        trust_level: validatedData.trustLevel || "basic",
       })
       .select()
       .single();
@@ -903,11 +882,22 @@ export async function confirmDealAction(data: {
 
     const terms = dealDataJson.terms || [];
 
-    const dealSeal = await calculateDealSealServer({
+    // Fetch verification records for this deal (if any)
+    // These are included in the seal to create a tamper-proof record of identity verification
+    // CRITICAL: Use RPC function to bypass RLS - anonymous recipients can't SELECT from deal_verifications
+    const { data: verificationRecords } = await supabase.rpc("get_deal_verifications", {
+      p_deal_id: data.dealId,
+    });
+
+    // RPC returns JSON array or null, need to handle both
+    const verifications = transformVerificationsForHash(verificationRecords as any[] | null);
+
+    const dealSeal = await calculateDealSeal({
       dealId: data.dealId,
       terms: JSON.stringify(terms),
       signatureUrl: finalSignatureUrl,
       timestamp,
+      verifications,
     });
 
     // Use the confirm_deal_with_token function
@@ -1373,7 +1363,7 @@ export async function getAuditLogsAction(dealId: string, token?: string): Promis
 export async function logAuditEventAction(data: {
   dealId: string;
   publicId?: string;
-  eventType: "deal_created" | "deal_viewed" | "deal_signed" | "deal_confirmed" | "deal_voided" | "email_sent" | "pdf_generated" | "pdf_downloaded" | "deal_verified" | "deal_link_shared" | "token_validated";
+  eventType: "deal_created" | "deal_viewed" | "deal_signed" | "deal_confirmed" | "deal_voided" | "email_sent" | "pdf_generated" | "pdf_downloaded" | "deal_verified" | "deal_link_shared" | "token_validated" | "email_otp_sent" | "email_verified" | "phone_otp_sent" | "phone_verified";
   actorType: "creator" | "recipient" | "system";
   metadata?: Record<string, unknown>;
 }): Promise<{ success: boolean; error: string | null }> {

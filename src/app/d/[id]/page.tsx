@@ -51,6 +51,7 @@ import {
   Key,
   Trash2,
   FileSignature,
+  Smartphone,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -548,6 +549,22 @@ export default function PrivateDealPage({ params }: PrivateDealPageProps) {
                         <StatusIcon className="h-3 w-3" />
                         {config.label}
                       </Badge>
+                      {deal.verifications && deal.verifications.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          {deal.verifications.some(v => v.verification_type === "email") && (
+                            <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 py-0 h-5 px-1.5">
+                              <Mail className="h-3 w-3" />
+                              <span className="text-[10px]">Email</span>
+                            </Badge>
+                          )}
+                          {deal.verifications.some(v => v.verification_type === "phone") && (
+                            <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 py-0 h-5 px-1.5">
+                              <Smartphone className="h-3 w-3" />
+                              <span className="text-[10px]">Phone</span>
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                       <CopyableId id={deal.publicId} />
                       <span className="text-xs text-muted-foreground hidden sm:inline">
                         • {timeAgo(deal.createdAt)}

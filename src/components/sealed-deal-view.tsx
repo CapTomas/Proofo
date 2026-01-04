@@ -17,6 +17,9 @@ import {
   Send,
   Inbox,
   Users,
+  Smartphone,
+  Mail,
+  ShieldCheck,
 } from "lucide-react";
 
 // Animation variants
@@ -162,12 +165,30 @@ export function SealedDealView({
                     {isRecipient && <Badge variant="secondary" className="text-[10px] h-4 shrink-0">You</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Inbox className="h-3 w-3" />
                     {recipientStatusLabel || (isSealed ? "Signed" : "Recipient")}
                   </p>
                 </div>
               </motion.div>
             </div>
+
+            {/* Verification Badges inside Parties Card */}
+            {deal.verifications && deal.verifications.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-4 pt-4 border-t border-border/50">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Identity Verified:</span>
+                {deal.verifications.some(v => v.verification_type === "email") && (
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <Mail className="h-2.5 w-2.5" />
+                    <span className="text-[9px] font-medium uppercase tracking-wider">Email</span>
+                  </div>
+                )}
+                {deal.verifications.some(v => v.verification_type === "phone") && (
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <Smartphone className="h-2.5 w-2.5" />
+                    <span className="text-[9px] font-medium uppercase tracking-wider">Phone</span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -264,6 +285,49 @@ export function SealedDealView({
                     </div>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Verified Identity Attributes Card (for sealed deals) */}
+      {isSealed && deal.verifications && deal.verifications.length > 0 && (
+        <motion.div variants={slideUp} className="mt-4">
+          <Card className="border border-emerald-500/20 shadow-sm bg-emerald-500/5 rounded-xl overflow-hidden">
+            <CardContent className="p-5 md:p-6">
+              <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-4">
+                <ShieldCheck className="h-4 w-4" />
+                Verified Identity Attributes
+              </div>
+              <div className="space-y-3">
+                {deal.verifications.map((v, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background border border-emerald-500/10">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                        {v.verification_type === "email" ? (
+                          <Mail className="h-4 w-4" />
+                        ) : (
+                          <Smartphone className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium capitalize">{v.verification_type} Verified</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {v.verified_value ? (
+                            v.verification_type === 'phone'
+                              ? v.verified_value.replace(/(\+\d{3})\d+(\d{4})/, '$1***$2')
+                              : v.verified_value.replace(/(.{3}).+(@.+)/, '$1***$2')
+                          ) : 'Confirmed'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Verified On</p>
+                      <p className="text-xs font-medium">{new Date(v.verified_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

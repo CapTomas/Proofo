@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/store";
-import { calculateDealSeal, timeAgo } from "@/lib/crypto";
+import { calculateDealSeal, transformVerificationsForHash, timeAgo } from "@/lib/crypto";
 import { getDealByPublicIdAction, getAuditLogsAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
@@ -52,6 +52,7 @@ function DashboardVerifyContent() {
   // Verification state
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("idle");
   const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   // Keyboard shortcuts
   useSearchShortcut(searchInputRef);
@@ -64,6 +65,7 @@ function DashboardVerifyContent() {
     setSearchedRecipientProfile(null);
     setVerificationStatus("idle");
     setCalculatedHash(null);
+    setAuditLogs([]);
     router.push("/dashboard/verify");
     searchInputRef.current?.focus();
   }, [router]);
@@ -141,8 +143,17 @@ function DashboardVerifyContent() {
               terms: JSON.stringify(dealToVerify.terms),
               signatureUrl: dealToVerify.signatureUrl || "",
               timestamp: dealToVerify.confirmedAt || dealToVerify.createdAt,
+              verifications: transformVerificationsForHash(dealToVerify.verifications),
             });
             setCalculatedHash(hash);
+          }
+
+          // Fetch audit logs
+          if (isSupabaseConfigured()) {
+            const { logs } = await getAuditLogsAction(dealToVerify.id);
+            setAuditLogs(logs as AuditLogEntry[]);
+          } else {
+            setAuditLogs([]);
           }
 
           // Ensure minimum dramatic delay
@@ -174,15 +185,18 @@ function DashboardVerifyContent() {
 
   // Initial search if ID is present
   useEffect(() => {
-    if (initialDealId && !hasSearched) {
+    // Only auto-trigger if we have an ID AND we haven't searched yet
+    // AND the ID in state matches the ID in URL (to avoid race conditions during clear)
+    if (initialDealId && !hasSearched && dealId === initialDealId) {
       performSearch(initialDealId);
-    } else if (!initialDealId) {
+    } else if (!initialDealId && hasSearched) {
+      // If URL is cleared but we still show results, clear them
       setHasSearched(false);
       setSearchedDeal(null);
       setDealId("");
       setVerificationStatus("idle");
     }
-  }, [initialDealId, hasSearched, performSearch]);
+  }, [initialDealId, hasSearched, dealId, performSearch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,114 +238,127 @@ function DashboardVerifyContent() {
   return (
     <div className={dashboardStyles.pageContainer}>
       {/* Header */}
-      <div className={dashboardStyles.pageHeader}>
-        <div className="min-w-0">
-          <h1 className={dashboardStyles.pageTitle}>Verify</h1>
-          <p className={dashboardStyles.pageDescription}>
-            Authenticate and verify agreement signatures
-          </p>
+      {!hasSearched && (
+        <div className={dashboardStyles.pageHeader}>
+          <div className="min-w-0">
+            <h1 className={dashboardStyles.pageTitle}>Verify</h1>
+            <p className={dashboardStyles.pageDescription}>
+              Authenticate and verify agreement signatures
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Search Section */}
-      <Card className="border border-border/50 shadow-sm rounded-2xl overflow-hidden">
-        <div className="p-4">
-          <form onSubmit={handleSearch}>
-            <div className={dashboardStyles.searchInputContainer}>
-              <Search className={dashboardStyles.searchIcon} />
-              <Input
-                ref={searchInputRef}
-                value={dealId}
-                onChange={(e) => setDealId(e.target.value)}
-                placeholder="Enter deal ID to verify (e.g., DEMO-123456)"
-                className={cn(dashboardStyles.searchInput, "pr-32")}
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {dealId && !isSearching && (
-                  <button
-                    type="button"
-                    onClick={handleClearSearch}
-                    className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </button>
-                )}
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!dealId.trim() || isSearching}
-                  className="h-7 px-3 text-xs gap-1.5"
-                >
-                  {isSearching ? (
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ShieldCheck className="h-3.5 w-3.5" />
+      {!hasSearched && (
+        <Card className="border border-border/50 shadow-sm rounded-2xl overflow-hidden">
+          <div className="p-4">
+            <form onSubmit={handleSearch}>
+              <div className={dashboardStyles.searchInputContainer}>
+                <Search className={dashboardStyles.searchIcon} />
+                <Input
+                  ref={searchInputRef}
+                  value={dealId}
+                  onChange={(e) => setDealId(e.target.value)}
+                  placeholder="Enter deal ID to verify (e.g., DEMO-123456)"
+                  className={cn(dashboardStyles.searchInput, "pr-32")}
+                  autoFocus
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  {dealId && !isSearching && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
                   )}
-                  {isSearching ? "Verifying..." : "Verify"}
-                </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!dealId.trim() || isSearching}
+                    className="h-7 px-3 text-xs gap-1.5"
+                  >
+                    {isSearching ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                    )}
+                    {isSearching ? "Verifying..." : "Verify"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </form>
-        </div>
-        <div className="px-4 py-2.5 border-t border-border/40 bg-muted/10 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Verification service active
+            </form>
           </div>
-          <KeyboardHint shortcut="/" variant="absolute" className="static translate-y-0" />
-        </div>
-      </Card>
+          <div className="px-4 py-2.5 border-t border-border/40 bg-muted/10 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <div className={cn(
+                "h-1.5 w-1.5 rounded-full transition-all duration-500",
+                isSearching ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+              )} />
+              {isSearching ? "Cryptographic calculation in progress..." : "Verification service active & ready"}
+            </div>
+            <KeyboardHint shortcut="/" variant="absolute" className="static translate-y-0" />
+          </div>
+        </Card>
+      )}
 
       {/* Results */}
       <AnimatePresence mode="wait">
-        {hasSearched && searchedDeal && (
-            <VerificationCard
-            key="result"
-            deal={searchedDeal}
-            creatorProfile={searchedCreatorProfile}
-            recipientProfile={searchedRecipientProfile}
-            verificationStatus={verificationStatus}
-            calculatedHash={calculatedHash}
-            onDownloadPDF={handleDownloadPDF}
-            isDownloading={isDownloading}
-          />
-        )}
-
-        {/* Quick Actions after verification */}
-        {hasSearched && searchedDeal && (
+        {hasSearched && searchedDeal ? (
           <motion.div
-            key="actions"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center justify-center gap-3"
+            key="result-success"
+            layout
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="space-y-6"
           >
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 px-4 text-xs gap-1.5 rounded-xl"
-              onClick={handleClearSearch}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Verify Another
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 px-4 text-xs gap-1.5 rounded-xl"
-              onClick={handleCopyVerificationLink}
-            >
-              <Link2 className="h-3.5 w-3.5" />
-              Copy Link
-            </Button>
-          </motion.div>
-        )}
+            <VerificationCard
+              deal={searchedDeal}
+              creatorProfile={searchedCreatorProfile}
+              recipientProfile={searchedRecipientProfile}
+              verificationStatus={verificationStatus}
+              calculatedHash={calculatedHash}
+              onDownloadPDF={handleDownloadPDF}
+              isDownloading={isDownloading}
+              auditLogs={auditLogs}
+            />
 
-        {hasSearched && !searchedDeal && (
+            {/* Quick Actions after verification */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-center gap-3"
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-4 text-xs gap-1.5 rounded-xl"
+                onClick={handleClearSearch}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Verify Another
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-4 text-xs gap-1.5 rounded-xl"
+                onClick={handleCopyVerificationLink}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Copy Link
+              </Button>
+            </motion.div>
+          </motion.div>
+        ) : hasSearched && !searchedDeal ? (
           <motion.div
-            key="empty"
+            key="result-empty"
+            layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             className="flex flex-col items-center justify-center py-16 text-center space-y-4 border rounded-2xl bg-card border-destructive/20 shadow-sm"
           >
             <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
@@ -356,7 +383,7 @@ function DashboardVerifyContent() {
               Try Again
             </Button>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
       {/* Info Section */}

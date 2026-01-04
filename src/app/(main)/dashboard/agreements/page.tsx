@@ -21,6 +21,7 @@ import {
   Mail,
   Copy as DuplicateIcon,
   ShieldCheck,
+  Smartphone,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
@@ -144,6 +145,24 @@ const DealCard = ({
                       {isCreator ? `To ${deal.recipientName}` : `From ${deal.creatorName}`}
                     </span>
                   </div>
+
+                  {/* Verifications */}
+                  {deal.verifications && deal.verifications.length > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      {deal.verifications.some(v => v.verification_type === "email") && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                          <Mail className="h-2.5 w-2.5" />
+                          <span className="text-[9px] font-medium uppercase tracking-wider">Email</span>
+                        </div>
+                      )}
+                      {deal.verifications.some(v => v.verification_type === "phone") && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                          <Smartphone className="h-2.5 w-2.5" />
+                          <span className="text-[9px] font-medium uppercase tracking-wider">Phone</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

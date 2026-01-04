@@ -36,11 +36,14 @@ import {
   Download,
   Bell,
   Loader2,
+  QrCode,
+  SquarePen,
+  Fingerprint,
 } from "lucide-react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
-import { DealTemplate, TemplateField, Deal } from "@/types";
+import { DealTemplate, TemplateField, Deal, TrustLevel } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
 import { createDealAction, getDealByIdAction, lookupUserByEmailAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -68,6 +71,7 @@ import confetti from "canvas-confetti";
 import { generateDealPDF, downloadPDF, generatePDFFilename } from "@/lib/pdf";
 import { SealedDealView } from "@/components/sealed-deal-view";
 import { formatDateTime } from "@/lib/crypto";
+import { TrustLevelSelector, trustLevelConfig } from "@/components/trust-level-selector";
 
 
 // --- CONFIGURATION ---
@@ -95,19 +99,19 @@ const stepInfo = {
     number: 2,
     title: "Enter Details",
     description: "Fill required terms",
-    icon: FileText,
+    icon: SquarePen,
   },
   review: {
     number: 3,
     title: "Verification",
     description: "Review and create",
-    icon: Shield,
+    icon: Fingerprint,
   },
   share: {
     number: 4,
     title: "Secure Share",
     description: "Send to recipient",
-    icon: Send,
+    icon: QrCode,
   },
 };
 
@@ -155,6 +159,7 @@ function NewDealContent() {
     avatarUrl?: string;
   } | null>(null);
   const [isLookingUpEmail, setIsLookingUpEmail] = useState(false);
+  const [trustLevel, setTrustLevel] = useState<TrustLevel>("basic");
   const { copyToClipboard } = useCopyToClipboard();
 
   const dealCreationInProgressRef = useRef(false);
@@ -396,6 +401,7 @@ function NewDealContent() {
         recipientEmail: recipientEmail || undefined,
         recipientId: registeredRecipient?.id,
         terms,
+        trustLevel,
       });
 
       if (error || !deal) {
@@ -439,7 +445,7 @@ function NewDealContent() {
       drift: 0,
       ticks: 300
     });
-  }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog, registeredRecipient]);
+  }, [user, selectedTemplate, recipientName, recipientEmail, formData, addDeal, addAuditLog, registeredRecipient, trustLevel]);
 
   const handleNext = useCallback(() => {
     if (currentStep === "details") {
@@ -627,19 +633,6 @@ function NewDealContent() {
           <SidebarLogo isCollapsed={isSidebarCollapsed} />
 
             <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto custom-scrollbar relative">
-            <div className="px-3 mb-4">
-              {isSidebarCollapsed ? (
-                <div className="flex justify-center h-4 items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                    Step
-                  </span>
-                </div>
-              ) : (
-                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                  Agreement Progress
-                </h2>
-              )}
-            </div>
 
             {STEPS.map((step, index) => {
               const isCompleted = currentStepIndex > index;
@@ -650,15 +643,14 @@ function NewDealContent() {
                 <SidebarNavItem
                   key={step}
                   label={stepInfo[step as Step].title}
+                  icon={stepInfo[step as Step].icon}
                   index={index}
                   isActive={isCurrent}
                   isCollapsed={isSidebarCollapsed}
                   isCompleted={isCompleted}
                   onClick={() => canNavigate && handleStepClick(step)}
                   className={cn(!canNavigate && "opacity-50 cursor-not-allowed")}
-                >
-                  <Check className="h-4 w-4" strokeWidth={3} />
-                </SidebarNavItem>
+                />
               );
             })}
 
@@ -666,11 +658,10 @@ function NewDealContent() {
             {!isSidebarCollapsed && (() => {
               const activeIndex = currentStepIndex;
               if (activeIndex === -1) return null;
-              // Each nav item is h-10 (40px) + gap-1 (4px), plus the header div (~28px with mb-4=16px)
+              // Each nav item is h-10 (40px) + gap-1 (4px)
               const itemHeight = 44;
-              const headerOffset = 34; // px-3 mb-4 header area (adjusted for text height)
               const navPaddingTop = 24; // py-6 = 24px
-              const dotY = navPaddingTop + headerOffset + activeIndex * itemHeight + 20;
+              const dotY = navPaddingTop + activeIndex * itemHeight + 20;
               return (
                 <motion.div
                   className="absolute right-6 w-1.5 h-1.5 rounded-full bg-primary pointer-events-none"
@@ -685,10 +676,27 @@ function NewDealContent() {
                 />
               );
             })()}
+
+            {/* Agreement Progress Label - Inside Nav, under items */}
+            <div className="px-3 mt-6 mb-2">
+              {isSidebarCollapsed ? (
+                <div className="flex justify-center h-4 items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Step
+                  </span>
+                </div>
+              ) : (
+                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 flex justify-between items-center">
+                  <span>Agreement Progress</span>
+                  <span className="font-mono opacity-50">({currentStepIndex + 1}/{STEPS.length})</span>
+                </h2>
+              )}
+            </div>
           </nav>
 
           {/* Footer Actions - Matching Dashboard */}
           <div className="p-3 space-y-3 shrink-0">
+
             {/* Security Label - Anchors position */}
             <div className="px-3 mb-1">
               {isSidebarCollapsed ? (
@@ -1012,8 +1020,8 @@ function NewDealContent() {
                                 </div>
                                 {/* Name second, with Required label */}
                                 <div className="grid gap-1.5">
-                                  <Label htmlFor="recipientName" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1">
-                                    Name <span className="text-destructive">*</span>
+                                  <Label htmlFor="recipientName" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1 flex items-center">
+                                    Name <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-600 border border-red-500/20 font-bold ml-2 uppercase tracking-tight select-none">REQ</span>
                                   </Label>
                                   <Input
                                     id="recipientName"
@@ -1054,8 +1062,8 @@ function NewDealContent() {
                                         />
                                       )}
                                     </div>
-                                    <Label htmlFor={field.id} className="text-sm font-medium pt-1 cursor-pointer">
-                                      {field.label} {field.required && <span className="text-destructive">*</span>}
+                                    <Label htmlFor={field.id} className="text-sm font-medium pt-1 cursor-pointer flex items-center gap-2">
+                                      {field.label} {field.required && <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-600 border border-red-500/20 font-bold uppercase tracking-tight select-none">REQ</span>}
                                     </Label>
                                   </div>
                                   <div className="w-full">
@@ -1065,6 +1073,24 @@ function NewDealContent() {
                               </div>
                             ))}
                           </div>
+                        </div>
+                      </Card>
+
+                      {/* Trust Level Card */}
+                      <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
+                        <div className="p-5 md:p-6">
+                          <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                            <ShieldCheck className="h-4 w-4" /> Verification Level
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Choose how recipients verify their identity before signing
+                          </p>
+                          <TrustLevelSelector
+                            value={trustLevel}
+                            onChange={(level) => {
+                              setTrustLevel(level);
+                            }}
+                          />
                         </div>
                       </Card>
 
@@ -1104,8 +1130,16 @@ function NewDealContent() {
                               <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Draft Agreement</div>
                               <h1 className="text-xl sm:text-3xl font-bold tracking-tight mb-1">{selectedTemplate?.name}</h1>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className="gap-1.5 bg-muted/50 border-border/50 text-muted-foreground">
-                                  Version 1.0
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "gap-1.5 border-border/50",
+                                    trustLevelConfig[trustLevel].bgColor,
+                                    trustLevelConfig[trustLevel].color,
+                                    trustLevelConfig[trustLevel].borderColor
+                                  )}
+                                >
+                                  {trustLevelConfig[trustLevel].label} Level
                                 </Badge>
                                 <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                                   <Clock className="h-3 w-3" />

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PublicHeader } from "@/components/public-header";
 import { useAppStore } from "@/store";
-import { calculateDealSeal } from "@/lib/crypto";
+import { calculateDealSeal, transformVerificationsForHash, formatDateTime, timeAgo } from "@/lib/crypto";
 import { getDealByPublicIdAction, getAuditLogsAction, logAuditEventAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
@@ -26,9 +26,17 @@ import {
   ScanLine,
   Terminal,
   Clock,
+  ShieldCheck,
+  XCircle,
+  RotateCcw,
+  Fingerprint,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { VerificationCard, VerificationStatus } from "@/components/verification-card";
+import { AuditTimeline } from "@/components/audit-timeline";
+import { KeyboardHint } from "@/components/dashboard/shared-components";
+import { cn } from "@/lib/utils";
 
 function VerifyContent() {
   const router = useRouter();
@@ -48,6 +56,7 @@ function VerifyContent() {
   const [verificationStatus, setVerificationStatus] =
     useState<VerificationStatus>("idle");
   const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   const performSearch = useCallback(
     async (searchId: string, updateUrl: boolean = false) => {
@@ -90,6 +99,14 @@ function VerifyContent() {
       setSearchedCreatorProfile(cProfile || null);
       setSearchedRecipientProfile(rProfile || null);
 
+      // Fetch audit logs for the deal if found
+      if (dealData && isSupabaseConfigured()) {
+        const { logs } = await getAuditLogsAction(dealData.id);
+        setAuditLogs(logs as AuditLogEntry[]);
+      } else {
+        setAuditLogs([]);
+      }
+
       setHasSearched(true);
       setIsSearching(false);
     },
@@ -124,6 +141,7 @@ function VerifyContent() {
             terms: JSON.stringify(searchedDeal.terms),
             signatureUrl: searchedDeal.signatureUrl || "",
             timestamp: searchedDeal.confirmedAt || searchedDeal.createdAt,
+            verifications: transformVerificationsForHash(searchedDeal.verifications),
           });
           setCalculatedHash(hash);
 
@@ -168,6 +186,7 @@ function VerifyContent() {
   };
 
   const handleReset = () => {
+    setAuditLogs([]);
     router.push("/verify");
   };
 
@@ -207,8 +226,8 @@ function VerifyContent() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
-      {/* Top Right Gradient Decoration */}
-      <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-[80px] md:blur-[100px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
+      {/* Background Decorations */}
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] md:w-[800px] md:h-[800px] bg-primary/5 rounded-full blur-[100px] md:blur-[120px] pointer-events-none z-0 translate-x-1/3 -translate-y-1/3" />
 
       <PublicHeader currentPage="verify" />
 
@@ -281,106 +300,128 @@ function VerifyContent() {
 
           {/* RIGHT COLUMN: Interactive Verification Card */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            layout
+            initial={{ opacity: 0, scale: 0.99 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
             className="relative"
           >
             <AnimatePresence mode="wait">
-              {!hasSearched ? (
+              {isSearching ? (
+                // Loading State
+                <motion.div
+                  key="loading"
+                  layout
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full"
+                >
+                  <Card className="border border-border/50 bg-card/50 backdrop-blur-sm rounded-3xl p-16 text-center space-y-8 overflow-hidden relative">
+                     <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/5 animate-pulse" />
+                     <div className="relative z-10 space-y-6">
+                        <div className="relative h-24 w-24 mx-auto">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                            className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <ShieldCheck className="h-10 w-10 text-primary animate-pulse" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                           <h3 className="text-2xl font-bold tracking-tight">Verifying Agreement</h3>
+                           <p className="text-muted-foreground animate-pulse text-sm">
+                             Calculating SHA-256 cryptographic hashes...
+                           </p>
+                        </div>
+                        <div className="flex justify-center gap-1">
+                           {[0, 1, 2].map((i) => (
+                             <motion.div
+                               key={i}
+                               animate={{ opacity: [0.3, 1, 0.3] }}
+                               transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                               className="h-1.5 w-1.5 rounded-full bg-primary"
+                             />
+                           ))}
+                        </div>
+                     </div>
+                  </Card>
+                </motion.div>
+              ) : !hasSearched ? (
                 // Initial State: Search Form
                 <motion.div
                   key="search"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  layout
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
+                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 >
-                  <Card className="overflow-hidden border shadow-card bg-card/80 backdrop-blur-sm w-full">
-                    {/* Header - System Style */}
-                    <div className="p-4 border-b flex items-center justify-between bg-background">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-linear-to-br from-primary to-primary/80  flex items-center justify-center text-primary/60 font-semibold shadow-lg shadow-primary/20">
-                          <Terminal className="h-5 w-5 text-primary-foreground font-semibold" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm">Proofo Verification</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            System Ready
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="gap-1 px-2 h-6 text-xs bg-secondary/50">
-                        <span className="relative flex h-2 w-2 mr-1">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                        Online
-                      </Badge>
-                    </div>
-
-                    {/* Title Bar */}
-                    <div className="bg-muted dark:bg-muted/30 border-b py-4 px-5">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                          <ScanLine className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg leading-tight">Secure Lookup</CardTitle>
-                          <p className="text-muted-foreground text-xs mt-0.5">
-                            Enter Deal ID to retrieve proof
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <CardContent className="p-6 sm:p-8">
+                  <Card className="border border-border/50 shadow-sm rounded-2xl overflow-hidden bg-card/80 backdrop-blur-sm">
+                    <div className="p-4 sm:p-6">
                       <form onSubmit={handleSearch} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="deal-id"
-                            className="text-xs font-medium uppercase tracking-wider text-muted-foreground ml-1"
-                          >
-                            Deal ID
-                          </Label>
-                          <div className="relative group/input pt-2">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
-                            <Input
-                              id="deal-id"
-                              placeholder="e.g. DEMO-123..."
-                              value={dealId}
-                              onChange={(e) => setDealId(e.target.value)}
-                              className="pl-12 h-14 text-lg bg-background border-border/50 rounded-xl transition-all shadow-sm focus:ring-2 focus:ring-primary/20 font-mono"
-                              autoFocus
-                            />
+                        <div className="relative group/input">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
+                          <Input
+                            id="deal-id"
+                            placeholder="Enter deal ID to verify (e.g. DEMO-123...)"
+                            value={dealId}
+                            onChange={(e) => setDealId(e.target.value)}
+                            className="pl-12 pr-32 h-14 text-lg bg-background border-border/50 rounded-xl transition-all shadow-sm focus:ring-2 focus:ring-primary/20 font-mono"
+                            autoFocus
+                          />
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                             {dealId && !isSearching && (
+                              <button
+                                type="button"
+                                onClick={() => setDealId("")}
+                                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                            <Button
+                              type="submit"
+                              size="sm"
+                              className="h-10 px-4 text-xs gap-1.5 rounded-lg shadow-md transition-all active:scale-95"
+                              disabled={isSearching || !dealId}
+                            >
+                              {isSearching ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                              )}
+                              {isSearching ? "Verifying..." : "Verify Deal"}
+                            </Button>
                           </div>
                         </div>
-
-                        <Button
-                          type="submit"
-                          size="xl"
-                          className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
-                          disabled={isSearching || !dealId}
-                        >
-                          {isSearching ? (
-                            <>
-                              <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-                              Verifying...
-                            </>
-                          ) : (
-                            <>
-                              Verify Deal
-                              <ArrowRight className="ml-2 h-5 w-5" />
-                            </>
-                          )}
-                        </Button>
                       </form>
-                    </CardContent>
+                    </div>
+
+                    <div className="px-5 py-3 border-t border-border/40 bg-muted/10 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <div className={cn(
+                          "h-1.5 w-1.5 rounded-full transition-all duration-500",
+                          isSearching ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                        )} />
+                        {isSearching ? "Cryptographic calculation in progress..." : "Verification service active & ready"}
+                      </div>
+                      <KeyboardHint shortcut="/" variant="absolute" className="static translate-y-0" />
+                    </div>
                   </Card>
                 </motion.div>
               ) : searchedDeal ? (
                 // Result State: Shared VerificationCard
-                <div className="space-y-6">
+                <motion.div
+                  key="result"
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
+                  className="space-y-6"
+                >
                   <VerificationCard
                     deal={searchedDeal}
                     verificationStatus={verificationStatus}
@@ -390,8 +431,10 @@ function VerifyContent() {
                     onViewDeal={() => window.open(`/d/public/${searchedDeal.publicId}`, "_blank")}
                     creatorProfile={searchedCreatorProfile}
                     recipientProfile={searchedRecipientProfile}
+                    auditLogs={auditLogs}
                   />
-                  <div className="flex justify-center">
+
+                  <div className="flex justify-center pt-4">
                     <Button
                       variant="ghost"
                       onClick={handleReset}
@@ -400,35 +443,116 @@ function VerifyContent() {
                       Verify Another Deal
                     </Button>
                   </div>
-                </div>
+                </motion.div>
               ) : (
                 // Result State: Not Found
-                <motion.div
-                  key="not-found"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex flex-col items-center justify-center py-16 text-center space-y-4 border rounded-3xl bg-card border-destructive/20 shadow-sm"
-                >
-                  <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
-                    <AlertCircle className="h-8 w-8" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">Deal Not Found</h3>
-                    <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-1">
-                      We couldn&apos;t find a deal with ID{" "}
-                      <span className="font-mono text-foreground bg-secondary px-1 rounded">
-                        {dealId}
-                      </span>
-                      . Please check the ID and try again.
-                    </p>
-                  </div>
-                  <Button variant="outline" onClick={handleReset} className="mt-4 rounded-xl">
-                    Try Again
-                  </Button>
-                </motion.div>
+                  <motion.div
+                    key="not-found"
+                    layout
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
+                    className="bg-card w-full border border-destructive/20 shadow-lg rounded-3xl p-12 text-center space-y-6 backdrop-blur-sm"
+                  >
+                    <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive mx-auto shadow-inner">
+                      <AlertCircle className="h-10 w-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-bold text-foreground">Deal Not Found</h3>
+                      <p className="text-muted-foreground text-base max-w-xs mx-auto">
+                        We couldn&apos;t find a deal with ID{" "}
+                        <span className="font-mono text-foreground bg-secondary px-2 py-0.5 rounded-lg border border-border/50">
+                          {dealId}
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleReset}
+                      className="rounded-xl h-12 px-8 gap-2 border-border/50 hover:bg-secondary transition-all"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Try Another ID
+                    </Button>
+                  </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Why Verification Matters Section */}
+            {!hasSearched && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="mt-16 space-y-8"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border/50" />
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 whitespace-nowrap">
+                    Why Verification Matters
+                  </p>
+                  <div className="h-px flex-1 bg-border/50" />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Card className="p-5 border border-border/50 bg-card/40 backdrop-blur-sm group hover:border-primary/20 transition-all">
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold">Cryptographic Proof</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Every agreement is sealed with a unique SHA-256 hash that is mathematically impossible to replicate.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 border border-border/50 bg-card/40 backdrop-blur-sm group hover:border-primary/20 transition-all">
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <Fingerprint className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold">Tamper Detection</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Changing even a single punctuation mark will break the seal, instantly identifying any modification.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 border border-border/50 bg-card/40 backdrop-blur-sm group hover:border-primary/20 transition-all">
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <Clock className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold">Instant Audit</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Access the complete timeline of when the deal was created, viewed, and irrevocably signed.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 border border-border/50 bg-card/40 backdrop-blur-sm group hover:border-primary/20 transition-all">
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <Zap className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold">Universal Access</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Check any Proofo ID from any device, anywhere in the world. No login or app required.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Mobile Only CTA (Bottom) */}

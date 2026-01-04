@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAppStore } from "@/store";
-import { Deal, AuditLogEntry, DealStatus } from "@/types";
+import { Deal, AuditLogEntry, DealStatus, TrustLevel } from "@/types";
 import { formatDateTime } from "@/lib/crypto";
 import {
   getDealByPublicIdAction,
@@ -70,6 +70,8 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { SealedDealView } from "@/components/sealed-deal-view";
 import { toast } from "sonner";
 import { prepareAuditEvent } from "@/lib/audit-utils";
+import { VerificationStep } from "@/components/verification-step";
+import { getVerificationStatus, checkProofoUserVerification } from "@/app/actions/verification-actions";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -131,6 +133,7 @@ const demoConfirmedDeal: Deal = {
 
 type Step =
   | "review"
+  | "verify"
   | "sign"
   | "complete"
   | "already_signed"
@@ -295,6 +298,8 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   const [isCreatorEmail, setIsCreatorEmail] = useState(false); // Track if email belongs to creator
   // Track if we've already pre-filled email (to allow user to clear it)
   const hasPrefilledEmailRef = useRef(false);
+  // Verification state
+  const [verificationComplete, setVerificationComplete] = useState(false);
 
   // Calculate current step based on deal state and any user navigation
   const currentStep = useMemo(() => {
@@ -508,7 +513,13 @@ export default function DealConfirmPage({ params }: DealPageProps) {
   };
 
   const handleProceedToSign = () => {
-    setCurrentStep("sign");
+    // Check if deal requires verification and verification is not complete
+    const trustLevel = deal?.trustLevel || "basic";
+    if (trustLevel !== "basic" && !verificationComplete) {
+      setCurrentStep("verify");
+    } else {
+      setCurrentStep("sign");
+    }
   };
 
   // Auto-send receipt email for logged-in users (fire-and-forget)
@@ -1637,6 +1648,30 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                 Review Complete — Sign to Accept
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
+            </motion.div>
+          )}
+
+          {/* Verification Step - Required for Verified/Strong/Maximum trust levels */}
+          {currentStep === "verify" && displayDeal && deal && (
+            <motion.div
+              key="verify"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="max-w-2xl mx-auto w-full py-8"
+            >
+              <VerificationStep
+                dealId={deal.id}
+                publicId={deal.publicId}
+                trustLevel={(deal as Deal & { trustLevel?: TrustLevel })?.trustLevel || "basic"}
+                verifications={deal.verifications}
+                onVerificationComplete={() => {
+                  setVerificationComplete(true);
+                  setCurrentStep("sign");
+                }}
+                onBack={() => setCurrentStep("review")}
+              />
             </motion.div>
           )}
 

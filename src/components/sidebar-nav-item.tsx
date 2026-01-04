@@ -61,7 +61,12 @@ export function SidebarNavItem({
       <div className="w-8 h-8 flex items-center justify-center shrink-0">
         {Icon ? (
           <div className="relative">
-            <Icon className={cn("h-4.5 w-4.5 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+            <Icon className={cn(
+              "h-4.5 w-4.5 transition-colors",
+              isActive ? "text-primary" :
+              isCompleted ? "text-emerald-500 dark:text-emerald-500/60" :
+              "text-muted-foreground group-hover:text-foreground"
+            )} />
             {hasNotification && (
               <motion.span
                 className={cn(
