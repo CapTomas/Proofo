@@ -311,7 +311,10 @@ const DealCard = ({
 
 export default function AgreementsPage() {
   const router = useRouter();
-  const { deals: storeDeals, user, voidDeal: storeVoidDeal, setDeals } = useAppStore();
+  const storeDeals = useAppStore(state => state.deals);
+  const user = useAppStore(state => state.user);
+  const storeVoidDeal = useAppStore(state => state.voidDeal);
+  const setDeals = useAppStore(state => state.setDeals);
 
   // State
   const [searchQuery, setSearchQuery] = useState("");
@@ -324,11 +327,17 @@ export default function AgreementsPage() {
   const [isNudging, setIsNudging] = useState<string | null>(null);
   const [nudgeSuccess, setNudgeSuccess] = useState<string | null>(null);
   const [voidConfirmId, setVoidConfirmId] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const hasInitializedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcuts
   useSearchShortcut(searchInputRef);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Navigate to deal
   const handleNavigate = (dealId: string) => {
@@ -358,12 +367,11 @@ export default function AgreementsPage() {
   );
 
   useEffect(() => {
-    if (!hasInitializedRef.current) {
+    if (isMounted && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals();
     }
-  }, [refreshDeals]);
+  }, [isMounted, refreshDeals]);
 
   // Filtering
   const filteredDeals = useMemo(() => {

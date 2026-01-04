@@ -218,7 +218,7 @@ export const VerificationCard = ({
                   {verificationStatus === "valid" && (
                     <div className="flex items-center gap-2 pt-2 mt-2 border-t border-emerald-200/50 dark:border-emerald-800/30 text-xs text-emerald-700/80 dark:text-emerald-400/80">
                         <Check className="h-3.5 w-3.5" />
-                        <span>Legally Binding • Immutable • Signed by all parties</span>
+                        <span>Cryptographically Verified • Immutable • Signed by all parties</span>
                     </div>
                   )}
               </div>

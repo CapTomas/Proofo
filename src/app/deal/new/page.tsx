@@ -742,7 +742,7 @@ function NewDealContent() {
                   </div>
                   <div className="pl-11 pr-2">
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Agreements on Proofo are sealed with cryptographic proofs, making them legally binding & immutable.
+                      Agreements on Proofo are sealed with cryptographic proofs, making them cryptographically verifiable & immutable.
                     </p>
                   </div>
                 </>

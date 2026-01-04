@@ -1636,7 +1636,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                   <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
                     <FileCheck className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <span>Legally Binding</span>
+                  <span>Cryptographically Verified</span>
                 </div>
               </div>
 

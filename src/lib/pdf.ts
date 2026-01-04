@@ -4,7 +4,7 @@ import { formatDateTime } from "./crypto";
 
 /**
  * PDF Generation utility for Proofo deal receipts
- * Creates professional legal-grade PDF documents with:
+ * Creates professional cryptographic-grade PDF documents with:
  * - Proofo branding header
  * - Deal terms formatted nicely
  * - Signature image embedded
@@ -96,7 +96,7 @@ interface GeneratePDFOptions {
 }
 
 /**
- * Generate a legal-grade PDF receipt for a sealed deal.
+ * Generate a cryptographically verified PDF receipt for a sealed deal.
  *
  * This function constructs a multi-section PDF containing Branding, Deal Overview,
  * Terms and Conditions, and the Recipient Signature. It also embeds a

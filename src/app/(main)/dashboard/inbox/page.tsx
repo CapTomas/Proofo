@@ -175,7 +175,9 @@ const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: stri
 
 export default function InboxPage() {
   const router = useRouter();
-  const { user, deals: storeDeals, setDeals } = useAppStore();
+  const user = useAppStore(state => state.user);
+  const storeDeals = useAppStore(state => state.deals);
+  const setDeals = useAppStore(state => state.setDeals);
 
   // State
   const [searchQuery, setSearchQuery] = useState("");
@@ -184,11 +186,17 @@ export default function InboxPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const hasInitializedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Keyboard shortcuts
   useSearchShortcut(searchInputRef);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Navigate to deal
   const handleNavigate = (dealId: string) => {
@@ -213,12 +221,11 @@ export default function InboxPage() {
   );
 
   useEffect(() => {
-    if (!hasInitializedRef.current) {
+    if (isMounted && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals();
     }
-  }, [refreshDeals]);
+  }, [isMounted, refreshDeals]);
 
   // Data Logic
   const inboxDeals = useMemo(() => {

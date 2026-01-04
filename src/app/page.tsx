@@ -32,6 +32,7 @@ import {
   Copy,
   Send,
   Inbox,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -644,7 +645,7 @@ const BentoGrid = () => (
           <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
             <AnimatedDoc />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Instant Legal Receipts</h3>
+          <h3 className="text-lg font-semibold mb-2">Instant Digital Receipts</h3>
           <p className="text-muted-foreground text-sm">
             Both parties get a professional, timestamped PDF receipt instantly. No chasing.
           </p>
@@ -771,108 +772,105 @@ const RealWorldSection = () => (
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
         <div className="relative z-10 space-y-6">
-          {/* Mock Deal Card (New Design) */}
-          <motion.div
-            className="bg-card rounded-xl border shadow-sm overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-          >
-            {/* Top Status Bar */}
-            <div className="h-1.5 w-full bg-emerald-500" />
-
-            <div className="p-6">
-      <div className="bg-background rounded-2xl border shadow-2xl p-6 relative max-w-lg w-full mx-auto transform hover:scale-[1.01] transition-transform duration-500 space-y-6">
-
-              {/* 1. Page-like Header */}
-              <div className="flex flex-col gap-4">
-                 <div className="flex items-center justify-between">
-                     <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                           <h3 className="text-xl font-bold tracking-tight">Sale of MacBook Pro</h3>
-                           <div className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider">
-                              Verified
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                           <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md border border-border/50">
-                              <span className="font-mono">PR-8X92</span>
-                           </div>
-                           <span>•</span>
-                           <span>Signed just now</span>
-                        </div>
-                     </div>
-                 </div>
+          {/* Mock Deal Card (Premium Multi-Card Look) */}
+          <div className="space-y-4 max-w-md mx-auto">
+            {/* 1. Header Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-card rounded-xl border shadow-sm p-5 space-y-3"
+            >
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold tracking-tight">Sale of MacBook Pro</h3>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                    <span className="bg-secondary px-1.5 py-0.5 rounded border">PR-8092</span>
+                    <span>•</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Verified</span>
+                  </div>
+                </div>
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                  <Check className="h-5 w-5" />
+                </div>
               </div>
+            </motion.div>
 
-               {/* 2. Certificate Card */}
-              <div className="rounded-xl p-5 border bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 dark:from-emerald-950/20 dark:via-background dark:to-emerald-900/10 border-emerald-200 dark:border-emerald-800 shadow-sm relative overflow-hidden">
-                 <div className="absolute -right-12 -top-12 h-40 w-40 bg-emerald-500/10 rounded-full blur-3xl" />
-                 <div className="flex items-start gap-4 relative z-10">
-                    <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 font-bold">
-                        <Check className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                       <div className="flex items-center justify-between font-bold text-emerald-800 dark:text-emerald-400">
-                           <p>Legally Binding Agreement</p>
-                           <Shield className="h-4 w-4 opacity-50" />
-                       </div>
-                       <p className="text-xs opacity-90 text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed">
-                           Digital certificate confirms that this agreement was irrevocably signed by all parties.
-                       </p>
-                       <div className="pt-3 mt-3 border-t border-emerald-200/50 dark:border-emerald-800/30 text-[10px] font-mono text-emerald-600 dark:text-emerald-500">
-                           SEAL: 9f86d081884c7d659a2feaa0c55...
-                       </div>
-                    </div>
-                 </div>
-              </div>
-
-              {/* 3. Parties Grid */}
+            {/* 2. Parties Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="bg-card rounded-xl border shadow-sm p-4"
+            >
               <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl border bg-secondary/30 flex items-center gap-3">
-                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                        AJ
-                     </div>
-                     <div className="min-w-0">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
-                          <Send className="h-3 w-3" /> Creator
-                        </p>
-                        <p className="text-sm font-bold truncate">Alex Johnson</p>
-                     </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs">
+                    AJ
                   </div>
-                  <div className="p-3 rounded-xl border bg-secondary/30 flex items-center gap-3">
-                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                        SS
-                     </div>
-                     <div className="min-w-0">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
-                          <Inbox className="h-3 w-3" /> Recipient
-                        </p>
-                        <p className="text-sm font-bold truncate">Sarah Smith</p>
-                     </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase font-bold text-muted-foreground">Creator</p>
+                    <p className="text-xs font-bold truncate">Alex Johnson</p>
                   </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs text-foreground">
+                    SS
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase font-bold text-muted-foreground text-emerald-600">Signed</p>
+                    <p className="text-xs font-bold truncate text-foreground text-opacity-80">Sarah Smith</p>
+                  </div>
+                </div>
               </div>
+            </motion.div>
 
-      </div>
+            {/* 3. Terms Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="bg-card rounded-xl border shadow-sm p-4 space-y-2"
+            >
+              {[
+                { label: "Price", value: "$1,200.00" },
+                { label: "Condition", value: "Like New" },
+                { label: "Seller", value: "Alex Johnson" },
+              ].map((term, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/20 border border-transparent hover:border-border/50 hover:bg-secondary/40 transition-all cursor-default"
+                >
+                  <span className="text-xs text-muted-foreground">{term.label}</span>
+                  <span className="text-xs font-bold">{term.value}</span>
+                </div>
+              ))}
+            </motion.div>
 
-              {/* Terms */}
-              <div className="space-y-3">
-                 <div className="flex justify-between text-sm border-b pb-2">
-                    <span className="text-muted-foreground">Price</span>
-                    <span className="font-medium">$1,200.00</span>
-                 </div>
-                 <div className="flex justify-between text-sm border-b pb-2">
-                     <span className="text-muted-foreground">Condition</span>
-                     <span className="font-medium">Like New</span>
-                 </div>
-                 <div className="flex justify-between text-sm">
-                     <span className="text-muted-foreground">Seller</span>
-                     <span className="font-medium">Alex Johnson</span>
-                 </div>
+            {/* 4. Signature & Seal Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="bg-card rounded-xl border shadow-sm border-emerald-500/20 bg-emerald-500/[0.02] p-4 flex gap-4 items-center"
+            >
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="h-3 w-3" />
+                  Cryptographic Seal
+                </div>
+                <div className="font-mono text-[9px] text-emerald-800/60 dark:text-emerald-400/60 break-all leading-tight">
+                  <ScrambleText text="9f86d081884c7d659a2feaa0c55..." />
+                </div>
               </div>
-            </div>
-          </motion.div>
+              <div className="w-20 h-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded border border-emerald-500/10 rotate-[-2deg]">
+                <SignatureAnimation />
+              </div>
+            </motion.div>
+          </div>
 
           {/* Testimonial Bubble */}
           <motion.div
@@ -1041,7 +1039,7 @@ export default function Home() {
 
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed max-w-2xl mx-auto">
               Stop relying on <em className="">&quot;I thought we agreed&quot;</em>. Get a{" "}
-              <strong>signed, sealed, and legally binding proof</strong> of any agreement in seconds. No
+              <strong>signed, sealed, and cryptographically verified proof</strong> of any agreement in seconds. No
               signup required for them.
             </p>
 
@@ -1076,7 +1074,7 @@ export default function Home() {
                 <Shield className="h-4 w-4" /> Encrypted
               </span>
               <span className="flex items-center gap-2">
-                <FileCheck className="h-4 w-4" /> Legally Binding
+                <FileCheck className="h-4 w-4" /> Secure Proof
               </span>
             </div>
           </motion.div>

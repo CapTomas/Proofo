@@ -8,13 +8,13 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 export const metadata: Metadata = {
   title: "Proofo | Proof Any Deal. Instantly.",
   description:
-    "The instant digital handshake for everyone. Secure, legally binding proof of any agreement in seconds. No app needed for recipients.",
+    "The instant digital handshake for everyone. Secure, cryptographically verified proof of any agreement in seconds. No app needed for recipients.",
   keywords: [
     "digital handshake",
     "secure agreement",
     "rapid contract",
     "proof of deal",
-    "legal proof",
+    "digital proof",
     "instant signature",
     "contract app",
     "deal verification",
@@ -24,14 +24,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Proofo | Proof Any Deal. Instantly.",
     description:
-      "The instant digital handshake for everyone. Secure, legally binding proof of any agreement in seconds. No app needed for recipients.",
+      "The instant digital handshake for everyone. Secure, cryptographically verified proof of any agreement in seconds. No app needed for recipients.",
     type: "website",
     siteName: "Proofo",
   },
   twitter: {
     card: "summary_large_image",
     title: "Proofo | Proof Any Deal. Instantly.",
-    description: "The instant digital handshake for everyone. Secure, legally binding proof of agreement in seconds.",
+    description: "The instant digital handshake for everyone. Secure, cryptographically verified proof of agreement in seconds.",
   },
   robots: {
     index: true,
@@ -82,7 +82,7 @@ export default function RootLayout({
                   "price": "0",
                   "priceCurrency": "USD"
                 },
-                "description": "The instant digital handshake. Secure, legally binding proof of any agreement in seconds.",
+                "description": "The instant digital handshake. Secure, cryptographically verified proof of any agreement in seconds.",
                 "aggregateRating": {
                     "@type": "AggregateRating",
                     "ratingValue": "4.9",

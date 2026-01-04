@@ -364,7 +364,12 @@ const ActivitySparkline = ({ data }: { data: number[] }) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, deals: storeDeals, setDeals, needsOnboarding, setNeedsOnboarding } = useAppStore();
+  const user = useAppStore(state => state.user);
+  const storeDeals = useAppStore(state => state.deals);
+  const setDeals = useAppStore(state => state.setDeals);
+  const needsOnboarding = useAppStore(state => state.needsOnboarding);
+  const setNeedsOnboarding = useAppStore(state => state.setNeedsOnboarding);
+
   const userId = user?.id;
   const userEmail = user?.email;
   const [activeTab, setActiveTab] = useState<"priority" | "recent">("priority");
@@ -418,15 +423,21 @@ export default function DashboardPage() {
     [setDeals]
   );
 
+  // Initial fetch - Only if authenticated AND not yet initialized
   useEffect(() => {
-    if (!hasInitializedRef.current && user && !user.id.startsWith("demo-")) {
+    if (isMounted && !hasInitializedRef.current && userId && !userId.startsWith("demo-")) {
       hasInitializedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals(true);
     }
+  }, [isMounted, userId, refreshDeals]);
+
+  // Periodic background refresh
+  useEffect(() => {
+    if (!userId || userId.startsWith("demo-")) return;
+
     const interval = setInterval(() => refreshDeals(false), 30000);
     return () => clearInterval(interval);
-  }, [user, refreshDeals]);
+  }, [userId, refreshDeals]);
 
   // Simplified local stats for UI elements outside the main stats grid
   const localStats = useMemo(() => {
