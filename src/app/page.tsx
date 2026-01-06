@@ -1059,14 +1059,32 @@ const Pricing = () => (
 
 export default function Home() {
   const router = useRouter();
-  const { user } = useAppStore();
+  const { user, isLoading } = useAppStore();
+  const [isReady, setIsReady] = useState(false);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
     if (user) {
       router.push("/dashboard");
+      return;
     }
-  }, [user, router]);
+    // Only show the page once we've confirmed no user is logged in
+    if (!isLoading && !user) {
+      setIsReady(true);
+    }
+  }, [user, router, isLoading]);
+
+  // Don't render anything while checking auth or if user exists
+  // The middleware should handle the redirect, but this prevents a flash
+  if (!isReady || user) {
+    return (
+      <div className="min-h-screen w-full bg-background flex items-center justify-center">
+        <div className="animate-pulse">
+          <AnimatedLogo size={48} className="text-foreground/50" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground font-sans selection:bg-primary/10 selection:text-primary relative overflow-x-hidden">
