@@ -149,7 +149,7 @@ export function SealedDealView({
               >
                 <div className={`h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm shadow-sm ${
                   isSealed
-                    ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white"
+                    ? "bg-gradient-to-br from-primary to-primary/70 text-primary-foreground"
                     : "bg-muted text-muted-foreground"
                 }`}>
                   {recipientProfile?.avatarUrl ? (

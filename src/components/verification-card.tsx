@@ -309,7 +309,7 @@ export const VerificationCard = ({
                   <div className={cn(
                     "h-10 w-10 rounded-full flex items-center justify-center font-medium text-sm shadow-sm overflow-hidden",
                     deal.status === "confirmed"
-                      ? "bg-gradient-to-br from-sky-500 to-sky-600 text-white"
+                      ? "bg-gradient-to-br from-primary to-primary/70 text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   )}>
                     {recipientProfile?.avatarUrl ? (
@@ -336,7 +336,7 @@ export const VerificationCard = ({
         {/* 4. Cryptographic Proof */}
         <Card className={cn(
           "shadow-sm bg-card rounded-xl overflow-hidden border transition-all duration-500",
-          verificationStatus === "valid" ? "border-emerald-500 shadow-lg shadow-emerald-500/5" : "border-border"
+          verificationStatus === "valid" ? "border-emerald-200 dark:border-emerald-800 shadow-lg shadow-emerald-500/5" : "border-border"
         )}>
           <CardContent className="p-5 md:p-6">
               <div className="space-y-4">

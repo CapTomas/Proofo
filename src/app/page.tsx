@@ -825,7 +825,7 @@ const RealWorldSection = () => (
               className="bg-card rounded-xl border shadow-sm p-4"
             >
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
                   <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs">
                     AJ
                   </div>
@@ -834,7 +834,7 @@ const RealWorldSection = () => (
                     <p className="text-xs font-bold truncate">Alex Johnson</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
                   <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs text-foreground">
                     SS
                   </div>

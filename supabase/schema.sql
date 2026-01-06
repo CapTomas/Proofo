@@ -210,8 +210,11 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS id_verified_at TIMESTAMPTZ;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS id_verification_method TEXT;
 
--- Deals trust_level column
+-- Deals columns (for older databases)
 ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS trust_level trust_level DEFAULT 'basic';
+ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS last_nudged_at TIMESTAMPTZ;
+ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ;
+ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS voided_at TIMESTAMPTZ;
 
 -- User preferences new columns
 ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS do_not_disturb BOOLEAN DEFAULT FALSE;
@@ -884,41 +887,20 @@ BEGIN
     {"id": "4", "label": "Milestones", "value": "3 deliverable checkpoints", "type": "text"}
   ]'::jsonb;
 
-  -- Create demo users in auth.users
-  INSERT INTO auth.users (
-    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-    created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin,
-    confirmation_token, recovery_token, email_change_token_new, email_change
-  ) VALUES (
-    v_creator_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-    'john@proofo.app', crypt('DemoPassword123!', gen_salt('bf')), NOW(),
-    v_created_at - INTERVAL '30 days', NOW(),
-    '{"provider": "email", "providers": ["email"]}'::jsonb,
-    '{"full_name": "John Doe"}'::jsonb,
-    FALSE, '', '', '', ''
-  ) ON CONFLICT (id) DO NOTHING;
+  -- Temporarily disable FK checks to allow demo data without auth.users
+  SET session_replication_role = 'replica';
 
-  INSERT INTO auth.users (
-    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-    created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin,
-    confirmation_token, recovery_token, email_change_token_new, email_change
-  ) VALUES (
-    v_recipient_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-    'jane@proofo.app', crypt('DemoPassword123!', gen_salt('bf')), NOW(),
-    v_created_at - INTERVAL '15 days', NOW(),
-    '{"provider": "email", "providers": ["email"]}'::jsonb,
-    '{"full_name": "Jane Smith"}'::jsonb,
-    FALSE, '', '', '', ''
-  ) ON CONFLICT (id) DO NOTHING;
-
-  -- Create profiles
+  -- Create demo profiles directly (bypassing auth.users FK)
   INSERT INTO public.profiles (id, email, name, created_at)
   VALUES (v_creator_id, 'john@proofo.app', 'John Doe', v_created_at - INTERVAL '30 days')
-  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email;
 
   INSERT INTO public.profiles (id, email, name, created_at)
   VALUES (v_recipient_id, 'jane@proofo.app', 'Jane Smith', v_created_at - INTERVAL '15 days')
-  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email;
+
+  -- Re-enable FK checks
+  SET session_replication_role = 'origin';
 
   -- Create demo deal
   INSERT INTO public.deals (
