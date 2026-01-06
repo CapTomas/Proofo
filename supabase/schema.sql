@@ -1,11 +1,17 @@
--- Proofo Database Schema
--- Run this in Supabase SQL Editor
+-- Proofo Database Schema (Consolidated)
+-- Run this in Supabase SQL Editor for a fresh database setup
+-- Last updated: 2026-01-06
+-- Includes: Core tables, Trust Levels, Verification system, RLS, Demo Data
 
--- 1. Enable UUID extension
+-- ============================================
+-- 1. EXTENSIONS
+-- ============================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Create custom types
--- We use DO blocks to prevent errors if types already exist
+-- ============================================
+-- 2. CUSTOM TYPES
+-- ============================================
 DO $$ BEGIN
     CREATE TYPE deal_status AS ENUM ('pending', 'sealing', 'confirmed', 'voided');
 EXCEPTION
@@ -30,37 +36,54 @@ DO $$ BEGIN
       'pdf_downloaded',
       'deal_verified',
       'deal_link_shared',
-      'token_validated'
+      'token_validated',
+      'email_otp_sent',
+      'email_verified',
+      'phone_otp_sent',
+      'phone_verified'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- 3. Profiles table (extends Supabase auth.users)
+-- Add new enum values for existing databases
+DO $$ BEGIN ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'email_otp_sent'; EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'email_verified'; EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'phone_otp_sent'; EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN ALTER TYPE audit_event_type ADD VALUE IF NOT EXISTS 'phone_verified'; EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE trust_level AS ENUM ('basic', 'verified', 'strong', 'maximum');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+COMMENT ON TYPE trust_level IS 'Trust level for deals: basic (no verification), verified (email OTP), strong (email+phone), maximum (email+phone+ID)';
+
+-- ============================================
+-- 3. CORE TABLES
+-- ============================================
+
+-- Profiles table (extends Supabase auth.users)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   name TEXT,
   avatar_url TEXT,
   is_pro BOOLEAN DEFAULT FALSE,
-  -- Phase 1 additions (Dec 2025)
   job_title TEXT,
   location TEXT,
   currency TEXT DEFAULT 'USD',
   signature_url TEXT,
-  -- timestamps
+  phone TEXT,
+  phone_verified_at TIMESTAMPTZ,
+  id_verified_at TIMESTAMPTZ,
+  id_verification_method TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Phase 1 Migration: Add new columns to existing profiles table
--- Run this if upgrading from an older schema:
--- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS job_title TEXT;
--- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location TEXT;
--- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
--- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS signature_url TEXT;
-
--- 3b. Contacts table (for People Page persistence, Phase 1)
+-- Contacts table (for People Page persistence)
 CREATE TABLE IF NOT EXISTS public.contacts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -70,15 +93,10 @@ CREATE TABLE IF NOT EXISTS public.contacts (
   is_hidden BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  -- Composite unique constraint: one contact per email per user
   UNIQUE(user_id, email)
 );
 
--- Contacts indexes
-CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON public.contacts(user_id);
-CREATE INDEX IF NOT EXISTS idx_contacts_email ON public.contacts(email);
-
--- 4. Deals table (core table)
+-- Deals table (core table)
 CREATE TABLE IF NOT EXISTS public.deals (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   public_id TEXT UNIQUE NOT NULL,
@@ -91,6 +109,7 @@ CREATE TABLE IF NOT EXISTS public.deals (
   template_id TEXT,
   terms JSONB NOT NULL DEFAULT '[]'::jsonb,
   status deal_status DEFAULT 'pending',
+  trust_level trust_level DEFAULT 'basic',
   deal_seal TEXT,
   signature_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -100,8 +119,7 @@ CREATE TABLE IF NOT EXISTS public.deals (
   last_nudged_at TIMESTAMPTZ
 );
 
-
--- 5. Access tokens table (for secure recipient access)
+-- Access tokens table (for secure recipient access)
 CREATE TABLE IF NOT EXISTS public.access_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   deal_id UUID NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -111,7 +129,7 @@ CREATE TABLE IF NOT EXISTS public.access_tokens (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Audit log table (append-only event log)
+-- Audit log table (append-only event log)
 CREATE TABLE IF NOT EXISTS public.audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   deal_id UUID NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -124,31 +142,10 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_deals_public_id ON public.deals(public_id);
-CREATE INDEX IF NOT EXISTS idx_deals_creator_id ON public.deals(creator_id);
-CREATE INDEX IF NOT EXISTS idx_deals_recipient_id ON public.deals(recipient_id);
-CREATE INDEX IF NOT EXISTS idx_deals_recipient_email ON public.deals(recipient_email);
-CREATE INDEX IF NOT EXISTS idx_deals_status ON public.deals(status);
-CREATE INDEX IF NOT EXISTS idx_deals_created_at ON public.deals(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_access_tokens_token ON public.access_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id ON public.access_tokens(deal_id);
-CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id_created ON public.access_tokens(deal_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_log_deal_id ON public.audit_log(deal_id);
-CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON public.audit_log(created_at DESC);
-
--- 8. Enable Row Level Security
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.access_tokens ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
-
--- 8b. User Preferences Table (Phase 1 - Settings persistence)
+-- User Preferences Table
 CREATE TABLE IF NOT EXISTS public.user_preferences (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  -- Notification preferences
   notify_deal_viewed BOOLEAN DEFAULT TRUE,
   notify_deal_signed BOOLEAN DEFAULT TRUE,
   notify_deal_expiring BOOLEAN DEFAULT TRUE,
@@ -163,65 +160,121 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
   channel_email BOOLEAN DEFAULT TRUE,
   channel_push BOOLEAN DEFAULT TRUE,
   channel_mobile BOOLEAN DEFAULT FALSE,
-  -- Do Not Disturb
   do_not_disturb BOOLEAN DEFAULT FALSE,
   dnd_expires_at TIMESTAMPTZ,
-  -- Appearance preferences
   compact_mode BOOLEAN DEFAULT FALSE,
   font_scale NUMERIC(3,2) DEFAULT 1.00,
   reduced_motion BOOLEAN DEFAULT FALSE,
-  -- timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id)
 );
 
--- Phase 1.1 Migration: Add new columns to existing user_preferences table
--- Run this if upgrading from an older schema:
--- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS do_not_disturb BOOLEAN DEFAULT FALSE;
--- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS dnd_expires_at TIMESTAMPTZ;
--- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS compact_mode BOOLEAN DEFAULT FALSE;
--- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS font_scale NUMERIC(3,2) DEFAULT 1.00;
--- ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS reduced_motion BOOLEAN DEFAULT FALSE;
+-- Deal verifications table for per-deal verification records
+CREATE TABLE IF NOT EXISTS public.deal_verifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  deal_id UUID NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
+  verification_type TEXT NOT NULL,
+  verified_value TEXT NOT NULL,
+  verified_at TIMESTAMPTZ DEFAULT NOW(),
+  metadata JSONB,
+  UNIQUE(deal_id, verification_type)
+);
 
--- User Preferences RLS
+-- OTP codes table for temporary verification codes
+CREATE TABLE IF NOT EXISTS public.verification_codes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  deal_id UUID NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
+  verification_type TEXT NOT NULL,
+  target TEXT NOT NULL,
+  code TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts INT DEFAULT 0,
+  verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(deal_id, verification_type)
+);
+
+-- ============================================
+-- 3b. COLUMN MIGRATIONS (for existing databases)
+-- ============================================
+-- These ADD COLUMN statements ensure older databases get new columns
+
+-- Profiles new columns
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS job_title TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS signature_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS id_verified_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS id_verification_method TEXT;
+
+-- Deals trust_level column
+ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS trust_level trust_level DEFAULT 'basic';
+
+-- User preferences new columns
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS do_not_disturb BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS dnd_expires_at TIMESTAMPTZ;
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS compact_mode BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS font_scale NUMERIC(3,2) DEFAULT 1.00;
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS reduced_motion BOOLEAN DEFAULT FALSE;
+
+-- ============================================
+-- 4. INDEXES
+-- ============================================
+CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON public.contacts(user_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_email ON public.contacts(email);
+CREATE INDEX IF NOT EXISTS idx_deals_public_id ON public.deals(public_id);
+CREATE INDEX IF NOT EXISTS idx_deals_creator_id ON public.deals(creator_id);
+CREATE INDEX IF NOT EXISTS idx_deals_recipient_id ON public.deals(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_deals_recipient_email ON public.deals(recipient_email);
+CREATE INDEX IF NOT EXISTS idx_deals_status ON public.deals(status);
+CREATE INDEX IF NOT EXISTS idx_deals_created_at ON public.deals(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_token ON public.access_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id ON public.access_tokens(deal_id);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_deal_id_created ON public.access_tokens(deal_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_deal_id ON public.audit_log(deal_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON public.audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deal_verifications_deal_id ON public.deal_verifications(deal_id);
+CREATE INDEX IF NOT EXISTS idx_verification_codes_deal_id ON public.verification_codes(deal_id);
+CREATE INDEX IF NOT EXISTS idx_verification_codes_expires ON public.verification_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_profiles_phone ON public.profiles(phone);
+
+-- ============================================
+-- 5. ROW LEVEL SECURITY
+-- ============================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.access_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deal_verifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
 
--- 9. RLS Policies
+-- ============================================
+-- 6. RLS POLICIES
+-- ============================================
+
 -- Profiles
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
-CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
-
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
-CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
-CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-
--- SECURE Profile RLS Policies (replaces the dangerous USING(true) policy)
--- Users can only view:
--- 1. Their own profile
--- 2. Profiles of people they have deals with (as creator or recipient)
-DROP POLICY IF EXISTS "Authenticated users can lookup profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Anyone can lookup profiles by email" ON public.profiles;
 DROP POLICY IF EXISTS "Users view own profile" ON public.profiles;
 DROP POLICY IF EXISTS "View deal party profiles" ON public.profiles;
 
--- Allow users to view their own profile (basic requirement)
 CREATE POLICY "Users view own profile" ON public.profiles
 FOR SELECT USING (auth.uid() = id);
 
--- Allow authenticated users to view profiles of people they have deals with
 CREATE POLICY "View deal party profiles" ON public.profiles
 FOR SELECT USING (
   auth.uid() IS NOT NULL AND (
-    -- View profiles of people you've created deals for
     id IN (SELECT recipient_id FROM deals WHERE creator_id = auth.uid() AND recipient_id IS NOT NULL)
     OR
-    -- View profiles of deal creators for deals you're a recipient of
     id IN (SELECT creator_id FROM deals WHERE recipient_id = auth.uid())
     OR
-    -- View profiles of deal creators by email match (for recipients not yet registered)
     id IN (
       SELECT creator_id FROM deals
       WHERE recipient_email = (SELECT email FROM profiles WHERE id = auth.uid())
@@ -229,26 +282,27 @@ FOR SELECT USING (
   )
 );
 
+CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Deals
 DROP POLICY IF EXISTS "Creators can view their own deals" ON public.deals;
-CREATE POLICY "Creators can view their own deals" ON public.deals FOR SELECT USING (auth.uid() = creator_id);
-
 DROP POLICY IF EXISTS "Recipients can view deals assigned to them" ON public.deals;
-CREATE POLICY "Recipients can view deals assigned to them" ON public.deals FOR SELECT USING (auth.uid() = recipient_id);
-
 DROP POLICY IF EXISTS "Authenticated users can create deals" ON public.deals;
-CREATE POLICY "Authenticated users can create deals" ON public.deals FOR INSERT WITH CHECK (auth.uid() = creator_id);
-
 DROP POLICY IF EXISTS "Creators can update their own deals" ON public.deals;
+
+CREATE POLICY "Creators can view their own deals" ON public.deals FOR SELECT USING (auth.uid() = creator_id);
+CREATE POLICY "Recipients can view deals assigned to them" ON public.deals FOR SELECT USING (auth.uid() = recipient_id);
+CREATE POLICY "Authenticated users can create deals" ON public.deals FOR INSERT WITH CHECK (auth.uid() = creator_id);
 CREATE POLICY "Creators can update their own deals" ON public.deals FOR UPDATE USING (auth.uid() = creator_id);
 
 -- Access Tokens
 DROP POLICY IF EXISTS "Creators can view their deal tokens" ON public.access_tokens;
+DROP POLICY IF EXISTS "Creators can create tokens for their deals" ON public.access_tokens;
+
 CREATE POLICY "Creators can view their deal tokens" ON public.access_tokens FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.deals WHERE deals.id = access_tokens.deal_id AND deals.creator_id = auth.uid())
 );
-
-DROP POLICY IF EXISTS "Creators can create tokens for their deals" ON public.access_tokens;
 CREATE POLICY "Creators can create tokens for their deals" ON public.access_tokens FOR INSERT WITH CHECK (
   EXISTS (SELECT 1 FROM public.deals WHERE deals.id = access_tokens.deal_id AND deals.creator_id = auth.uid())
 );
@@ -263,35 +317,47 @@ CREATE POLICY "Users can view audit logs for their deals" ON public.audit_log FO
   )
 );
 
--- Contacts (Phase 1)
+-- Contacts
 DROP POLICY IF EXISTS "Users can view their own contacts" ON public.contacts;
-CREATE POLICY "Users can view their own contacts" ON public.contacts FOR SELECT USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can create their own contacts" ON public.contacts;
-CREATE POLICY "Users can create their own contacts" ON public.contacts FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can update their own contacts" ON public.contacts;
-CREATE POLICY "Users can update their own contacts" ON public.contacts FOR UPDATE USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can delete their own contacts" ON public.contacts;
+
+CREATE POLICY "Users can view their own contacts" ON public.contacts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can create their own contacts" ON public.contacts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own contacts" ON public.contacts FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own contacts" ON public.contacts FOR DELETE USING (auth.uid() = user_id);
 
--- User Preferences (Phase 1)
+-- User Preferences
 DROP POLICY IF EXISTS "Users can view their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can view their own preferences" ON public.user_preferences FOR SELECT USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can create their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can create their own preferences" ON public.user_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can update their own preferences" ON public.user_preferences;
-CREATE POLICY "Users can update their own preferences" ON public.user_preferences FOR UPDATE USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can delete their own preferences" ON public.user_preferences;
+
+CREATE POLICY "Users can view their own preferences" ON public.user_preferences FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can create their own preferences" ON public.user_preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own preferences" ON public.user_preferences FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own preferences" ON public.user_preferences FOR DELETE USING (auth.uid() = user_id);
 
--- 10. Functions & Triggers
+-- Deal Verifications
+DROP POLICY IF EXISTS "Users can view deal verifications" ON public.deal_verifications;
+CREATE POLICY "Users can view deal verifications" ON public.deal_verifications FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.deals
+    WHERE deals.id = deal_verifications.deal_id
+    AND (deals.creator_id = auth.uid() OR deals.recipient_id = auth.uid())
+  )
+);
 
--- FIXED: Handle new user signup with explicit schema and search_path
+-- Verification Codes (very restrictive - use RPC functions)
+DROP POLICY IF EXISTS "No direct access to verification codes" ON public.verification_codes;
+CREATE POLICY "No direct access to verification codes" ON public.verification_codes FOR ALL USING (false);
+
+-- ============================================
+-- 7. FUNCTIONS & TRIGGERS
+-- ============================================
+
+-- Handle new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -305,13 +371,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Trigger for new user
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Function to retroactively sync deals
+-- Sync deals for new user
 CREATE OR REPLACE FUNCTION public.sync_deals_for_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -323,14 +388,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger for syncing deals
 DROP TRIGGER IF EXISTS on_profile_created ON public.profiles;
 CREATE TRIGGER on_profile_created
   AFTER INSERT ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.sync_deals_for_new_user();
 
--- Function to confirm deal with token validation
--- NOTE: p_confirmed_at must be the exact timestamp used when calculating the deal seal
+-- Updated at trigger
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- ============================================
+-- 8. RPC FUNCTIONS
+-- ============================================
+
+-- Confirm deal with token validation
 CREATE OR REPLACE FUNCTION public.confirm_deal_with_token(
   p_deal_id UUID,
   p_token TEXT,
@@ -345,7 +426,6 @@ DECLARE
   v_deal public.deals;
   v_token_valid BOOLEAN;
 BEGIN
-  -- Validate the token
   SELECT EXISTS(
     SELECT 1 FROM public.access_tokens
     WHERE deal_id = p_deal_id
@@ -358,13 +438,10 @@ BEGIN
     RAISE EXCEPTION 'Invalid or expired token';
   END IF;
 
-  -- Mark token as used
   UPDATE public.access_tokens
   SET used_at = NOW()
   WHERE deal_id = p_deal_id AND token = p_token;
 
-  -- Update the deal
-  -- IMPORTANT: Use the provided p_confirmed_at timestamp to match the seal calculation
   UPDATE public.deals
   SET
     status = 'confirmed',
@@ -381,7 +458,6 @@ BEGIN
     RAISE EXCEPTION 'Deal not found or not in pending status';
   END IF;
 
-  -- Add audit log entry
   INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata)
   VALUES (p_deal_id, 'deal_confirmed', p_recipient_id, 'recipient', jsonb_build_object(
     'has_seal', p_deal_seal IS NOT NULL,
@@ -392,7 +468,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get deal by public ID (includes creator name and avatar for anonymous users)
+-- Get deal by public ID (with verifications)
 CREATE OR REPLACE FUNCTION public.get_deal_by_public_id(p_public_id TEXT)
 RETURNS JSON AS $$
 DECLARE
@@ -412,13 +488,23 @@ BEGIN
     'template_id', d.template_id,
     'terms', d.terms,
     'status', d.status,
+    'trust_level', COALESCE(d.trust_level, 'basic'),
     'deal_seal', d.deal_seal,
     'signature_url', d.signature_url,
     'created_at', d.created_at,
     'confirmed_at', d.confirmed_at,
     'voided_at', d.voided_at,
     'viewed_at', d.viewed_at,
-    'last_nudged_at', d.last_nudged_at
+    'last_nudged_at', d.last_nudged_at,
+    'verifications', (
+      SELECT json_agg(json_build_object(
+        'verification_type', dv.verification_type,
+        'verified_value', dv.verified_value,
+        'verified_at', dv.verified_at
+      ))
+      FROM public.deal_verifications dv
+      WHERE dv.deal_id = d.id
+    )
   ) INTO v_result
   FROM public.deals d
   LEFT JOIN public.profiles p ON d.creator_id = p.id
@@ -428,7 +514,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to validate access token
+-- Get deal verifications
+CREATE OR REPLACE FUNCTION public.get_deal_verifications(p_deal_id UUID)
+RETURNS JSON AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  IF NOT EXISTS(SELECT 1 FROM public.deals WHERE id = p_deal_id) THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT json_agg(json_build_object(
+    'verification_type', dv.verification_type,
+    'verified_value', dv.verified_value,
+    'verified_at', dv.verified_at
+  ))
+  INTO v_result
+  FROM public.deal_verifications dv
+  WHERE dv.deal_id = p_deal_id;
+
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Validate access token
 CREATE OR REPLACE FUNCTION public.validate_access_token(p_deal_id UUID, p_token TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -442,28 +551,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Updated at trigger function
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger for profiles updated_at
-DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
-CREATE TRIGGER update_profiles_updated_at
-  BEFORE UPDATE ON public.profiles
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
--- Function to get access token for a deal (for anonymous recipients)
+-- Get access token for deal
 CREATE OR REPLACE FUNCTION public.get_access_token_for_deal(p_deal_id UUID)
 RETURNS TEXT AS $$
 DECLARE
   v_token TEXT;
 BEGIN
-  -- Validate input
   IF p_deal_id IS NULL THEN
     RETURN NULL;
   END IF;
@@ -479,20 +572,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get token status for a deal (returns detailed status info)
+-- Get token status for deal
 CREATE OR REPLACE FUNCTION public.get_token_status_for_deal(p_deal_id UUID)
 RETURNS JSON AS $$
 DECLARE
-  v_result JSON;
   v_expires_at TIMESTAMPTZ;
   v_used_at TIMESTAMPTZ;
 BEGIN
-  -- Validate input
   IF p_deal_id IS NULL THEN
     RETURN json_build_object('status', 'not_found', 'expires_at', NULL);
   END IF;
 
-  -- Get the most recent token for this deal
   SELECT expires_at, used_at INTO v_expires_at, v_used_at
   FROM public.access_tokens
   WHERE deal_id = p_deal_id
@@ -503,23 +593,19 @@ BEGIN
     RETURN json_build_object('status', 'not_found', 'expires_at', NULL);
   END IF;
 
-  -- Check if token was used
   IF v_used_at IS NOT NULL THEN
     RETURN json_build_object('status', 'used', 'expires_at', v_expires_at);
   END IF;
 
-  -- Check if token is expired
   IF v_expires_at < NOW() THEN
     RETURN json_build_object('status', 'expired', 'expires_at', v_expires_at);
   END IF;
 
-  -- Token is valid
   RETURN json_build_object('status', 'valid', 'expires_at', v_expires_at);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to log audit events (bypasses RLS for anonymous users)
--- SECURITY: Validates deal exists before inserting to prevent fake audit entries
+-- Log audit event
 CREATE OR REPLACE FUNCTION public.log_audit_event(
   p_deal_id UUID,
   p_event_type audit_event_type,
@@ -534,7 +620,6 @@ DECLARE
   v_id UUID;
   v_deal_exists BOOLEAN;
 BEGIN
-  -- SECURITY: Validate that the deal exists before logging
   SELECT EXISTS(SELECT 1 FROM public.deals WHERE id = p_deal_id) INTO v_deal_exists;
 
   IF NOT v_deal_exists THEN
@@ -542,22 +627,10 @@ BEGIN
   END IF;
 
   INSERT INTO public.audit_log (
-    deal_id,
-    event_type,
-    actor_id,
-    actor_type,
-    metadata,
-    ip_address,
-    user_agent
+    deal_id, event_type, actor_id, actor_type, metadata, ip_address, user_agent
   )
   VALUES (
-    p_deal_id,
-    p_event_type,
-    p_actor_id,
-    p_actor_type,
-    p_metadata,
-    p_ip_address,
-    p_user_agent
+    p_deal_id, p_event_type, p_actor_id, p_actor_type, p_metadata, p_ip_address, p_user_agent
   )
   RETURNING id INTO v_id;
 
@@ -565,20 +638,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get audit logs for a deal (with permission checks)
--- For confirmed deals, audit logs are public (transparency for sealed agreements)
+-- Get deal audit logs
 CREATE OR REPLACE FUNCTION public.get_deal_audit_logs(p_deal_id UUID, p_token TEXT DEFAULT NULL)
 RETURNS SETOF audit_log AS $$
 BEGIN
-  -- For CONFIRMED deals, audit logs are public (transparency for sealed agreements)
-  IF EXISTS (
-    SELECT 1 FROM deals WHERE id = p_deal_id AND status = 'confirmed'
-  ) THEN
+  IF EXISTS (SELECT 1 FROM deals WHERE id = p_deal_id AND status = 'confirmed') THEN
     RETURN QUERY SELECT * FROM audit_log WHERE deal_id = p_deal_id ORDER BY created_at ASC;
     RETURN;
   END IF;
 
-  -- For non-confirmed deals, check if user is authenticated creator/recipient
   IF EXISTS (
     SELECT 1 FROM deals WHERE id = p_deal_id
     AND (creator_id = auth.uid() OR recipient_id = auth.uid())
@@ -587,33 +655,21 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Check token (for pending deals with valid token access)
   IF p_token IS NOT NULL AND EXISTS (
-    SELECT 1 FROM access_tokens
-    WHERE deal_id = p_deal_id AND token = p_token
+    SELECT 1 FROM access_tokens WHERE deal_id = p_deal_id AND token = p_token
   ) THEN
     RETURN QUERY SELECT * FROM audit_log WHERE deal_id = p_deal_id ORDER BY created_at ASC;
     RETURN;
   END IF;
 
-  -- Default deny (return empty)
   RETURN;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11. Permissions (Critical for API access)
-GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-
--- SECURITY DEFINER function for authenticated profile lookup
--- Allows authenticated users to look up any profile by email when creating deals
--- Security is enforced at the action level (authentication + rate limiting)
+-- Lookup profile by email
 CREATE OR REPLACE FUNCTION public.lookup_profile_by_email(p_email TEXT)
 RETURNS TABLE(id UUID, name TEXT, avatar_url TEXT) AS $$
 BEGIN
-  -- Only allow authenticated users to call this function
   IF auth.uid() IS NULL THEN
     RETURN;
   END IF;
@@ -625,9 +681,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- SECURITY DEFINER function for anonymous email check on public signing page
--- Returns minimal info: whether email is registered and if it's the deal creator
--- Used by checkRecipientEmailForDealAction for anonymous users
+-- Check email for deal
 CREATE OR REPLACE FUNCTION public.check_email_for_deal(p_public_id TEXT, p_email TEXT)
 RETURNS TABLE(is_proofo_user BOOLEAN, is_creator BOOLEAN, user_name TEXT, user_avatar_url TEXT) AS $$
 DECLARE
@@ -636,41 +690,161 @@ DECLARE
   v_profile_name TEXT;
   v_profile_avatar TEXT;
 BEGIN
-  -- Get the deal's creator_id
   SELECT creator_id INTO v_deal_creator_id
   FROM public.deals
   WHERE public_id = p_public_id;
 
   IF v_deal_creator_id IS NULL THEN
-    -- Deal not found
     RETURN QUERY SELECT FALSE, FALSE, NULL::TEXT, NULL::TEXT;
     RETURN;
   END IF;
 
-  -- Check if email exists in profiles
   SELECT profiles.id, profiles.name, profiles.avatar_url INTO v_profile_id, v_profile_name, v_profile_avatar
   FROM public.profiles
   WHERE email = LOWER(TRIM(p_email));
 
   IF v_profile_id IS NULL THEN
-    -- Email not registered
     RETURN QUERY SELECT FALSE, FALSE, NULL::TEXT, NULL::TEXT;
     RETURN;
   END IF;
 
-  -- Check if this is the creator
   IF v_profile_id = v_deal_creator_id THEN
     RETURN QUERY SELECT FALSE, TRUE, NULL::TEXT, NULL::TEXT;
     RETURN;
   END IF;
 
-  -- It's a registered Proofo user who is NOT the creator
   RETURN QUERY SELECT TRUE, FALSE, v_profile_name, v_profile_avatar;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 12. Public Function Grants
+-- Create verification code
+CREATE OR REPLACE FUNCTION public.create_verification_code(
+  p_deal_id UUID,
+  p_verification_type TEXT,
+  p_target TEXT,
+  p_code_hash TEXT,
+  p_expires_minutes INT DEFAULT 10
+)
+RETURNS UUID AS $$
+DECLARE
+  v_id UUID;
+  v_deal_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS(SELECT 1 FROM public.deals WHERE id = p_deal_id) INTO v_deal_exists;
+  IF NOT v_deal_exists THEN
+    RAISE EXCEPTION 'Deal not found';
+  END IF;
+
+  DELETE FROM public.verification_codes
+  WHERE deal_id = p_deal_id AND verification_type = p_verification_type;
+
+  INSERT INTO public.verification_codes (
+    deal_id, verification_type, target, code, expires_at
+  )
+  VALUES (
+    p_deal_id, p_verification_type, LOWER(TRIM(p_target)), p_code_hash,
+    NOW() + (p_expires_minutes || ' minutes')::INTERVAL
+  )
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Verify code
+CREATE OR REPLACE FUNCTION public.verify_code(
+  p_deal_id UUID,
+  p_verification_type TEXT,
+  p_target TEXT,
+  p_code_hash TEXT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_code_id UUID;
+  v_attempts INT;
+BEGIN
+  SELECT id, attempts INTO v_code_id, v_attempts
+  FROM public.verification_codes
+  WHERE deal_id = p_deal_id
+    AND verification_type = p_verification_type
+    AND target = LOWER(TRIM(p_target))
+    AND code = p_code_hash
+    AND expires_at > NOW()
+    AND verified_at IS NULL;
+
+  IF v_code_id IS NULL THEN
+    UPDATE public.verification_codes
+    SET attempts = attempts + 1
+    WHERE deal_id = p_deal_id AND verification_type = p_verification_type;
+    RETURN FALSE;
+  END IF;
+
+  UPDATE public.verification_codes
+  SET verified_at = NOW()
+  WHERE id = v_code_id;
+
+  INSERT INTO public.deal_verifications (deal_id, verification_type, verified_value)
+  VALUES (p_deal_id, p_verification_type, LOWER(TRIM(p_target)))
+  ON CONFLICT (deal_id, verification_type)
+  DO UPDATE SET verified_value = EXCLUDED.verified_value, verified_at = NOW();
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Get deal verification status
+CREATE OR REPLACE FUNCTION public.get_deal_verification_status(p_deal_id UUID)
+RETURNS JSON AS $$
+DECLARE
+  v_trust_level trust_level;
+  v_email_verified BOOLEAN;
+  v_phone_verified BOOLEAN;
+BEGIN
+  SELECT trust_level INTO v_trust_level FROM public.deals WHERE id = p_deal_id;
+
+  IF v_trust_level IS NULL THEN
+    RETURN json_build_object('error', 'Deal not found');
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM public.deal_verifications
+    WHERE deal_id = p_deal_id AND verification_type = 'email'
+  ) INTO v_email_verified;
+
+  SELECT EXISTS(
+    SELECT 1 FROM public.deal_verifications
+    WHERE deal_id = p_deal_id AND verification_type = 'phone'
+  ) INTO v_phone_verified;
+
+  RETURN json_build_object(
+    'trust_level', v_trust_level::TEXT,
+    'email_required', v_trust_level IN ('verified', 'strong', 'maximum'),
+    'email_verified', v_email_verified,
+    'phone_required', v_trust_level IN ('strong', 'maximum'),
+    'phone_verified', v_phone_verified,
+    'id_required', v_trust_level = 'maximum',
+    'id_verified', FALSE,
+    'can_sign', CASE
+      WHEN v_trust_level = 'basic' THEN TRUE
+      WHEN v_trust_level = 'verified' THEN v_email_verified
+      WHEN v_trust_level = 'strong' THEN v_email_verified AND v_phone_verified
+      WHEN v_trust_level = 'maximum' THEN FALSE
+      ELSE FALSE
+    END
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
+-- 9. PERMISSIONS
+-- ============================================
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
 GRANT EXECUTE ON FUNCTION public.get_deal_by_public_id(TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_deal_verifications(UUID) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.validate_access_token(UUID, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.confirm_deal_with_token(UUID, TEXT, TEXT, TEXT, TEXT, UUID, TIMESTAMPTZ) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_access_token_for_deal(UUID) TO authenticated, anon;
@@ -679,32 +853,119 @@ GRANT EXECUTE ON FUNCTION public.log_audit_event(UUID, audit_event_type, actor_t
 GRANT EXECUTE ON FUNCTION public.get_deal_audit_logs(UUID, TEXT) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.lookup_profile_by_email(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_email_for_deal(TEXT, TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.create_verification_code(UUID, TEXT, TEXT, TEXT, INT) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.verify_code(UUID, TEXT, TEXT, TEXT) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.get_deal_verification_status(UUID) TO authenticated, anon, service_role;
+
+-- ============================================
+-- 10. DEMO DATA SEED
+-- ============================================
+-- Creates demo users and a verified demo deal for the public verify page
+
+DO $$
+DECLARE
+  v_creator_id UUID := '00000000-0000-0000-0000-000000000001';
+  v_recipient_id UUID := '00000000-0000-0000-0000-000000000002';
+  v_deal_id UUID := '00000000-0000-0000-0000-000000000003';
+  v_deal_public_id TEXT := 'demo-verify';
+  v_confirmed_at TIMESTAMPTZ := '2025-12-15 14:30:00+00';
+  v_created_at TIMESTAMPTZ := '2025-12-14 10:00:00+00';
+  v_terms JSONB;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.deals WHERE public_id = v_deal_public_id) THEN
+    RAISE NOTICE 'Demo deal already exists, skipping seed.';
+    RETURN;
+  END IF;
+
+  v_terms := '[
+    {"id": "1", "label": "Project", "value": "Website Redesign & Brand Refresh", "type": "text"},
+    {"id": "2", "label": "Fee", "value": "$12,500.00", "type": "currency"},
+    {"id": "3", "label": "Duration", "value": "8 weeks", "type": "text"},
+    {"id": "4", "label": "Milestones", "value": "3 deliverable checkpoints", "type": "text"}
+  ]'::jsonb;
+
+  -- Create demo users in auth.users
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) VALUES (
+    v_creator_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'john@proofo.app', crypt('DemoPassword123!', gen_salt('bf')), NOW(),
+    v_created_at - INTERVAL '30 days', NOW(),
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    '{"full_name": "John Doe"}'::jsonb,
+    FALSE, '', '', '', ''
+  ) ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin,
+    confirmation_token, recovery_token, email_change_token_new, email_change
+  ) VALUES (
+    v_recipient_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'jane@proofo.app', crypt('DemoPassword123!', gen_salt('bf')), NOW(),
+    v_created_at - INTERVAL '15 days', NOW(),
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    '{"full_name": "Jane Smith"}'::jsonb,
+    FALSE, '', '', '', ''
+  ) ON CONFLICT (id) DO NOTHING;
+
+  -- Create profiles
+  INSERT INTO public.profiles (id, email, name, created_at)
+  VALUES (v_creator_id, 'john@proofo.app', 'John Doe', v_created_at - INTERVAL '30 days')
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+
+  INSERT INTO public.profiles (id, email, name, created_at)
+  VALUES (v_recipient_id, 'jane@proofo.app', 'Jane Smith', v_created_at - INTERVAL '15 days')
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+
+  -- Create demo deal
+  INSERT INTO public.deals (
+    id, public_id, creator_id, recipient_id, recipient_name, recipient_email,
+    title, description, template_id, terms, status, trust_level, deal_seal,
+    signature_url, created_at, confirmed_at, viewed_at
+  ) VALUES (
+    v_deal_id, v_deal_public_id, v_creator_id, v_recipient_id, 'Jane Smith', 'jane@proofo.app',
+    'Services Agreement', 'Professional design services for Q1 2026 rebrand project.',
+    'service-exchange', v_terms, 'confirmed', 'verified',
+    '7ff61c429524dbeea05512ce2a303b9051d1f0421ce165a1440690a82963f937',
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiPjxwYXRoIGQ9Ik0xMCAzMCBRIDMwIDEwLCA1MCAzMCBUIDkwIDMwIFQgMTMwIDMwIFQgMTcwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==',
+    v_created_at, v_confirmed_at, v_created_at + INTERVAL '1 day 4 hours 20 minutes'
+  );
+
+  -- Create email verification record
+  INSERT INTO public.deal_verifications (deal_id, verification_type, verified_value, verified_at)
+  VALUES (v_deal_id, 'email', 'jane@proofo.app', '2025-12-15 14:25:00+00')
+  ON CONFLICT (deal_id, verification_type) DO NOTHING;
+
+  -- Create audit log entries
+  INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata, created_at)
+  VALUES (v_deal_id, 'deal_created', v_creator_id, 'creator', '{"template": "service-exchange"}'::jsonb, v_created_at);
+
+  INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata, created_at)
+  VALUES (v_deal_id, 'email_sent', NULL, 'system', '{"recipient": "jane@proofo.app", "type": "invitation"}'::jsonb, v_created_at + INTERVAL '1 minute');
+
+  INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata, created_at)
+  VALUES (v_deal_id, 'deal_viewed', v_recipient_id, 'recipient', '{}'::jsonb, v_created_at + INTERVAL '1 day 4 hours 20 minutes');
+
+  -- Note: email_verified audit log skipped to maintain single-transaction compatibility
+  -- (new enum values can't be used in same transaction they're added)
+
+  INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata, created_at)
+  VALUES (v_deal_id, 'deal_signed', v_recipient_id, 'recipient', '{"signatureMethod": "draw"}'::jsonb, '2025-12-15 14:28:00+00');
+
+  INSERT INTO public.audit_log (deal_id, event_type, actor_id, actor_type, metadata, created_at)
+  VALUES (v_deal_id, 'deal_confirmed', NULL, 'system', '{"sealGenerated": true}'::jsonb, v_confirmed_at);
+
+  RAISE NOTICE 'Demo deal seeded successfully with public_id: %', v_deal_public_id;
+END $$;
 
 -- ============================================
 -- STORAGE SETUP (Run in Supabase Dashboard)
 -- ============================================
--- Note: Storage buckets cannot be created via SQL directly.
--- You need to create them in the Supabase Dashboard:
---
--- 1. Go to Storage in your Supabase Dashboard
--- 2. Click "New bucket"
--- 3. Create a bucket named "signatures" with these settings:
---    - Public bucket: YES (to allow public access to signature images)
---    - Allowed MIME types: image/png, image/jpeg
---    - Max file size: 1MB
---
--- 4. Add a policy for the "signatures" bucket:
---    - Policy name: "Allow public read access"
---    - Allowed operation: SELECT
---    - Target roles: public
---    - Policy definition: true
---
--- 5. Add another policy:
---    - Policy name: "Allow authenticated uploads"
---    - Allowed operation: INSERT
---    - Target roles: public (for anonymous recipients)
---    - Policy definition: true
---
--- Alternative: Create bucket via Supabase Dashboard Storage Settings:
--- Navigate to Storage > Configuration > "Create a new bucket"
--- ============================================
+-- Create a bucket named "signatures" with:
+-- - Public bucket: YES
+-- - Allowed MIME types: image/png, image/jpeg
+-- - Max file size: 1MB
+-- Add policies for public read and authenticated/anon uploads.

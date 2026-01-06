@@ -31,12 +31,14 @@ import {
   RotateCcw,
   Fingerprint,
   Zap,
+  PlayCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { VerificationCard, VerificationStatus } from "@/components/verification-card";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { KeyboardHint } from "@/components/dashboard/shared-components";
 import { cn } from "@/lib/utils";
+import { DEMO_DEAL_ID, isDemoDeal } from "@/lib/demo-deal-data";
 
 function VerifyContent() {
   const router = useRouter();
@@ -76,7 +78,7 @@ function VerifyContent() {
       let cProfile: { name: string; avatarUrl?: string } | undefined;
       let rProfile: { name: string; avatarUrl?: string } | undefined;
 
-      // Always try Supabase first if configured
+      // Try Supabase first if configured (demo deal is now in database)
       if (isSupabaseConfigured()) {
         const { deal, creatorProfile, recipientProfile, error } = await getDealByPublicIdAction(searchId);
         if (deal && !error) {
@@ -91,7 +93,6 @@ function VerifyContent() {
         const localDeal = getDealByPublicId(searchId);
         if (localDeal) {
           dealData = localDeal;
-          // Local store doesn't have partial profiles separate usually, or we can mock it
         }
       }
 
@@ -156,8 +157,8 @@ function VerifyContent() {
             setVerificationStatus("idle");
           }
 
-          // Log verification event (only for non-idle status)
-          if (result !== "idle" && isSupabaseConfigured()) {
+          // Log verification event (only for non-idle, non-demo deals)
+          if (result !== "idle" && isSupabaseConfigured() && !isDemoDeal(searchedDeal.publicId)) {
             const auditEvent = prepareAuditEvent({
               eventType: "deal_verified",
               metadata: { result, hasMatchingSeal: result === "valid" },
@@ -366,7 +367,7 @@ function VerifyContent() {
                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
                           <Input
                             id="deal-id"
-                            placeholder="Enter deal ID to verify (e.g. DEMO-123...)"
+                            placeholder="Enter deal ID..."
                             value={dealId}
                             onChange={(e) => setDealId(e.target.value)}
                             className="pl-12 pr-32 h-14 text-lg bg-background border-border/50 rounded-xl transition-all shadow-sm focus:ring-2 focus:ring-primary/20 font-mono"
@@ -398,6 +399,27 @@ function VerifyContent() {
                           </div>
                         </div>
                       </form>
+
+                      {/* Try Demo Section */}
+                      <div className="mt-4 pt-4 border-t border-border/40">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <PlayCircle className="h-4 w-4 text-primary" />
+                            <span>Want to see how verification works?</span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => performSearch(DEMO_DEAL_ID, true)}
+                            disabled={isSearching}
+                            className="h-9 px-4 text-xs gap-2 rounded-lg border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all group w-full sm:w-auto"
+                          >
+                            <PlayCircle className="h-3.5 w-3.5 text-primary group-hover:scale-110 transition-transform" />
+                            Try Demo Verification
+                            <ArrowRight className="h-3 w-3 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="px-5 py-3 border-t border-border/40 bg-muted/10 flex items-center justify-between">

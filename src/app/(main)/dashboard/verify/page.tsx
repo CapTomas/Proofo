@@ -260,7 +260,7 @@ function DashboardVerifyContent() {
                   ref={searchInputRef}
                   value={dealId}
                   onChange={(e) => setDealId(e.target.value)}
-                  placeholder="Enter deal ID to verify (e.g., DEMO-123456)"
+                  placeholder="Enter deal ID..."
                   className={cn(dashboardStyles.searchInput, "pr-32")}
                   autoFocus
                 />

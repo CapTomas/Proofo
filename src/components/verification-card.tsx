@@ -158,7 +158,6 @@ export const VerificationCard = ({
 
                 <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
                   <CopyableId id={deal.publicId} />
-                  <span>•</span>
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-4 w-4" />
                     {deal.confirmedAt ? `Signed ${timeAgo(deal.confirmedAt)}` : `Created ${timeAgo(deal.createdAt)}`}
