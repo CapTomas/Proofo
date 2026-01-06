@@ -23,6 +23,8 @@ export function OtpInput({
 }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  // Track the last submitted value to prevent duplicate submissions
+  const lastSubmittedRef = useRef<string | null>(null);
 
   // Initialize input refs array
   useEffect(() => {
@@ -36,9 +38,10 @@ export function OtpInput({
     }
   }, [autoFocus]);
 
-  // Auto-complete when all digits are filled
+  // Auto-complete when all digits are filled (only once per unique value)
   useEffect(() => {
-    if (value.length === length && onComplete) {
+    if (value.length === length && onComplete && lastSubmittedRef.current !== value) {
+      lastSubmittedRef.current = value;
       onComplete(value);
     }
   }, [value, length, onComplete]);

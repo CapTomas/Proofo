@@ -16,7 +16,7 @@ export default async function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff|woff2|ttf|eot|map)$/)
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|webmanifest|css|js|woff|woff2|ttf|eot|map)$/)
   ) {
     return NextResponse.next();
   }
@@ -90,6 +90,18 @@ export default async function proxy(request: NextRequest) {
       redirectUrl.pathname = "/dashboard";
       return NextResponse.redirect(redirectUrl);
     }
+
+    // Special case: redirect authenticated users from landing page to dashboard
+    // Unless they explicitly want to see it (via ?home query param)
+    if (pathname === "/" && user && !error) {
+      const wantsLandingPage = request.nextUrl.searchParams.has("home");
+      if (!wantsLandingPage) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/dashboard";
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
     return response;
   }
 

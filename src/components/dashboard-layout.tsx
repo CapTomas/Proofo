@@ -98,20 +98,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setSidebarUserPreference(newState ? "collapsed" : "expanded");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
 
+    // Clear local state first
     if (typeof window !== "undefined") {
       localStorage.removeItem("proofo-storage");
     }
     setUser(null);
     setDeals([]);
-    router.push("/");
 
+    // CRITICAL: Wait for Supabase signOut to complete BEFORE redirecting
+    // This ensures auth cookies are cleared before navigation
     if (isSupabaseConfigured()) {
-      signOut().catch((err) => console.error("Background signout error:", err));
+      try {
+        await signOut();
+      } catch (err) {
+        console.error("Signout error:", err);
+      }
     }
+
+    // Only redirect after session is fully cleared
+    router.push("/");
     setTimeout(() => setIsLoggingOut(false), 100);
   };
 

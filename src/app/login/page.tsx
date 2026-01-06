@@ -152,25 +152,37 @@ function LoginContent() {
     setIsVerifyingOtp(true);
 
     try {
+      // First, check if user is already authenticated (e.g., via magic link clicked in another tab)
+      // This prevents unnecessary OTP verification attempts
+      const { data: { user: existingUser } } = await supabase.auth.getUser();
+      if (existingUser) {
+        // User is already authenticated - redirect without trying OTP
+        const redirect = searchParams.get("redirect") || "/dashboard";
+        router.push(redirect);
+        return;
+      }
+
+      // User not authenticated, try OTP verification
       const { error: verifyError, session } = await verifyOtp(email, code);
 
       if (session) {
         // Success - redirect to dashboard
-        // Don't show any errors, just redirect immediately
         const redirect = searchParams.get("redirect") || "/dashboard";
         router.push(redirect);
-      } else if (verifyError) {
-        // Only show error if there's no session
+        return;
+      }
+
+      // Only show error if there's genuinely no session
+      if (verifyError) {
         setError(verifyError.message);
         setOtpCode(""); // Clear on error
-        setIsVerifyingOtp(false);
       }
     } catch (_err) {
       setError("Failed to verify code. Please try again.");
       setOtpCode(""); // Clear on error
+    } finally {
       setIsVerifyingOtp(false);
     }
-    // Note: Don't set isVerifyingOtp to false on success - keep it true until redirect
   };
 
   const handleGoogleSignIn = async () => {
@@ -288,9 +300,9 @@ function LoginContent() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium">
+                <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+                  <div className="flex flex-col gap-3.5">
+                    <Label htmlFor="email" className="text-sm font-medium block">
                       Email address
                     </Label>
                     <div className="relative">

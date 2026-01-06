@@ -44,7 +44,7 @@ const VisualCreditCard = ({ isPro }: { isPro: boolean }) => (
       <div className="flex justify-between items-end">
         <div className="space-y-0.5">
           <div className="text-[8px] uppercase tracking-widest text-white/60">Card Holder</div>
-          <div className="font-medium tracking-wide text-sm">ALEX JOHNSON</div>
+          <div className="font-medium tracking-wide text-sm">JOHN DOE</div>
         </div>
         <div className="space-y-0.5">
           <div className="text-[8px] uppercase tracking-widest text-white/60">Expires</div>

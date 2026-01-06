@@ -831,7 +831,7 @@ const RealWorldSection = () => (
                   </div>
                   <div className="min-w-0">
                     <p className="text-[9px] uppercase font-bold text-muted-foreground">Creator</p>
-                    <p className="text-xs font-bold truncate">Alex Johnson</p>
+                    <p className="text-xs font-bold truncate">John Doe</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
@@ -840,7 +840,7 @@ const RealWorldSection = () => (
                   </div>
                   <div className="min-w-0">
                     <p className="text-[9px] uppercase font-bold text-muted-foreground text-emerald-600">Signed</p>
-                    <p className="text-xs font-bold truncate text-foreground text-opacity-80">Sarah Smith</p>
+                    <p className="text-xs font-bold truncate text-foreground text-opacity-80">Jane Smith</p>
                   </div>
                 </div>
               </div>
@@ -857,7 +857,7 @@ const RealWorldSection = () => (
               {[
                 { label: "Price", value: "$1,200.00" },
                 { label: "Condition", value: "Like New" },
-                { label: "Seller", value: "Alex Johnson" },
+                { label: "Seller", value: "John Doe" },
               ].map((term, i) => (
                 <div
                   key={i}

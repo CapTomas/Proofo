@@ -274,14 +274,11 @@ FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "View deal party profiles" ON public.profiles
 FOR SELECT USING (
   auth.uid() IS NOT NULL AND (
+    -- View profiles of people you've created deals for
     id IN (SELECT recipient_id FROM deals WHERE creator_id = auth.uid() AND recipient_id IS NOT NULL)
     OR
+    -- View profiles of deal creators for deals you're a recipient of
     id IN (SELECT creator_id FROM deals WHERE recipient_id = auth.uid())
-    OR
-    id IN (
-      SELECT creator_id FROM deals
-      WHERE recipient_email = (SELECT email FROM profiles WHERE id = auth.uid())
-    )
   )
 );
 
