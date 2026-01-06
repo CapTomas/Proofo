@@ -1074,6 +1074,7 @@ export async function ensureProfileExistsAction(): Promise<{
     id: string;
     email: string;
     name: string | null;
+    avatarUrl: string | null;
     hasCompletedOnboarding: boolean;
   } | null;
   error: string | null;
@@ -1088,6 +1089,10 @@ export async function ensureProfileExistsAction(): Promise<{
       return { profile: null, error: "Not authenticated" };
     }
 
+    // Extract OAuth metadata (from Google, etc.)
+    const oauthName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+    const oauthAvatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
     // Try to get existing profile
     const { data: existingProfile, error: selectError } = await supabase
       .from("profiles")
@@ -1096,31 +1101,42 @@ export async function ensureProfileExistsAction(): Promise<{
       .single();
 
     if (existingProfile && !selectError) {
-      // Profile exists - check if onboarding is needed
-      const hasValidName = !!existingProfile.name && existingProfile.name.trim() !== "";
+      // Profile exists - check if we should update it with newer OAuth data
+      const shouldUpdateAvatar = oauthAvatarUrl && !existingProfile.avatar_url;
+      const shouldUpdateName = oauthName && !existingProfile.name;
+
+      if (shouldUpdateAvatar || shouldUpdateName) {
+        // Update profile with OAuth data if missing
+        const updates: Record<string, unknown> = {};
+        if (shouldUpdateAvatar) updates.avatar_url = oauthAvatarUrl;
+        if (shouldUpdateName) updates.name = oauthName;
+
+        await supabase.from("profiles").update(updates).eq("id", user.id);
+      }
+
+      const hasValidName = !!(existingProfile.name || oauthName)?.trim();
       return {
         profile: {
           id: existingProfile.id,
           email: existingProfile.email,
-          name: existingProfile.name,
+          name: existingProfile.name || oauthName || null,
+          avatarUrl: existingProfile.avatar_url || oauthAvatarUrl,
           hasCompletedOnboarding: hasValidName,
         },
         error: null,
       };
     }
 
-    // Profile doesn't exist, create it
-    const defaultName = user.user_metadata?.full_name || user.user_metadata?.name || "";
-
-    // Check if we have a meaningful name (not just email prefix)
-    const hasValidDefaultName = !!defaultName && defaultName.trim() !== "";
+    // Profile doesn't exist, create it with OAuth data
+    const hasValidDefaultName = !!oauthName?.trim();
 
     const { data: newProfile, error: insertError } = await supabase
       .from("profiles")
       .insert({
         id: user.id,
         email: user.email || "",
-        name: defaultName || null,
+        name: oauthName || null,
+        avatar_url: oauthAvatarUrl,
       })
       .select()
       .single();
@@ -1135,6 +1151,7 @@ export async function ensureProfileExistsAction(): Promise<{
         id: newProfile.id,
         email: newProfile.email,
         name: newProfile.name,
+        avatarUrl: newProfile.avatar_url,
         // Mark onboarding complete if user came with a valid name from OAuth (e.g., Google)
         hasCompletedOnboarding: hasValidDefaultName,
       },

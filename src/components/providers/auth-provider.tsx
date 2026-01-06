@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { supabase, isSupabaseConfigured, getCurrentUser } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useAppStore } from "@/store";
 import { getUserDealsAction, ensureProfileExistsAction } from "@/app/actions/deal-actions";
 import { usePathname, useRouter } from "next/navigation";
@@ -73,12 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         getUserDealsAction(),
       ]);
 
-      // Update user state
+      // Update user state from profile result (includes OAuth avatar)
       if (profileResult.profile) {
-        const fullUser = await getCurrentUser();
-        if (fullUser) {
-          setUser(fullUser);
-        }
+        setUser({
+          id: profileResult.profile.id,
+          email: profileResult.profile.email,
+          name: profileResult.profile.name || profileResult.profile.email.split("@")[0],
+          avatarUrl: profileResult.profile.avatarUrl || undefined,
+          createdAt: new Date().toISOString(), // We don't have this in profile, use now
+        });
         setNeedsOnboarding(!profileResult.profile.hasCompletedOnboarding);
       }
 

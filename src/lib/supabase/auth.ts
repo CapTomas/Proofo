@@ -65,7 +65,7 @@ export async function signInWithGoogle(redirectTo?: string): Promise<{ error: Er
     options: {
       redirectTo:
         redirectTo ||
-        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
+        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback?next=/dashboard`,
     },
   });
 
