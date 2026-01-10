@@ -486,37 +486,231 @@ CREATE TABLE IF NOT EXISTS public.user_templates (
 ## Phase 4: Monetization
 **Timeline: 4-6 Weeks**
 
-### Milestone 4.1: Stripe Integration
+> **Goal**: Implement a three-tier subscription system (Hobbyist/Specialist/Dealmaker) with Stripe billing
+
+### Tier Structure
+
+| Plan | Price | Deals/Month | History | Templates | SMS OTP | Watermark |
+|------|-------|-------------|---------|-----------|---------|-----------|
+| **Hobbyist** | Free | 5 | 90 days | 5 built-in | ❌ | Yes |
+| **Specialist** | $4/mo or $40/yr | 25 | 1 year | 10 custom | ✅ | No |
+| **Dealmaker** | $9/mo or $90/yr | Unlimited | Lifetime | Unlimited | ✅ | Custom brand |
+
+---
+
+### Milestone 4.1: Database Schema Changes
+
+```sql
+-- Add subscription columns to profiles table
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free'
+    CHECK (subscription_tier IN ('free', 'specialist', 'dealmaker')),
+  ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
+  ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT,
+  ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deals_this_month INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS deals_month_reset_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Function to reset monthly deal count
+CREATE OR REPLACE FUNCTION reset_monthly_deals()
+RETURNS void AS $$
+BEGIN
+  UPDATE public.profiles
+  SET deals_this_month = 0,
+      deals_month_reset_at = NOW()
+  WHERE deals_month_reset_at < DATE_TRUNC('month', NOW());
+END;
+$$ LANGUAGE plpgsql;
+
+-- RLS policy for subscription data (user can only read their own)
+CREATE POLICY "Users can read own subscription" ON public.profiles
+  FOR SELECT USING (auth.uid() = id);
+```
+
+**Implementation checklist:**
+
+- [ ] Create migration for subscription columns
+- [ ] Create `deals_this_month` counter column
+- [ ] Add Stripe customer/subscription ID columns
+- [ ] Create `subscription_ends_at` for expiry tracking
+- [ ] Set up monthly reset function (cron or Edge Function)
+
+---
+
+### Milestone 4.2: Stripe Integration
 
 **Files to create:**
 
 ```
-src/lib/stripe.ts
-src/app/api/stripe/checkout/route.ts
-src/app/api/stripe/webhook/route.ts
-src/app/api/stripe/portal/route.ts
+src/lib/stripe.ts              # Stripe client + helpers
+src/app/api/stripe/checkout/route.ts    # Create checkout session
+src/app/api/stripe/webhook/route.ts     # Handle Stripe events
+src/app/api/stripe/portal/route.ts      # Customer portal redirect
 ```
 
-- [ ] Stripe Checkout for subscriptions
-- [ ] Customer portal for management
-- [ ] Webhook handling for subscription events
-- [ ] Update `is_pro` field on profile
-- [ ] Add `stripe_customer_id` to profiles table
+**Stripe Products to create:**
 
-### Milestone 4.2: Pro Features
+| Product | Monthly Price ID | Annual Price ID |
+|---------|-----------------|-----------------|
+| Specialist | `price_specialist_monthly` | `price_specialist_annual` |
+| Dealmaker | `price_dealmaker_monthly` | `price_dealmaker_annual` |
 
-- [ ] Custom branding options
-- [ ] Unlimited deal history
-- [ ] Custom templates (unlimited)
-- [ ] View tracking and analytics
-- [ ] Priority email delivery
+**Environment variables:**
+
+```env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_SPECIALIST_MONTHLY_PRICE_ID=price_...
+STRIPE_SPECIALIST_ANNUAL_PRICE_ID=price_...
+STRIPE_DEALMAKER_MONTHLY_PRICE_ID=price_...
+STRIPE_DEALMAKER_ANNUAL_PRICE_ID=price_...
+```
+
+**Implementation checklist:**
+
+- [ ] Install Stripe SDK: `pnpm add stripe`
+- [ ] Create `lib/stripe.ts` with Stripe client initialization
+- [ ] Create checkout API route with price selection
+- [ ] Create webhook handler for subscription events:
+  - `customer.subscription.created` → Set tier + dates
+  - `customer.subscription.updated` → Update tier
+  - `customer.subscription.deleted` → Downgrade to free
+  - `invoice.payment_failed` → Send warning email
+- [ ] Create customer portal route for self-service
+- [ ] Add "Manage Subscription" button to Settings Billing tab
+
+---
 
 ### Milestone 4.3: Feature Gates
 
-- [ ] History limits for free users (e.g., 30 days)
-- [ ] Template limits (e.g., 5 for free)
-- [ ] Upgrade prompts in appropriate places
-- [ ] Free tier usage dashboard
+**Files to create:**
+
+```
+src/lib/subscription.ts        # Tier checking utilities
+src/lib/limits.ts              # Limit constants
+src/components/upgrade-prompt.tsx  # Upgrade modal/banner
+```
+
+**Tier limits constant:**
+
+```typescript
+// src/lib/limits.ts
+export const TIER_LIMITS = {
+  free: {
+    dealsPerMonth: 5,
+    historyDays: 90,
+    customTemplates: 0,
+    smsOtp: false,
+    watermark: true,
+  },
+  specialist: {
+    dealsPerMonth: 25,
+    historyDays: 365,
+    customTemplates: 10,
+    smsOtp: true,
+    watermark: false,
+  },
+  dealmaker: {
+    dealsPerMonth: Infinity,
+    historyDays: Infinity,
+    customTemplates: Infinity,
+    smsOtp: true,
+    watermark: false,
+    customBranding: true,
+    publicApi: true,
+  },
+} as const;
+```
+
+**Implementation checklist:**
+
+- [ ] Create `lib/subscription.ts` with tier checking functions
+- [ ] Create `lib/limits.ts` with limit constants
+- [ ] Gate deal creation in `deal-actions.ts`:
+  - Check `deals_this_month` against tier limit
+  - Increment counter on deal creation
+  - Return upgrade prompt if limit reached
+- [ ] Gate SMS OTP in `verification-actions.ts`:
+  - Check tier before allowing SMS verification
+  - Show upgrade prompt for free users
+- [ ] Gate custom templates in template creation flow
+- [ ] Filter history based on tier retention period
+- [ ] Add/remove PDF watermark based on tier
+- [ ] Create `UpgradePrompt` component for limit warnings
+
+---
+
+### Milestone 4.4: Settings Billing Tab
+
+**Update** `src/app/(main)/dashboard/settings/page.tsx`:
+
+- [ ] Show current subscription tier with badge
+- [ ] Display usage stats (deals used/remaining)
+- [ ] Show subscription end date if applicable
+- [ ] "Upgrade" buttons for free/specialist users
+- [ ] "Manage Subscription" link to Stripe portal
+- [ ] Display billing history (from Stripe)
+
+**UI States:**
+
+1. **Free user**: Show upgrade cards for Specialist/Dealmaker
+2. **Specialist user**: Show current plan + upgrade to Dealmaker option
+3. **Dealmaker user**: Show current plan + manage subscription link
+
+---
+
+### Milestone 4.5: Usage Dashboard
+
+Add usage indicators to the main dashboard:
+
+- [ ] Deals used this month: `3/5` with progress bar
+- [ ] Days until reset: `12 days`
+- [ ] Show gentle upgrade nudge when approaching limit (80%+)
+- [ ] Show hard block when limit reached with upgrade CTA
+
+---
+
+### Milestone 4.6: PDF Branding
+
+**Free tier:**
+- Add "Created with Proofo" watermark to PDF footer
+
+**Specialist tier:**
+- Remove Proofo watermark
+
+**Dealmaker tier:**
+- Allow custom logo upload
+- Custom footer text option
+
+**Implementation:**
+
+- [ ] Update `lib/pdf.ts` to check tier before adding watermark
+- [ ] Add `custom_logo_url` column to profiles for Dealmaker
+- [ ] Create logo upload in Settings for Dealmaker users
+
+---
+
+### Milestone 4.7: Analytics (Specialist+)
+
+**Basic Analytics (Specialist):**
+- Total deals created (all time)
+- Deals by status breakdown
+- Monthly deal trends (last 6 months)
+
+**Advanced Analytics (Dealmaker):**
+- Recipient engagement (opens, time to sign)
+- Average deal completion time
+- Conversion rate (pending → confirmed)
+- Most used templates
+- Export analytics data
+
+**Implementation:**
+
+- [ ] Create `src/app/(main)/dashboard/analytics/page.tsx`
+- [ ] Add analytics link to sidebar (gated by tier)
+- [ ] Query deals table for aggregated stats
+- [ ] Create simple chart components (use Recharts or similar)
 
 ---
 
@@ -547,7 +741,7 @@ src/app/api/stripe/portal/route.ts
 - [ ] Remember device option
 - [ ] 2FA recovery flow
 
-### Milestone 5.4: Team Accounts
+### Milestone 5.4: Team Accounts (Dealmaker Tier)
 
 - [ ] Organization creation
 - [ ] Member invitations
@@ -555,13 +749,13 @@ src/app/api/stripe/portal/route.ts
 - [ ] Role permissions (admin, member, viewer)
 - [ ] Billing at organization level
 
-### Milestone 5.5: API Access
+### Milestone 5.5: Public API Access (Dealmaker Tier)
 
 - [ ] API key management in settings
-- [ ] REST endpoints for external access
-- [ ] Webhook notifications for deal events
-- [ ] API rate limiting (separate from UI limits)
-- [ ] API documentation
+- [ ] REST endpoints for deal lifecycle (create, read, update, list)
+- [ ] Webhook notifications for real-time status updates
+- [ ] API rate limiting enforcement
+- [ ] Swagger/Postman documentation
 
 ---
 

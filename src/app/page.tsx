@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   motion,
+  AnimatePresence,
   useScroll,
   useSpring,
   useInView,
@@ -30,6 +31,7 @@ import {
   Check,
   Copy,
   ShieldCheck,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -889,146 +891,208 @@ const RealWorldSection = () => (
   </div>
 );
 
-const Pricing = () => (
-  <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-    {/* Tier 1: Free */}
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6 }}
-    >
-      <Card className="h-full bg-card border-border/50 shadow-sm hover:shadow-2xl hover:shadow-foreground/5 hover:-translate-y-1 transition-all duration-500 overflow-hidden group">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-bold">The Hobbyist</CardTitle>
-          <div className="mt-4 flex items-baseline">
-            <span className="text-4xl font-bold tracking-tight">$0</span>
-            <span className="text-muted-foreground ml-2 text-xs uppercase font-bold tracking-widest">/ free</span>
-          </div>
-          <CardDescription className="mt-2 text-xs">
-            Perfect for the occasional secured handshake.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Separator className="bg-border/50" />
-          <ul className="space-y-3.5">
-            {[
-              "Unlimited Deals",
-              "Visual Signatures",
-              "Secure PDF Receipts",
-              "90-day history retention"
-            ].map((feature, i) => (
-              <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground/90">
-                <Check className="h-3.5 w-3.5 text-foreground/40 shrink-0" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-          <div className="pt-4">
-            <Link href="/deal/new" className="block">
-              <Button variant="outline" className="w-full h-11 rounded-full border-border/50 hover:bg-secondary transition-colors">
-                Start for Free
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+const Pricing = () => {
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
-    {/* Tier 2: $4 */}
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: 0.1 }}
-    >
-      <Card className="h-full bg-card border-foreground/10 shadow-md hover:shadow-2xl hover:shadow-foreground/5 hover:-translate-y-1 transition-all duration-500 overflow-hidden relative group">
-        <div className="absolute top-0 right-0 px-3 py-1 bg-foreground text-background text-[10px] font-bold uppercase tracking-widest rounded-bl-lg">
-          Best Value
+  const tiers = [
+    {
+      name: "The Hobbyist",
+      price: 0,
+      description: "Try Proofo free — no credit card needed.",
+      metrics: [
+        { label: "Deals per month", value: "5" },
+        { label: "History", value: "90 days" },
+        { label: "Custom templates", value: "—", inactive: true },
+      ],
+      plus: "Start with essential features:",
+      features: [
+        { text: "Visual Signatures", included: true },
+        { text: "Email OTP Verification", included: true },
+        { text: "PDF Receipts", included: true },
+        { text: "SMS Verification", included: false },
+        { text: "Remove Watermarks", included: false },
+      ],
+      buttonText: "Start for Free",
+      variant: "outline" as const,
+    },
+    {
+      name: "The Specialist",
+      price: billingCycle === 'monthly' ? 5 : 50,
+      description: "Everything you need for active deal tracking.",
+      metrics: [
+        { label: "Deals per month", value: "25", highlight: "5× more" },
+        { label: "History", value: "1 year" },
+        { label: "Custom templates", value: "10" },
+      ],
+      plus: "Everything in Hobbyist, plus:",
+      features: [
+        "SMS OTP Verification",
+        "No Proofo Watermarks",
+        "Custom Deal Templates",
+        "Priority Email Support",
+        "Basic Deal Analytics"
+      ].map(f => ({ text: f, included: true })),
+      buttonText: "Upgrade to Specialist",
+      variant: "default" as const,
+      popular: true,
+    },
+    {
+      name: "The Dealmaker",
+      price: billingCycle === 'monthly' ? 9 : 90,
+      description: "No limits. Maximum power for advanced teams.",
+      metrics: [
+        { label: "Deals per month", value: "∞ Unlimited" },
+        { label: "History", value: "Lifetime" },
+        { label: "Custom templates", value: "∞ Unlimited" },
+      ],
+      plus: "Everything in Specialist, plus:",
+      features: [
+        "Unlimited Everything",
+        "Custom PDF Branding",
+        "Advanced Analytics",
+        "Multi-User Teams",
+        "Public API Access"
+      ].map(f => ({ text: f, included: true })),
+      buttonText: "Go Unlimited",
+      variant: "outline" as const,
+    }
+  ];
+
+  return (
+    <div className="space-y-10 max-w-6xl mx-auto px-4">
+      {/* Billing Toggle */}
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex items-center p-1 bg-secondary/50 rounded-full border border-border/50">
+          <button
+            onClick={() => setBillingCycle('monthly')}
+            className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 ${billingCycle === 'monthly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingCycle('yearly')}
+            className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 flex items-center gap-2 ${billingCycle === 'yearly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Yearly
+            <span className="bg-emerald-500/10 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/20">2 Months Free</span>
+          </button>
         </div>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-bold">The Specialist</CardTitle>
-          <div className="mt-4 flex items-baseline">
-            <span className="text-4xl font-bold tracking-tight">$4</span>
-            <span className="text-muted-foreground ml-2 text-xs uppercase font-bold tracking-widest">/ month</span>
-          </div>
-          <CardDescription className="mt-2 text-xs">
-            Enhanced privacy and history for active traders.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Separator className="bg-border/50" />
-          <ul className="space-y-3.5">
-            {[
-              "Everything in Hobbyist",
-              "1-Year History Retention",
-              "Priority Email Support",
-              "Custom Deal Templates",
-              "No 'Proofo' Watermarks"
-            ].map((feature, i) => (
-              <li key={i} className="flex items-center gap-3 text-xs font-medium">
-                <Check className="h-3.5 w-3.5 text-foreground shrink-0" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-          <div className="pt-4">
-            <Link href="/deal/new" className="block">
-              <Button className="w-full h-11 rounded-full shadow-lg shadow-foreground/5 bg-foreground text-background hover:bg-foreground/90 transition-all">
-                Get Started
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+      </div>
 
-    {/* Tier 3: $9 */}
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: 0.2 }}
-    >
-      <Card className="h-full bg-card border-border/50 shadow-sm hover:shadow-2xl hover:shadow-foreground/5 hover:-translate-y-1 transition-all duration-500 overflow-hidden group">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-bold">The Dealmaker</CardTitle>
-          <div className="mt-4 flex items-baseline">
-            <span className="text-4xl font-bold tracking-tight">$9</span>
-            <span className="text-muted-foreground ml-2 text-xs uppercase font-bold tracking-widest">/ month</span>
-          </div>
-          <CardDescription className="mt-2 text-xs">
-            The ultimate tool for high-volume professionals.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Separator className="bg-border/50" />
-          <ul className="space-y-3.5">
-            {[
-              "Everything in Specialist",
-              "Lifetime History Retention",
-              "API Access (Coming Soon)",
-              "Multi-User Teams",
-              "Premium Support"
-            ].map((feature, i) => (
-              <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground/90">
-                <Check className="h-3.5 w-3.5 text-foreground/40 shrink-0" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-          <div className="pt-4">
-            <Link href="/deal/new" className="block">
-              <Button variant="outline" className="w-full h-11 rounded-full border-border/50 hover:bg-secondary transition-colors">
-                Contact Sales
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  </div>
-);
+      <div className="grid md:grid-cols-3 gap-6">
+        {tiers.map((tier, idx) => (
+          <motion.div
+            key={tier.name}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: idx * 0.1 }}
+            className="relative"
+          >
+            {/* Premium effects removed */}
+
+
+            <Card className={`h-full flex flex-col bg-card border border-border/50 shadow-sm hover:shadow-xl hover:shadow-foreground/5 hover:border-foreground/10 transition-all duration-500 overflow-hidden relative group rounded-2xl`}>
+              {tier.popular && (
+                <div className="absolute top-0 right-0 px-3 py-1 bg-foreground text-background text-[10px] font-bold uppercase tracking-widest rounded-bl-lg">
+                  Most Popular
+                </div>
+              )}
+
+              <CardHeader className="p-6 py-4 min-h-[120px]">
+                <CardTitle className="text-lg font-bold tracking-tight">{tier.name}</CardTitle>
+                <div className="mt-4">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold tracking-tight text-foreground">$</span>
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={tier.price}
+                        initial={{ y: 10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -10, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-4xl font-bold tracking-tight"
+                      >
+                        {tier.price}
+                      </motion.span>
+                    </AnimatePresence>
+                    <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest ml-1 self-end mb-1">
+                      {tier.price === 0 ? "/ forever" : billingCycle === 'monthly' ? "/ month" : "/ year"}
+                    </span>
+                  </div>
+                  {/* Fixed space for annual discount text */}
+                  <div className="h-4 mt-0.5">
+                    {tier.price !== 0 && billingCycle === 'monthly' && (
+                      <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                         Get 2 Months Free Yearly
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <CardDescription className="mt-4 text-xs font-medium line-clamp-2">
+                  {tier.description}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="px-6 py-4 pt-0 flex-1 flex flex-col space-y-5">
+                {/* Metrics Box - Unified Bento Style */}
+                <div className={`rounded-xl p-4 space-y-3 bg-secondary/30 border border-border/50`}>
+                  {tier.metrics.map((m: any, i) => (
+                    <div key={i} className="flex justify-between items-center text-[10px]">
+                      <span className="text-muted-foreground uppercase font-bold tracking-wider text-[8px]">{m.label}</span>
+                      <span className={`font-bold tracking-tight ${m.inactive ? 'text-muted-foreground/40' : 'text-foreground'}`}>
+                        {m.value} {m.highlight && <span className="text-[10px] text-emerald-600 ml-1 font-bold">({m.highlight})</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator className="bg-border/20" />
+
+                {/* Feature List */}
+                <div className="flex-1 space-y-4">
+                  {tier.plus && (
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{tier.plus}</p>
+                  )}
+                  <ul className="space-y-3">
+                    {tier.features.map((feature, i) => (
+                      <motion.li
+                        key={i}
+                        initial={{ x: -5, opacity: 0 }}
+                        whileInView={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 + (i * 0.05) }}
+                        className={`flex items-start gap-2.5 text-xs ${feature.included ? "text-foreground font-medium" : "text-muted-foreground/30"}`}
+                      >
+                        {feature.included ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                        ) : (
+                          <span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] shrink-0 text-muted-foreground/20 mt-0.5">✕</span>
+                        )}
+                        <span className="leading-tight">{feature.text}</span>
+                      </motion.li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="pt-4 mt-auto">
+                  <Link href="/deal/new" className="block">
+                    <Button
+                      variant={tier.variant}
+                      className={`w-full h-11 rounded-full transition-all duration-300 flex items-center justify-center font-bold tracking-tight ${tier.popular ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border/50 hover:bg-secondary'}`}
+                    >
+                      <span>{tier.buttonText}</span>
+                      <ArrowRight className="ml-2 h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const router = useRouter();

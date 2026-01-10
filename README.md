@@ -41,6 +41,24 @@ Perfect for:
 
 ---
 
+## Pricing
+
+Proofo offers three tiers to match your needs:
+
+| Plan | Price | Deals/Month | History | Templates | API Access |
+|------|-------|-------------|---------|-----------|------------|
+| **Hobbyist** | Free | 5 | 90 days | ❌ | ❌ |
+| **Specialist** | $5/mo | 25 | 1 year | 10 | ❌ |
+| **Dealmaker** | $9/mo | Unlimited | Lifetime | Unlimited | ✅ |
+
+**Specialist+** includes SMS OTP verification, no watermarks, priority support, and deal analytics.
+
+**Dealmaker** adds **Full Public API Access**, custom PDF branding, advanced analytics, and multi-user teams.
+
+Annual billing available: 2 Months Free on yearly plans ($50/year Specialist, $90/year Dealmaker).
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
