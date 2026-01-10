@@ -2,7 +2,7 @@
 
 import { TrustLevel } from "@/types";
 import { cn } from "@/lib/utils";
-import { Mail, Phone, ShieldCheck, Zap, Lock, BadgeCheck } from "lucide-react";
+import { Mail, Phone, Zap, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 

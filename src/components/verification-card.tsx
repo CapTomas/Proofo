@@ -11,7 +11,6 @@ import {
   Check,
   Download,
   ExternalLink,
-  Hash,
   AlertTriangle,
   Users,
   Send,
@@ -19,7 +18,6 @@ import {
   Fingerprint,
   Lock,
   Info,
-  History,
   Activity,
   ShieldCheck,
   Smartphone,
@@ -68,6 +66,7 @@ const AnimatedHash = ({ hash, isVerifying }: { hash?: string | null; isVerifying
       }, 50);
       return () => clearInterval(interval);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional for animation sync
       setDisplayHash(hash || "");
     }
   }, [isVerifying, hash]);

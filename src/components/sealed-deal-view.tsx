@@ -15,7 +15,6 @@ import {
   PenLine,
   Fingerprint,
   Send,
-  Inbox,
   Users,
   Smartphone,
   Mail,

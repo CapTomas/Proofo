@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { PublicHeader } from "@/components/public-header";
 import { SignaturePad } from "@/components/signature-pad";
 import { SealedDealView } from "@/components/sealed-deal-view";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
   FileText,
@@ -27,7 +27,6 @@ import {
   ShieldCheck,
   Sparkles,
   RefreshCw,
-  Hash,
   Copy,
   Check,
   Calendar
@@ -288,7 +287,7 @@ export default function DemoPage() {
                                         </Badge>
                                     </div>
                                     <div className="space-y-2">
-                                        {TERMS.map((term, index) => (
+                                        {TERMS.map((term, _index) => (
                                             <motion.div
                                                 key={term.id}
                                                 whileHover={{ scale: 1.01 }}

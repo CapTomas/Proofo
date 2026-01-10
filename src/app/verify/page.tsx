@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { PublicHeader } from "@/components/public-header";
 import { useAppStore } from "@/store";
-import { calculateDealSeal, transformVerificationsForHash, formatDateTime, timeAgo } from "@/lib/crypto";
+import { calculateDealSeal, transformVerificationsForHash } from "@/lib/crypto";
 import { getDealByPublicIdAction, getAuditLogsAction, logAuditEventAction } from "@/app/actions/deal-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { Deal, AuditLogEntry } from "@/types";
@@ -23,8 +23,7 @@ import {
   RefreshCw,
   ArrowLeft,
   ArrowRight,
-  ScanLine,
-  Terminal,
+
   Clock,
   ShieldCheck,
   XCircle,
@@ -35,7 +34,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { VerificationCard, VerificationStatus } from "@/components/verification-card";
-import { AuditTimeline } from "@/components/audit-timeline";
+
 import { KeyboardHint } from "@/components/dashboard/shared-components";
 import { cn } from "@/lib/utils";
 import { DEMO_DEAL_ID, isDemoDeal } from "@/lib/demo-deal-data";
@@ -45,7 +44,7 @@ function VerifyContent() {
   const searchParams = useSearchParams();
   const initialDealId = searchParams.get("id") || "";
 
-  const { getDealByPublicId, getAuditLogsForDeal } = useAppStore();
+  const { getDealByPublicId, getAuditLogsForDeal: _getAuditLogsForDeal } = useAppStore();
   const [dealId, setDealId] = useState(initialDealId);
   const [searchedDeal, setSearchedDeal] = useState<Deal | null>(null);
   const [searchedCreatorProfile, setSearchedCreatorProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
@@ -111,7 +110,7 @@ function VerifyContent() {
       setHasSearched(true);
       setIsSearching(false);
     },
-    [getDealByPublicId, getAuditLogsForDeal, router]
+    [getDealByPublicId, router]
   );
 
   // Handle URL changes and initial load

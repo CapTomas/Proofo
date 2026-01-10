@@ -6,9 +6,9 @@ import { nanoid } from "nanoid";
 import crypto from "crypto";
 import { Deal, DealTerm } from "@/types";
 import {
-  deterministicStringify,
   calculateDealSeal,
-  transformVerificationsForHash
+  transformVerificationsForHash,
+  VerificationRecord
 } from "@/lib/crypto";
 import { createDealSchema } from "@/lib/validations";
 import {
@@ -890,7 +890,7 @@ export async function confirmDealAction(data: {
     });
 
     // RPC returns JSON array or null, need to handle both
-    const verifications = transformVerificationsForHash(verificationRecords as any[] | null);
+    const verifications = transformVerificationsForHash(verificationRecords as VerificationRecord[] | null);
 
     const dealSeal = await calculateDealSeal({
       dealId: data.dealId,

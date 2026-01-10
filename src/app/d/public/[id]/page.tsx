@@ -71,7 +71,7 @@ import { SealedDealView } from "@/components/sealed-deal-view";
 import { toast } from "sonner";
 import { prepareAuditEvent } from "@/lib/audit-utils";
 import { VerificationStep } from "@/components/verification-step";
-import { getVerificationStatus, checkProofoUserVerification } from "@/app/actions/verification-actions";
+import { getVerificationStatus as _getVerificationStatus, checkProofoUserVerification as _checkProofoUserVerification } from "@/app/actions/verification-actions";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;

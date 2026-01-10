@@ -427,6 +427,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (isMounted && !hasInitializedRef.current && userId && !userId.startsWith("demo-")) {
       hasInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals(true);
     }
   }, [isMounted, userId, refreshDeals]);

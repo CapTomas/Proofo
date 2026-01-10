@@ -165,6 +165,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <TooltipProvider delayDuration={0}>
+      {/* Skip Link for Accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         {/* Sidebar - Fixed Left */}
         <motion.aside
@@ -417,7 +424,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <DashboardHeader onMenuClick={() => setMobileMenuOpen(true)} isDesktop={isDesktop} />
 
           {/* Scrollable Content Area */}
-          <main className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
+          <main id="main-content" className="flex-1 overflow-y-auto p-4 sm:p-8 pb-20 lg:pb-8 w-full scroll-smooth">
             <div className="max-w-7xl mx-auto w-full">
               <ErrorBoundary showHomeButton>
                 <motion.div

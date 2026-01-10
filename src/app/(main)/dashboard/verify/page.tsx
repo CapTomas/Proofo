@@ -39,7 +39,7 @@ function DashboardVerifyContent() {
   const searchParams = useSearchParams();
   const initialDealId = searchParams.get("id") || "";
 
-  const { getDealByPublicId, getAuditLogsForDeal, deals: storeDeals, user } = useAppStore();
+  const { getDealByPublicId, getAuditLogsForDeal: _getAuditLogsForDeal, deals: storeDeals, user } = useAppStore();
   const [dealId, setDealId] = useState(initialDealId);
   const [searchedDeal, setSearchedDeal] = useState<Deal | null>(null);
   const [searchedCreatorProfile, setSearchedCreatorProfile] = useState<{ name: string; avatarUrl?: string } | null>(null);
@@ -180,7 +180,7 @@ function DashboardVerifyContent() {
         setIsSearching(false);
       }
     },
-    [getDealByPublicId, getAuditLogsForDeal, router]
+    [getDealByPublicId, router]
   );
 
   // Initial search if ID is present

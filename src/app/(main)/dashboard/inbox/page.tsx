@@ -195,6 +195,7 @@ export default function InboxPage() {
 
   // Handle client-side mounting
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -223,6 +224,7 @@ export default function InboxPage() {
   useEffect(() => {
     if (isMounted && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals();
     }
   }, [isMounted, refreshDeals]);

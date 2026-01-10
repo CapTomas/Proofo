@@ -37,6 +37,16 @@ export function generateAccessToken(): string {
   return nanoid(64);
 }
 
+export interface VerificationRecord {
+  verification_type?: string;
+  type?: string;
+  verified_value?: string;
+  value?: string;
+  verified_at?: string;
+  at?: string;
+  verifiedAt?: string;
+}
+
 export interface VerificationData {
   email?: { verified: boolean; value?: string; verifiedAt?: string };
   phone?: { verified: boolean; verifiedAt?: string };
@@ -47,7 +57,7 @@ export interface VerificationData {
  * CRITICAL: Normalizes timestamps to ISO format to ensure consistency between
  * Supabase client (returns "2024-01-01 12:00:00+00") and JSON/RPC (returns "2024-01-01T12:00:00+00:00")
  */
-export function transformVerificationsForHash(records: any[] | null | undefined): VerificationData | undefined {
+export function transformVerificationsForHash(records: VerificationRecord[] | null | undefined): VerificationData | undefined {
   if (!records || records.length === 0) return undefined;
 
   const verifications: VerificationData = {};
@@ -130,7 +140,7 @@ export function deterministicStringify(obj: unknown): string {
  */
 export async function calculateDealSeal(data: {
   dealId: string;
-  terms: string | any[];
+  terms: string | unknown[];
   signatureUrl?: string;
   timestamp: string;
   verifications?: VerificationData;

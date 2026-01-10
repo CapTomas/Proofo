@@ -10,7 +10,7 @@ import { logger } from "@/lib/logger";
 // Initialize Resend client
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Proofo <onboarding@resend.dev>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const _APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // Initialize Twilio client
 const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -32,7 +32,7 @@ async function getTwilioClient() {
 // OTP configuration
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 10;
-const MAX_OTP_ATTEMPTS = 5;
+const _MAX_OTP_ATTEMPTS = 5;
 
 // Helper to create Supabase server client
 async function createServerSupabaseClient() {
@@ -427,7 +427,7 @@ export async function getVerificationStatus(params: {
   error: string | null;
 }> {
   try {
-    const { dealId, publicId } = params;
+    const { dealId, publicId: _publicId } = params;
 
     const supabase = await createServerSupabaseClient();
 

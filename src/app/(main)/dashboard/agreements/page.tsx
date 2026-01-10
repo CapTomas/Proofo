@@ -336,6 +336,7 @@ export default function AgreementsPage() {
 
   // Handle client-side mounting
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -369,6 +370,7 @@ export default function AgreementsPage() {
   useEffect(() => {
     if (isMounted && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshDeals();
     }
   }, [isMounted, refreshDeals]);

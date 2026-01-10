@@ -3,10 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import {
   motion,
-  AnimatePresence,
   useScroll,
   useSpring,
-  useTransform,
   useInView,
   useMotionValue,
 } from "framer-motion";
@@ -14,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AnimatedLogo } from "@/components/animated-logo";
 import {
   Shield,
@@ -25,7 +22,6 @@ import {
   PenLine,
   Pen,
   QrCode,
-  History,
   Zap,
   ShoppingBag,
   Wrench,
@@ -33,8 +29,6 @@ import {
   Quote,
   Check,
   Copy,
-  Send,
-  Inbox,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -506,27 +500,6 @@ const HoverIcon = ({
     <motion.div whileHover={animations[type]} transition={{ duration: 0.5 }}>
       {children}
     </motion.div>
-  );
-};
-
-// 11. Parallax Pricing Badge
-const ParallaxBadge = () => {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-
-  const x = useTransform(scrollYProgress, [0, 1], [-50, 10]);
-
-  return (
-    <div ref={ref} className="absolute -top-3 right-6 overflow-visible z-10">
-      <motion.div style={{ x }}>
-        <Badge className="bg-foreground text-background hover:bg-foreground/90 border-0 px-3 py-1 shadow-md text-[10px] font-bold uppercase tracking-widest">
-          Most Popular
-        </Badge>
-      </motion.div>
-    </div>
   );
 };
 
@@ -1070,6 +1043,7 @@ export default function Home() {
     }
     // Only show the page once we've confirmed no user is logged in
     if (!isLoading && !user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsReady(true);
     }
   }, [user, router, isLoading]);
