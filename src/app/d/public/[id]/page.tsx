@@ -1303,7 +1303,7 @@ export default function DealConfirmPage({ params }: DealPageProps) {
                           );
                         })()}
                         {!user && (
-                          <Link href="/auth/signup">
+                          <Link href="/deal/new">
                             <Button size="sm" className="gap-2">
                               <Sparkles className="h-4 w-4" />
                               Create Account

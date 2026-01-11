@@ -68,14 +68,17 @@ interface DealHeaderProps {
 }
 
 export function DealHeader({
-  backHref = "/dashboard",
+  backHref,
   showBack = true,
   hideLogo = false,
-  homeHref = "/dashboard",
+  homeHref,
   breadcrumbItems,
   mobileBreadcrumbItems,
 }: DealHeaderProps) {
   const { user, isSidebarCollapsed } = useAppStore();
+
+  const effectiveHomeHref = homeHref || (user ? "/dashboard" : "/");
+  const effectiveBackHref = backHref || (user ? "/dashboard" : "/");
 
   // Use shared auto-collapse logic
   useSidebarAutoCollapse();
@@ -90,7 +93,7 @@ export function DealHeader({
             <SidebarLogo
               isCollapsed={isSidebarCollapsed}
               hideBorder
-              homeHref={homeHref}
+              homeHref={effectiveHomeHref}
               className="border-r border-border/40 bg-card/50 transition-all duration-300"
             />
           </div>
@@ -108,7 +111,7 @@ export function DealHeader({
           {/* Desktop Auth/Dashboard */}
           <div className="hidden sm:flex items-center gap-2">
             {showBack && (
-              <Link href={backHref}>
+              <Link href={effectiveBackHref}>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -145,7 +148,7 @@ export function DealHeader({
           {/* Mobile Auth (Icons) */}
           <div className="sm:hidden flex items-center gap-1.5">
             {showBack && (
-              <Link href={backHref}>
+              <Link href={effectiveBackHref}>
                 <Button
                   variant="ghost"
                   size="icon"

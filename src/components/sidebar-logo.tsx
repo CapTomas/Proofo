@@ -6,6 +6,8 @@ import Link from "next/link";
 import { AnimatedLogo } from "./animated-logo";
 import { cn } from "@/lib/utils";
 
+import { useAppStore } from "@/store";
+
 interface SidebarLogoProps {
   isCollapsed: boolean;
   className?: string;
@@ -13,7 +15,9 @@ interface SidebarLogoProps {
   homeHref?: string;
 }
 
-export function SidebarLogo({ isCollapsed, className, hideBorder, homeHref = "/dashboard" }: SidebarLogoProps) {
+export function SidebarLogo({ isCollapsed, className, hideBorder, homeHref }: SidebarLogoProps) {
+  const { user } = useAppStore();
+  const effectiveHomeHref = homeHref || (user ? "/dashboard" : "/");
   const text = "Proofo";
   const letters = text.split("");
 
@@ -52,7 +56,7 @@ export function SidebarLogo({ isCollapsed, className, hideBorder, homeHref = "/d
         className
       )}
     >
-      <Link href={homeHref} className="flex items-center gap-3 group overflow-hidden">
+      <Link href={effectiveHomeHref} className="flex items-center gap-3 group overflow-hidden">
         {/*
           Fixed size logo to prevent "movement" during scale transitions.
           The px-6 (24px) in expanded mode matches the centered position

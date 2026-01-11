@@ -24,9 +24,9 @@ import {
   Pen,
   QrCode,
   Zap,
-  ShoppingBag,
+  Wallet,
+  Building,
   Wrench,
-  Gamepad2,
   Quote,
   Check,
   Copy,
@@ -105,6 +105,24 @@ const GrainOverlay = () => (
   </div>
 );
 
+// 2b. Inline Grain for emerald elements
+const EmeraldGrain = () => (
+  <div className="absolute inset-0 pointer-events-none opacity-[0.15] mix-blend-overlay rounded-[inherit] overflow-hidden">
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+      <filter id="emerald-noise">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.8"
+          numOctaves="4"
+          stitchTiles="stitch"
+        />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#emerald-noise)" />
+    </svg>
+  </div>
+);
+
 
 // 3. Scroll Progress Line
 const ScrollProgress = () => {
@@ -122,7 +140,7 @@ const ScrollProgress = () => {
     />
   );
 };
-const SignatureAnimation = () => (
+const SignatureAnimation = ({ onComplete }: { onComplete?: () => void }) => (
   <svg
     viewBox="0 0 200 100"
     fill="none"
@@ -138,9 +156,42 @@ const SignatureAnimation = () => (
       whileInView={{ pathLength: 1, opacity: 1 }}
       viewport={{ once: false, margin: "-20%" }}
       transition={{ duration: 2, ease: "easeInOut", delay: 0.2 }}
+      onAnimationComplete={onComplete}
     />
   </svg>
 );
+
+// Signature Box with emerald styling on completion
+const SignatureBox = () => {
+  const [isComplete, setIsComplete] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(boxRef, { once: false, margin: "-20%" });
+
+  // Reset when leaving view
+  useEffect(() => {
+    if (!isInView) {
+      setIsComplete(false);
+    }
+  }, [isInView]);
+
+  return (
+    <motion.div
+      ref={boxRef}
+      className={`rounded-xl p-4 flex items-center justify-center h-40 relative overflow-hidden transition-all duration-700 ${
+        isComplete
+          ? "bg-emerald-500/5 border border-emerald-500/30"
+          : "bg-secondary/20 border border-dashed border-border"
+      }`}
+      animate={isComplete ? { rotate: -2 } : { rotate: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(#00000010_1px,transparent_1px)] bg-size-[16px_16px] opacity-50"></div>
+      <div className="-rotate-6">
+        <SignatureAnimation onComplete={() => setIsComplete(true)} />
+      </div>
+    </motion.div>
+  );
+};
 
 // 4. Animated Lock Icon
 const AnimatedLock = () => (
@@ -244,13 +295,17 @@ const AnimatedCheck = ({ delay = 0, className }: { delay?: number; className?: s
 );
 
 // 7. Scramble Text (Restored)
-const ScrambleText = ({ text, className }: { text: string; className?: string }) => {
+const ScrambleText = ({ text, className, onComplete }: { text: string; className?: string; onComplete?: () => void }) => {
   const [displayText, setDisplayText] = useState(text);
   const ref = useRef(null);
   const isInView = useInView(ref, { once: false, margin: "-10%" });
+  const hasCompletedRef = useRef(false);
 
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView) {
+      hasCompletedRef.current = false;
+      return;
+    }
     const chars = "0123456789abcdef";
     let iteration = 0;
     const interval = setInterval(() => {
@@ -263,11 +318,17 @@ const ScrambleText = ({ text, className }: { text: string; className?: string })
           })
           .join("")
       );
-      if (iteration >= text.length) clearInterval(interval);
+      if (iteration >= text.length) {
+        clearInterval(interval);
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          onComplete?.();
+        }
+      }
       iteration += 1 / 4;
     }, 50);
     return () => clearInterval(interval);
-  }, [isInView, text]);
+  }, [isInView, text, onComplete]);
   return (
     <span ref={ref} className={className}>
       {displayText}
@@ -278,7 +339,17 @@ const ScrambleText = ({ text, className }: { text: string; className?: string })
 // 8. Interactive Hash (Combines Scramble + Copy)
 const InteractiveHash = () => {
   const [copied, setCopied] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(containerRef, { once: false, margin: "-10%" });
   const text = "0x7f83b1657ff1fc53b92";
+
+  // Reset when leaving view
+  useEffect(() => {
+    if (!isInView) {
+      setIsComplete(false);
+    }
+  }, [isInView]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
@@ -287,20 +358,25 @@ const InteractiveHash = () => {
   };
 
   return (
-    <div
+    <motion.div
+      ref={containerRef}
       onClick={handleCopy}
-      className="group relative cursor-pointer text-[10px] font-mono text-muted-foreground/60 bg-secondary/30 p-2 rounded border border-border/50 hover:bg-secondary/50 transition-colors overflow-hidden"
+      className={`group relative cursor-pointer text-[10px] font-mono p-2 rounded overflow-hidden transition-all duration-700 ${
+        isComplete
+          ? "bg-emerald-500/5 border border-emerald-500/30 text-emerald-700/60 dark:text-emerald-400/60"
+          : "text-muted-foreground/60 bg-secondary/30 border border-border/50 hover:bg-secondary/50"
+      }`}
     >
       <div className="flex items-center justify-between">
         <span className="truncate">
-          <ScrambleText text={text} />
+          <ScrambleText text={text} onComplete={() => setIsComplete(true)} />
           ...
         </span>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -574,12 +650,8 @@ const BentoGrid = () => (
             A drawn signature captures intent better than a text message. It&apos;s psychological
             cement for your deal.
           </p>
-          <div className="mt-auto bg-secondary/20 rounded-xl p-4 border border-dashed border-border flex items-center justify-center h-40 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(#00000010_1px,transparent_1px)] bg-size-[16px_16px] opacity-50"></div>
-            {/* Animated Signature */}
-            <div className="-rotate-6">
-              <SignatureAnimation />
-            </div>
+          <div className="mt-auto">
+            <SignatureBox />
           </div>
         </CardContent>
       </Card>
@@ -683,7 +755,7 @@ const WorkflowSection = () => (
           viewport={{ once: true }}
           transition={{ delay: i * 0.1 }}
         >
-          <div className="bg-background h-20 w-20 rounded-2xl border border-border/50 shadow-sm flex items-center justify-center mb-6 mx-auto group-hover:border-foreground/20 group-hover:scale-[1.02] transition-all duration-500">
+          <div className="bg-background h-20 w-20 rounded-2xl border border-border/50 shadow-sm flex items-center justify-center mb-6 mx-auto group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/5 group-hover:shadow-lg group-hover:scale-[1.02] transition-all duration-500">
             <step.icon />
           </div>
           <div className="text-center px-2">
@@ -696,201 +768,421 @@ const WorkflowSection = () => (
   </div>
 );
 
-// Real World Section
-const RealWorldSection = () => (
-  <div className="grid md:grid-cols-2 gap-16 items-center">
-    {/* Left Column: Context & List */}
-    <div className="space-y-10">
-      <div className="space-y-4">
-        <h2 className="text-3xl font-bold tracking-tight">
-          The Operating System for the <br /> Digital Handshake.
-        </h2>
-        <p className="text-muted-foreground text-lg leading-relaxed">
-          Deals happen everywhere. Now proof does too. Proofo is designed for the millions of
-          agreements that happen every day outside of boardrooms.
-        </p>
-      </div>
+// Real World Section - Interactive with Auto-Rotation
+const useCaseExamples = [
+  {
+    icon: Smartphone,
+    title: "Marketplace Sales",
+    desc: "Selling tech, furniture, or anything online? Lock in the terms before cash changes hands.",
+    anim: "pulse" as const,
+    deal: {
+      name: "iPhone 15 Pro Sale",
+      id: "PR-8092",
+      terms: [
+        { label: "Price", value: "$850" },
+        { label: "Storage", value: "256GB" },
+        { label: "Condition", value: "Mint" },
+      ],
+      creator: { initials: "AT", name: "Alex T." },
+      signer: { initials: "JM", name: "Jordan M." },
+      quote: "Sold on Marketplace. Buyer claimed 'scratched screen'. My Proofo shut that down.",
+    },
+  },
+  {
+    icon: Wallet,
+    title: "Money Lending",
+    desc: "Lending to friends or family? Get the terms in writing without the awkwardness.",
+    anim: "bounce" as const,
+    deal: {
+      name: "Personal Loan",
+      id: "PR-3847",
+      terms: [
+        { label: "Amount", value: "$500" },
+        { label: "Repay By", value: "March 1" },
+        { label: "Interest", value: "None" },
+      ],
+      creator: { initials: "CB", name: "Chris B." },
+      signer: { initials: "TL", name: "Taylor L." },
+      quote: "Lent money to a friend. Never again without written proof of the terms.",
+    },
+  },
+  {
+    icon: Building,
+    title: "Rentals & Deposits",
+    desc: "Prove you returned the keys, left no damage, and deserve your deposit back.",
+    anim: "rotate" as const,
+    deal: {
+      name: "Security Deposit Return",
+      id: "PR-5621",
+      terms: [
+        { label: "Amount", value: "$1,200" },
+        { label: "Condition", value: "No Damage" },
+        { label: "Keys", value: "Returned" },
+      ],
+      creator: { initials: "MP", name: "Morgan P." },
+      signer: { initials: "RD", name: "Riley D." },
+      quote: "Proof I returned the keys and left no damage. Landlord couldn't argue.",
+    },
+  },
+  {
+    icon: Wrench,
+    title: "Freelance & Services",
+    desc: "Scope creep killer. Agree on deliverables and price before you start.",
+    anim: "shake" as const,
+    deal: {
+      name: "Website Redesign",
+      id: "PR-7234",
+      terms: [
+        { label: "Deliverables", value: "5 Pages" },
+        { label: "Revisions", value: "2 Rounds" },
+        { label: "Deadline", value: "Feb 1" },
+      ],
+      creator: { initials: "SK", name: "Sam K." },
+      signer: { initials: "MR", name: "Maya R." },
+      quote: "Scope creep killed my last gig. Now deliverables are locked in before I start.",
+    },
+  },
+];
 
-      <div className="space-y-6">
-        {[
-          {
-            icon: Smartphone,
-            title: "Tech Flipping",
-            desc: "Don't get scammed on the condition. Agree before cash hands.",
-            anim: "pulse" as const,
-          },
-          {
-            icon: ShoppingBag,
-            title: "Vintage & Fashion",
-            desc: "Selling rare collectibles. Document authenticity before shipping.",
-            anim: "bounce" as const,
-          },
-          {
-            icon: Wrench,
-            title: "Freelancing",
-            desc: "Scope creep killer. Agree on deliverables and price instantly.",
-            anim: "rotate" as const,
-          },
-          {
-            icon: Gamepad2,
-            title: "Lending Stuff",
-            desc: "Get it back in one piece. Document it before it leaves.",
-            anim: "shake" as const,
-          },
-        ].map((item, i) => (
-          <motion.div
-            key={i}
-            className="flex gap-4 items-start group cursor-default"
-            initial={{ opacity: 0, x: -10 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0 border border-border/50 group-hover:bg-secondary transition-colors">
-              <HoverIcon type={item.anim}>
-                <item.icon className="h-5 w-5 text-foreground/60" />
-              </HoverIcon>
-            </div>
-            <div>
-              <h3 className="font-medium text-foreground">{item.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mt-1">{item.desc}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
+const InteractiveRealWorldSection = () => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
-    {/* Right Column: Visual Anchor */}
-    <div className="relative">
-      {/* Background Container */}
-      <div className="bg-secondary/30 rounded-3xl p-8 border border-border/50 relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+  // Auto-rotation effect
+  useEffect(() => {
+    if (!isInView || isPaused) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
 
-        <div className="relative z-10 space-y-6">
-          {/* Mock Deal Card (Premium Multi-Card Look) */}
-          <div className="space-y-4 max-w-md mx-auto">
-            {/* 1. Header Card */}
+    intervalRef.current = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % useCaseExamples.length);
+    }, 8000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isPaused]);
+
+  const handleUseCaseHover = (index: number) => {
+    setIsPaused(true);
+    setActiveIndex(index);
+  };
+
+  const handleUseCaseLeave = () => {
+    setIsPaused(false);
+  };
+
+  const activeExample = useCaseExamples[activeIndex];
+
+  return (
+    <div ref={containerRef} className="grid md:grid-cols-2 gap-16 items-center">
+      {/* Left Column: Context & List */}
+      <div className="space-y-10">
+        <div className="space-y-4">
+          <h2 className="text-3xl font-bold tracking-tight">
+            The Operating System for the <br /> Digital Handshake.
+          </h2>
+          <p className="text-muted-foreground text-lg leading-relaxed">
+            Deals happen everywhere. Now proof does too. Proofo is designed for the millions of
+            agreements that happen every day outside of boardrooms.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {useCaseExamples.map((item, i) => (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              key={i}
+              className={`relative flex gap-4 items-start group cursor-pointer p-3 rounded-xl transition-all duration-300 border overflow-hidden ${
+                activeIndex === i
+                  ? "bg-emerald-500/5 border-emerald-500/30 shadow-sm"
+                  : "bg-transparent border-transparent hover:bg-secondary/50 hover:border-border/50"
+              }`}
+              initial={{ opacity: 0, x: -10 }}
+              whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="bg-card rounded-xl border shadow-sm p-5 space-y-3"
+              transition={{ delay: i * 0.1 }}
+              onMouseEnter={() => handleUseCaseHover(i)}
+              onMouseLeave={handleUseCaseLeave}
             >
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold tracking-tight">Sale of MacBook Pro</h3>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                    <span className="bg-secondary px-1.5 py-0.5 rounded border">PR-8092</span>
-                    <span>•</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">Verified</span>
-                  </div>
-                </div>
-                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
-                  <Check className="h-5 w-5" />
-                </div>
+              {activeIndex === i && <EmeraldGrain />}
+              <div
+                className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-300 ${
+                  activeIndex === i
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : "bg-secondary/80 border-border/50 group-hover:bg-secondary"
+                }`}
+              >
+                <HoverIcon type={item.anim}>
+                  <item.icon
+                    className={`h-5 w-5 transition-colors duration-300 ${
+                      activeIndex === i ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/60"
+                    }`}
+                  />
+                </HoverIcon>
               </div>
-            </motion.div>
-
-            {/* 2. Parties Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="bg-card rounded-xl border shadow-sm p-4"
-            >
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs">
-                    AJ
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[9px] uppercase font-bold text-muted-foreground">Creator</p>
-                    <p className="text-xs font-bold truncate">John Doe</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs text-foreground">
-                    SS
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[9px] uppercase font-bold text-muted-foreground text-emerald-600">Signed</p>
-                    <p className="text-xs font-bold truncate text-foreground text-opacity-80">Jane Smith</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* 3. Terms Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="bg-card rounded-xl border shadow-sm p-4 space-y-2"
-            >
-              {[
-                { label: "Price", value: "$1,200.00" },
-                { label: "Condition", value: "Like New" },
-                { label: "Seller", value: "John Doe" },
-              ].map((term, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/20 border border-transparent hover:border-border/50 hover:bg-secondary/40 transition-all cursor-default"
+              <div>
+                <h3
+                  className={`font-medium transition-colors duration-300 ${
+                    activeIndex === i ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"
+                  }`}
                 >
-                  <span className="text-xs text-muted-foreground">{term.label}</span>
-                  <span className="text-xs font-bold">{term.value}</span>
-                </div>
-              ))}
-            </motion.div>
-
-            {/* 4. Signature & Seal Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="bg-card rounded-xl border shadow-sm border-emerald-500/20 bg-emerald-500/[0.02] p-4 flex gap-4 items-center"
-            >
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  <ShieldCheck className="h-3 w-3" />
-                  Cryptographic Seal
-                </div>
-                <div className="font-mono text-[9px] text-emerald-800/60 dark:text-emerald-400/60 break-all leading-tight">
-                  <ScrambleText text="9f86d081884c7d659a2feaa0c55..." />
-                </div>
+                  {item.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mt-1">{item.desc}</p>
               </div>
-              <div className="w-20 h-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded border border-emerald-500/10 rotate-[-2deg]">
-                <SignatureAnimation />
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Progress Indicator */}
+        <div className="flex gap-2 pt-2">
+          {useCaseExamples.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveIndex(i)}
+              className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
+                activeIndex === i
+                  ? "w-8 bg-emerald-500"
+                  : "w-1.5 bg-border hover:bg-muted-foreground/30"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Right Column: Visual Anchor */}
+      <div className="relative">
+        {/* Background Container */}
+        <div className="bg-secondary/30 rounded-3xl p-8 border border-border/50 relative overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+          <div className="relative z-10 space-y-6">
+            {/* Mock Deal Card (Premium Multi-Card Look) */}
+            <div className="space-y-4 max-w-md mx-auto">
+              {/* 1. Header Card */}
+              <motion.div
+                key={`header-${activeIndex}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="bg-card rounded-xl border shadow-sm p-5 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <AnimatePresence mode="wait">
+                      <motion.h3
+                        key={activeExample.deal.name}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-lg font-bold tracking-tight"
+                      >
+                        {activeExample.deal.name}
+                      </motion.h3>
+                    </AnimatePresence>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                      <AnimatePresence mode="wait">
+                        <motion.span
+                          key={activeExample.deal.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.25 }}
+                          className="bg-secondary px-1.5 py-0.5 rounded border"
+                        >
+                          {activeExample.deal.id}
+                        </motion.span>
+                      </AnimatePresence>
+                      <span>•</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">Verified</span>
+                    </div>
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                    <Check className="h-5 w-5" />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* 2. Parties Card */}
+              <motion.div
+                key={`parties-${activeIndex}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.4 }}
+                className="bg-card rounded-xl border shadow-sm p-4"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={activeExample.deal.creator.initials}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.25 }}
+                        className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs"
+                      >
+                        {activeExample.deal.creator.initials}
+                      </motion.div>
+                    </AnimatePresence>
+                    <div className="min-w-0">
+                      <p className="text-[9px] uppercase font-bold text-muted-foreground">Creator</p>
+                      <AnimatePresence mode="wait">
+                        <motion.p
+                          key={activeExample.deal.creator.name}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="text-xs font-bold truncate"
+                        >
+                          {activeExample.deal.creator.name}
+                        </motion.p>
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/50">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={activeExample.deal.signer.initials}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.25 }}
+                        className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs text-foreground"
+                      >
+                        {activeExample.deal.signer.initials}
+                      </motion.div>
+                    </AnimatePresence>
+                    <div className="min-w-0">
+                      <p className="text-[9px] uppercase font-bold text-muted-foreground text-emerald-600">
+                        Signed
+                      </p>
+                      <AnimatePresence mode="wait">
+                        <motion.p
+                          key={activeExample.deal.signer.name}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="text-xs font-bold truncate text-foreground text-opacity-80"
+                        >
+                          {activeExample.deal.signer.name}
+                        </motion.p>
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* 3. Terms Card */}
+              <motion.div
+                key={`terms-${activeIndex}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="bg-card rounded-xl border shadow-sm p-4 space-y-2"
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeIndex}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-2"
+                  >
+                    {activeExample.deal.terms.map((term, i) => (
+                      <motion.div
+                        key={`${activeIndex}-${i}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1, duration: 0.3 }}
+                        className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/20 border border-transparent hover:border-border/50 hover:bg-secondary/40 transition-all cursor-default"
+                      >
+                        <span className="text-xs text-muted-foreground">{term.label}</span>
+                        <span className="text-xs font-bold">{term.value}</span>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+
+              {/* 4. Signature & Seal Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+                className="bg-card rounded-xl border shadow-sm border-emerald-500/20 bg-emerald-500/[0.02] p-4 flex gap-4 items-center"
+              >
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <ShieldCheck className="h-3 w-3" />
+                    Cryptographic Seal
+                  </div>
+                  <div className="font-mono text-[9px] text-emerald-800/60 dark:text-emerald-400/60 break-all leading-tight h-6">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`seal-${activeIndex}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <ScrambleText text="9f86d081884c7d659a2feaa0c55..." />
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+                <div className="w-20 h-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded border border-emerald-500/10 rotate-[-2deg]">
+                  <SignatureAnimation />
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Testimonial Bubble */}
+            <motion.div
+              className="bg-background rounded-xl p-5 border shadow-sm relative"
+              initial={{ opacity: 0, x: 10 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+            >
+              <div className="absolute -left-2 top-6 w-4 h-4 bg-background border-l border-b transform rotate-45"></div>
+              <div className="flex gap-3">
+                <Quote className="h-5 w-5 text-primary/20 shrink-0" />
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={activeExample.deal.quote}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="text-sm text-muted-foreground italic leading-relaxed"
+                  >
+                    &quot;{activeExample.deal.quote}&quot;
+                  </motion.p>
+                </AnimatePresence>
               </div>
             </motion.div>
           </div>
-
-          {/* Testimonial Bubble */}
-          <motion.div
-            className="bg-background rounded-xl p-5 border shadow-sm relative"
-            initial={{ opacity: 0, x: 10 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-          >
-            <div className="absolute -left-2 top-6 w-4 h-4 bg-background border-l border-b transform rotate-45"></div>
-            <div className="flex gap-3">
-              <Quote className="h-5 w-5 text-primary/20 shrink-0" />
-              <p className="text-sm text-muted-foreground italic leading-relaxed">
-                &quot;I used to chase clients for deposit confirmations in WhatsApp. Now I just send
-                a Proofo link. It looks professional and stops the &apos;I didn&apos;t agree to
-                that&apos; conversations.&quot;
-              </p>
-            </div>
-          </motion.div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -966,13 +1258,13 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
         <div className="flex items-center p-1 bg-secondary/50 rounded-full border border-border/50">
           <button
             onClick={() => setBillingCycle('monthly')}
-            className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 ${billingCycle === 'monthly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer ${billingCycle === 'monthly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Monthly
           </button>
           <button
             onClick={() => setBillingCycle('yearly')}
-            className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 flex items-center gap-2 ${billingCycle === 'yearly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 flex items-center gap-2 cursor-pointer ${billingCycle === 'yearly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Yearly
             <span className="bg-emerald-500/10 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/20">2 Months Free</span>
@@ -1039,10 +1331,10 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
                 {/* Metrics Box - Unified Bento Style */}
                 <div className={`rounded-xl p-4 space-y-3 bg-secondary/30 border border-border/50`}>
                   {tier.metrics.map((m: any, i) => (
-                    <div key={i} className="flex justify-between items-center text-[10px]">
-                      <span className="text-muted-foreground uppercase font-bold tracking-wider text-[8px]">{m.label}</span>
+                    <div key={i} className="flex justify-between items-center text-[12px]">
+                      <span className="text-muted-foreground uppercase font-bold tracking-wider text-[10px]">{m.label}</span>
                       <span className={`font-bold tracking-tight ${m.inactive ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                        {m.value} {m.highlight && <span className="text-[10px] text-emerald-600 ml-1 font-bold">({m.highlight})</span>}
+                        {m.value} {m.highlight && <span className="text-[12px] text-emerald-600 ml-1 font-bold">({m.highlight})</span>}
                       </span>
                     </div>
                   ))}
@@ -1172,13 +1464,16 @@ export default function Home() {
                 </MagneticWrapper>
               </Link>
               <Link href="/demo">
-                <Button
-                  size="xl"
-                  variant="outline"
-                  className="h-14 px-8 text-base rounded-full bg-background border-2 hover:bg-secondary/50"
-                >
-                  Try Interactive Demo
-                </Button>
+                <div className="relative group">
+                  <Button
+                    size="xl"
+                    variant="outline"
+                    className="h-14 px-8 text-base rounded-full bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all relative overflow-hidden"
+                  >
+                    <EmeraldGrain />
+                    <span className="relative z-10">Try Interactive Demo</span>
+                  </Button>
+                </div>
               </Link>
             </div>
 
@@ -1224,7 +1519,7 @@ export default function Home() {
         {/* Real World Use Cases */}
         <section className="py-40">
           <div className="container mx-auto px-4 max-w-6xl">
-            <RealWorldSection />
+            <InteractiveRealWorldSection />
           </div>
         </section>
 
@@ -1246,7 +1541,24 @@ export default function Home() {
             <div className="bg-secondary/20 rounded-[40px] p-20 border border-border/50 relative overflow-hidden group">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
               <div className="relative z-10 space-y-8">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Ready to proof it?</h2>
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+                  Ready to{" "}
+                  <motion.span
+                    className="relative inline-block"
+                    initial={{ opacity: 1 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: false, margin: "-20%" }}
+                  >
+                    <motion.span
+                      className="absolute inset-0 bg-emerald-500/20 rounded-lg -mx-2 px-2"
+                      initial={{ scaleX: 0, originX: 0 }}
+                      whileInView={{ scaleX: 1 }}
+                      viewport={{ once: false, margin: "-20%" }}
+                      transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                    />
+                    <span className="relative text-emerald-700 dark:text-emerald-300">proof it?</span>
+                  </motion.span>
+                </h2>
                 <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
                   Stop hoping they&apos;ll keep their word. Start proving they agreed.
                 </p>

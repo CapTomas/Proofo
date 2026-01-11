@@ -141,7 +141,7 @@ export default function DemoPage() {
                     <p className="text-muted-foreground mb-8 text-base">
                         Stop hoping they&apos;ll keep their word. Start proving they agreed.
                     </p>
-                    <Link href="/auth/signup">
+                    <Link href="/deal/new">
                         <Button
                         size="xl"
                         className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
@@ -497,7 +497,7 @@ export default function DemoPage() {
                         <div className="mt-4 text-center p-4 rounded-xl bg-secondary/30 border border-border/50">
                             <h3 className="text-sm font-bold mb-2">Ready to create your own?</h3>
                             <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                <Link href="/auth/signup">
+                                <Link href="/deal/new">
                                     <Button size="sm" className="w-full sm:w-auto rounded-lg shadow-sm h-9 text-xs px-4">
                                     Create Your First Deal
                                     </Button>
