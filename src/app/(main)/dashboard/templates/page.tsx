@@ -24,6 +24,7 @@ import {
   Edit,
   Loader2,
   User,
+  CheckSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { usePersistence } from "@/hooks/usePersistence";
@@ -62,15 +63,20 @@ const fieldTypeIcons: Record<string, LucideIcon> = {
   currency: DollarSign,
   date: Calendar,
   number: Hash,
+  checkbox: CheckSquare,
 };
 
 const CATEGORIES = ["All", "Financial", "Services", "Personal", "General"];
 
 const templateMetadata: Record<string, { category: string }> = {
-  "lend-item": { category: "Personal" },
-  "simple-agreement": { category: "General" },
   "payment-promise": { category: "Financial" },
-  "service-exchange": { category: "Services" },
+  "item-loan": { category: "Personal" },
+  "service-agreement": { category: "Services" },
+  "event-commitment": { category: "Personal" },
+  "security-deposit": { category: "Financial" },
+  "handshake-deal": { category: "General" },
+  "rental-agreement": { category: "Services" },
+  "split-expense": { category: "Financial" },
   custom: { category: "General" },
 };
 

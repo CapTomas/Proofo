@@ -373,12 +373,25 @@ function NewDealContent() {
     setCreateError(null);
 
     const terms = selectedTemplate.fields
-      .filter((field) => formData[field.id])
-      .map((field) => ({
-        label: field.label,
-        value: field.type === "currency" ? `$${formData[field.id]}` : formData[field.id],
-        type: field.type === "textarea" ? "text" : field.type,
-      }));
+      .filter((field) => {
+        // Include checkbox fields even if false (it's a valid answer)
+        if (field.type === "checkbox") return true;
+        return formData[field.id];
+      })
+      .map((field) => {
+        let value = formData[field.id] || "";
+        // Format value based on type
+        if (field.type === "currency") {
+          value = `$${value}`;
+        } else if (field.type === "checkbox") {
+          value = value === "true" ? "Yes" : "No";
+        }
+        return {
+          label: field.label,
+          value,
+          type: field.type === "textarea" || field.type === "checkbox" ? "text" : field.type,
+        };
+      });
 
     if (!user) {
       setCreateError("Sign in required");
@@ -454,7 +467,13 @@ function NewDealContent() {
        // Validate required fields
        if (selectedTemplate) {
          const missingRequiredFields = selectedTemplate.fields
-           .filter(field => field.required && !formData[field.id]?.trim())
+           .filter(field => {
+             if (!field.required) return false;
+             // Checkbox required means it must be checked
+             if (field.type === "checkbox") return formData[field.id] !== "true";
+             // Other fields just need a value
+             return !formData[field.id]?.trim();
+           })
            .map(field => field.label);
 
          if (missingRequiredFields.length > 0) {
@@ -599,6 +618,36 @@ function NewDealContent() {
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">$</span>
             <Input {...commonProps} type="text" inputMode="decimal" className={cn(commonProps.className, "pl-8")} />
           </div>
+        );
+      case "checkbox":
+        const isChecked = formData[field.id] === "true";
+        return (
+          <button
+            type="button"
+            onClick={() => handleFieldChange(field.id, isChecked ? "false" : "true")}
+            className={cn(
+              "h-10 w-full rounded-xl border flex items-center gap-3 px-4 transition-all duration-200 cursor-pointer",
+              isChecked
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : "bg-background border-border text-muted-foreground hover:border-primary/30 hover:bg-muted/50"
+            )}
+          >
+            <div className={cn(
+              "h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all",
+              isChecked
+                ? "bg-primary border-primary"
+                : "border-muted-foreground/50"
+            )}>
+              {isChecked && (
+                <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className={cn("text-sm", isChecked && "font-medium")}>
+              {isChecked ? "Yes" : "No"}
+            </span>
+          </button>
         );
       default:
         // Text inputs
@@ -805,102 +854,13 @@ function NewDealContent() {
                       initial="hidden" animate="show" exit="exit"
                       className="space-y-4 sm:space-y-6"
                     >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {dealTemplates.map((template, idx) => {
-                          const Icon = iconMap[template.icon] || FileCheck;
-                          return (
-                            <motion.div
-                              key={template.id}
-                              variants={slideUp}
-                              custom={idx}
-                              layout
-                              className="h-full"
-                            >
-                              <div
-                                className="group h-full flex flex-col overflow-hidden bg-card border hover:border-primary/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
-                                onClick={() => handleTemplateSelect(template)}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={`Select ${template.name} template`}
-                                onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
-                              >
-                                <div className="flex flex-col h-full">
-                                  <div className="flex-1 p-5 pb-0 flex flex-col">
-                                    {/* Header */}
-                                    <div className="flex justify-between items-start mb-4">
-                                      <div
-                                        className={cn(
-                                          "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
-                                          "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
-                                        )}
-                                      >
-                                        <Icon className="h-5 w-5" />
-                                      </div>
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
-                                      >
-                                        {templateMetadata[template.id]?.category || "General"}
-                                      </Badge>
-                                    </div>
-
-                                    {/* Content */}
-                                    <div className="mb-6 min-h-[4.5rem]">
-                                      <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
-                                        {template.name}
-                                      </h3>
-                                      <p className="text-sm text-muted-foreground line-clamp-2">
-                                        {template.description}
-                                      </p>
-                                    </div>
-
-                                    {/* Field Tags */}
-                                    <div className="flex flex-wrap gap-1.5 mb-4 content-start flex-1 items-start">
-                                      {(expandedTemplates[template.id] ? template.fields : template.fields.slice(0, 3)).map((field) => (
-                                        <Badge
-                                          key={field.id}
-                                          variant="secondary"
-                                          className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
-                                        >
-                                          {field.label}
-                                        </Badge>
-                                      ))}
-                                      {!expandedTemplates[template.id] && template.fields.length > 3 && (
-                                        <Badge
-                                          variant="outline"
-                                          className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed h-6 flex items-center cursor-pointer hover:bg-secondary hover:text-foreground transition-colors"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setExpandedTemplates(prev => ({ ...prev, [template.id]: true }));
-                                          }}
-                                        >
-                                          +{template.fields.length - 3}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Footer Action Bar */}
-                                  <div className={dashboardStyles.cardFooter}>
-                                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                                      Use Template
-                                    </span>
-                                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                                  </div>
-                                </div>
-                              </div>
-                            </motion.div>
-                          )
-                        })}
-                      </div>
-
                       {/* User Templates Section */}
                       {userTemplates.length > 0 && (
                         <>
-                          <div className="flex items-center gap-2 mt-6 mb-2">
+                          <div className="flex items-center gap-2 mb-4">
                             <Users className="h-4 w-4 text-muted-foreground" />
                             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                              My Custom Templates
+                              Custom Templates
                             </h3>
                             <Badge variant="secondary" className="text-xs">
                               {userTemplates.length}
@@ -998,6 +958,101 @@ function NewDealContent() {
                           </div>
                         </>
                       )}
+
+                      <div className="flex items-center gap-2 mb-4">
+                        <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
+                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                          Default Templates
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                        {dealTemplates.map((template, idx) => {
+                          const Icon = iconMap[template.icon] || FileCheck;
+                          return (
+                            <motion.div
+                              key={template.id}
+                              variants={slideUp}
+                              custom={idx}
+                              layout
+                              className="h-full"
+                            >
+                              <div
+                                className="group h-full flex flex-col overflow-hidden bg-card border hover:border-primary/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
+                                onClick={() => handleTemplateSelect(template)}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Select ${template.name} template`}
+                                onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
+                              >
+                                <div className="flex flex-col h-full">
+                                  <div className="flex-1 p-5 pb-0 flex flex-col">
+                                    {/* Header */}
+                                    <div className="flex justify-between items-start mb-4">
+                                      <div
+                                        className={cn(
+                                          "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
+                                          "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
+                                        )}
+                                      >
+                                        <Icon className="h-5 w-5" />
+                                      </div>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
+                                      >
+                                        {templateMetadata[template.id]?.category || "General"}
+                                      </Badge>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="mb-6 min-h-[4.5rem]">
+                                      <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                                        {template.name}
+                                      </h3>
+                                      <p className="text-sm text-muted-foreground line-clamp-2">
+                                        {template.description}
+                                      </p>
+                                    </div>
+
+                                    {/* Field Tags */}
+                                    <div className="flex flex-wrap gap-1.5 mb-4 content-start flex-1 items-start">
+                                      {(expandedTemplates[template.id] ? template.fields : template.fields.slice(0, 3)).map((field) => (
+                                        <Badge
+                                          key={field.id}
+                                          variant="secondary"
+                                          className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
+                                        >
+                                          {field.label}
+                                        </Badge>
+                                      ))}
+                                      {!expandedTemplates[template.id] && template.fields.length > 3 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed h-6 flex items-center cursor-pointer hover:bg-secondary hover:text-foreground transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedTemplates(prev => ({ ...prev, [template.id]: true }));
+                                          }}
+                                        >
+                                          +{template.fields.length - 3}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Footer Action Bar */}
+                                  <div className={dashboardStyles.cardFooter}>
+                                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                                      Use Template
+                                    </span>
+                                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )
+                        })}
+                      </div>
                     </motion.div>
                   )}
 

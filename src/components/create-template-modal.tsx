@@ -58,6 +58,7 @@ import {
   Laptop,
   Smartphone,
   Camera,
+  CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TemplateField, UserTemplate, TemplateTheme } from "@/types";
@@ -108,6 +109,7 @@ const FIELD_TYPES: { value: TemplateField["type"]; label: string; icon: LucideIc
   { value: "number", label: "Number", icon: Hash },
   { value: "currency", label: "Currency", icon: DollarSign },
   { value: "date", label: "Date", icon: Calendar },
+  { value: "checkbox", label: "Checkbox", icon: CheckSquare },
 ];
 
 interface CreateTemplateModalProps {
@@ -488,15 +490,17 @@ export function CreateTemplateModal({
                         </Select>
                       </div>
 
-                      {/* Placeholder */}
-                      <div className="sm:col-span-3">
-                        <Input
-                          placeholder="Placeholder"
-                          value={field.placeholder || ""}
-                          onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
-                          className="h-9 rounded-lg"
-                        />
-                      </div>
+                      {/* Placeholder - hidden for checkbox type */}
+                      {field.type !== "checkbox" && (
+                        <div className="sm:col-span-3">
+                          <Input
+                            placeholder="Placeholder"
+                            value={field.placeholder || ""}
+                            onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
+                            className="h-9 rounded-lg"
+                          />
+                        </div>
+                      )}
 
                       {/* Required Toggle */}
                       <div className="sm:col-span-2 flex items-center justify-end gap-2">

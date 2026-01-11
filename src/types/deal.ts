@@ -48,7 +48,7 @@ export interface DealTemplate {
 export interface TemplateField {
   id: string;
   label: string;
-  type: "text" | "number" | "date" | "currency" | "textarea";
+  type: "text" | "number" | "date" | "currency" | "textarea" | "checkbox";
   placeholder?: string;
   required: boolean;
   defaultValue?: string;
