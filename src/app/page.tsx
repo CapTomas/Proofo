@@ -37,6 +37,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store";
 import { PublicHeader } from "@/components/public-header";
+import { LoginModal } from "@/components/login-modal";
 
 // --- CUSTOM ANIMATIONS ---
 
@@ -891,7 +892,7 @@ const RealWorldSection = () => (
   </div>
 );
 
-const Pricing = () => {
+const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   const tiers = [
@@ -922,7 +923,7 @@ const Pricing = () => {
       metrics: [
         { label: "Deals per month", value: "25", highlight: "5× more" },
         { label: "History", value: "1 year" },
-        { label: "Custom templates", value: "10" },
+        { label: "Custom templates", value: "5" },
       ],
       plus: "Everything in Hobbyist, plus:",
       features: [
@@ -1075,15 +1076,14 @@ const Pricing = () => {
                 </div>
 
                 <div className="pt-4 mt-auto">
-                  <Link href="/deal/new" className="block">
-                    <Button
-                      variant={tier.variant}
-                      className={`w-full h-11 rounded-full transition-all duration-300 flex items-center justify-center font-bold tracking-tight ${tier.popular ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border/50 hover:bg-secondary'}`}
-                    >
-                      <span>{tier.buttonText}</span>
-                      <ArrowRight className="ml-2 h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                    </Button>
-                  </Link>
+                  <Button
+                    variant={tier.variant}
+                    className={`w-full h-11 rounded-full transition-all duration-300 flex items-center justify-center font-bold tracking-tight ${tier.popular ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border/50 hover:bg-secondary'}`}
+                    onClick={onStartClick}
+                  >
+                    <span>{tier.buttonText}</span>
+                    <ArrowRight className="ml-2 h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1098,6 +1098,7 @@ export default function Home() {
   const router = useRouter();
   const { user, isLoading } = useAppStore();
   const [isReady, setIsReady] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -1235,7 +1236,7 @@ export default function Home() {
             <p className="text-muted-foreground">Start for free. Upgrade to seal unlimited deals.</p>
           </div>
           <div className="container mx-auto px-4">
-            <Pricing />
+            <Pricing onStartClick={() => setShowLoginModal(true)} />
           </div>
         </section>
 
@@ -1292,6 +1293,17 @@ export default function Home() {
           <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Proofo Inc.</p>
         </div>
       </footer>
+
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+        title="Create your account"
+        description="Join Proofo to start creating secure, enforceable agreements in minutes. No password needed."
+        redirectTo="/deal/new"
+        onSuccess={() => {
+          setShowLoginModal(false);
+        }}
+      />
     </div>
   );
 }

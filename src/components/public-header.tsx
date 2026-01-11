@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AnimatedLogo } from "@/components/animated-logo";
 import { useAppStore } from "@/store";
+import { LoginModal } from "@/components/login-modal";
 import {
   Shield,
   Menu,
@@ -69,8 +70,13 @@ interface PublicHeaderProps {
 }
 
 export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useAppStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginModalTitle, setLoginModalTitle] = useState<string | undefined>();
+  const [loginModalDescription, setLoginModalDescription] = useState<string | undefined>();
+  const [loginModalRedirect, setLoginModalRedirect] = useState<string>("/dashboard");
+  const [scrolled, setScrolled] = useState(false);
 
   // Lock body scroll when menu is open
   useEffect(() => {
@@ -174,35 +180,85 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
 
             {/* Desktop Auth */}
             <div className="hidden sm:flex items-center gap-2">
-              <Link href={user ? "/dashboard" : "/login"}>
+              {user ? (
+                <Link href="/dashboard">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-sm font-medium h-9 hover:bg-primary/5"
+                  >
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
                 <Button
                   size="sm"
                   variant="ghost"
                   className="text-sm font-medium h-9 hover:bg-primary/5"
+                  onClick={() => {
+                    setLoginModalTitle("Welcome back");
+                    setLoginModalDescription("Sign in to manage your deals");
+                    setLoginModalRedirect("/dashboard");
+                    setShowLoginModal(true);
+                  }}
                 >
-                  {user ? "Dashboard" : "Log In"}
+                  Log In
                 </Button>
-              </Link>
-              <Link href="/deal/new">
+              )}
+              {user ? (
+                <Link href="/deal/new">
+                  <HeaderMagneticWrapper>
+                    <Button size="sm" className="font-medium h-9 shadow-sm">
+                      New Deal
+                    </Button>
+                  </HeaderMagneticWrapper>
+                </Link>
+              ) : (
                 <HeaderMagneticWrapper>
-                  <Button size="sm" className="font-medium h-9 shadow-sm">
-                    {user ? "New Deal" : "Get Started"}
+                  <Button
+                    size="sm"
+                    className="font-medium h-9 shadow-sm"
+                    onClick={() => {
+                      setLoginModalTitle("Create your account");
+                      setLoginModalDescription("Join Proofo to start creating secure, enforceable agreements in minutes. No password needed.");
+                      setLoginModalRedirect("/deal/new");
+                      setShowLoginModal(true);
+                    }}
+                  >
+                    Get Started
                   </Button>
                 </HeaderMagneticWrapper>
-              </Link>
+              )}
             </div>
 
             {/* Mobile Auth (User Icon) */}
-            <Link href={user ? "/dashboard" : "/login"} className="sm:hidden">
+            {user ? (
+              <Link href="/dashboard" className="sm:hidden">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-secondary/50 text-foreground hover:bg-secondary/60 border border-transparent hover:border-border/30 transition-all backdrop-blur-sm"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span className="sr-only">Dashboard</span>
+                </Button>
+              </Link>
+            ) : (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full bg-secondary/50 text-foreground hover:bg-secondary/60 border border-transparent hover:border-border/30 transition-all backdrop-blur-sm"
+                className="sm:hidden h-9 w-9 rounded-full bg-secondary/50 text-foreground hover:bg-secondary/60 border border-transparent hover:border-border/30 transition-all backdrop-blur-sm"
+                onClick={() => {
+                  setLoginModalTitle("Welcome back");
+                  setLoginModalDescription("Sign in to manage your deals");
+                  setLoginModalRedirect("/dashboard");
+                  setShowLoginModal(true);
+                }}
               >
-                {user ? <LayoutDashboard className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                <span className="sr-only">{user ? "Dashboard" : "Log In"}</span>
+                <LogIn className="h-4 w-4" />
+                <span className="sr-only">Log In</span>
               </Button>
-            </Link>
+            )}
 
             {/* Mobile Menu Toggle */}
             <Button
@@ -216,6 +272,14 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
           </div>
         </div>
       </header>
+
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+        title={loginModalTitle}
+        description={loginModalDescription}
+        redirectTo={loginModalRedirect}
+      />
 
       {/* Mobile Menu Drawer */}
       <AnimatePresence>

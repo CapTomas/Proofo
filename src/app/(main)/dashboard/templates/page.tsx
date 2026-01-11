@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,19 +16,17 @@ import {
   Type,
   Calendar,
   Hash,
-  Eye,
-  RotateCcw,
   Plus,
   Wrench,
   Copy,
-  XCircle,
-  FileText,
+  LayoutTemplate,
   Trash2,
   Edit,
   Loader2,
   User,
 } from "lucide-react";
 import Link from "next/link";
+import { usePersistence } from "@/hooks/usePersistence";
 import { dealTemplates, iconMap } from "@/lib/templates";
 import { DealTemplate, TemplateField, UserTemplate, TemplateTheme } from "@/types";
 import { cn } from "@/lib/utils";
@@ -37,7 +34,6 @@ import {
   dashboardStyles,
   containerVariants,
   itemVariants,
-  cardFlipTransition,
   getToggleButtonClass,
   getFilterPillClass,
   getGridClass,
@@ -88,8 +84,6 @@ interface TemplateCardProps {
   searchQuery: string;
   isExpanded: boolean;
   onToggleExpand: (e: React.MouseEvent) => void;
-  isFlipped: boolean;
-  onFlip: (e: React.MouseEvent) => void;
   onDuplicate: () => void;
 }
 
@@ -99,8 +93,6 @@ const TemplateCard = ({
   searchQuery,
   isExpanded,
   onToggleExpand,
-  isFlipped,
-  onFlip,
   onDuplicate,
 }: TemplateCardProps) => {
   const IconComponent = iconMap[template.icon] || PenLine;
@@ -171,13 +163,6 @@ const TemplateCard = ({
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -194,201 +179,96 @@ const TemplateCard = ({
     );
   }
 
-  // Grid View with Flip Interaction
+  // Grid View
   return (
-    <motion.div variants={itemVariants} layout className="h-full perspective-1000">
-      <div className="relative h-full w-full" style={{ perspective: "1000px" }}>
-        {/* Front of Card */}
-        <motion.div
-          className={cn(
-            "h-full flex flex-col overflow-hidden bg-card border hover:border-primary/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative backface-hidden",
-            isFlipped ? "pointer-events-none" : "pointer-events-auto"
-          )}
-          initial={false}
-          animate={{
-            rotateY: isFlipped ? 180 : 0,
-            opacity: isFlipped ? 0 : 1,
-          }}
-          transition={cardFlipTransition}
-          style={{ backfaceVisibility: "hidden" }}
-        >
-          <div className="flex flex-col h-full">
-            <Link href={linkHref} className="flex-1 p-5 pb-0 flex flex-col group">
-              {/* Header */}
-              <div className="flex justify-between items-start mb-4">
-                <div
-                  className={cn(
-                    "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
-                    "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
-                  )}
-                >
-                  <IconComponent className="h-5 w-5" />
-                </div>
+    <motion.div variants={itemVariants} layout className="h-full">
+      <div
+        className="group h-full flex flex-col overflow-hidden bg-card border hover:border-primary/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
+        onClick={() => window.location.href = linkHref}
+        tabIndex={0}
+        role="button"
+        aria-label={`Select ${template.name} template`}
+        onKeyDown={(e) => e.key === "Enter" && (window.location.href = linkHref)}
+      >
+        <div className="flex flex-col h-full">
+          <Link href={linkHref} className="flex-1 p-5 pb-0 flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-4">
+              <div
+                className={cn(
+                  "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
+                  "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
+                )}
+              >
+                <IconComponent className="h-5 w-5" />
+              </div>
+              <Badge
+                variant="outline"
+                className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
+              >
+                {meta.category}
+              </Badge>
+            </div>
+
+            {/* Content - Fixed height for alignment */}
+            <div className="mb-6 min-h-[4.5rem]">
+              <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                <HighlightText text={template.name} query={searchQuery} />
+              </h3>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                <HighlightText text={template.description} query={searchQuery} />
+              </p>
+            </div>
+
+            {/* Field Tags */}
+            <div className="flex flex-wrap gap-1.5 mb-6 content-start flex-1 items-start">
+              {(isExpanded ? template.fields : template.fields.slice(0, 3)).map(
+                (field: TemplateField) => (
+                  <Badge
+                    key={field.id}
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
+                  >
+                    {field.label}
+                  </Badge>
+                )
+              )}
+              {!isExpanded && template.fields.length > 3 && (
                 <Badge
                   variant="outline"
-                  className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
+                  className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed cursor-pointer hover:bg-secondary hover:text-foreground transition-colors h-6 flex items-center"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleExpand(e);
+                  }}
                 >
-                  {meta.category}
+                  +{template.fields.length - 3}
                 </Badge>
-              </div>
-
-              {/* Content - Fixed height for alignment */}
-              <div className="mb-6 min-h-[4.5rem]">
-                <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
-                  <HighlightText text={template.name} query={searchQuery} />
-                </h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  <HighlightText text={template.description} query={searchQuery} />
-                </p>
-              </div>
-
-              {/* Field Tags (Clickable +1) */}
-              <div className="flex flex-wrap gap-1.5 mb-6 content-start flex-1 items-start">
-                {(isExpanded ? template.fields : template.fields.slice(0, 3)).map(
-                  (field: TemplateField) => {
-                    const FieldIcon = fieldTypeIcons[field.type] || Type;
-                    return (
-                      <motion.div
-                        layout
-                        key={field.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                      >
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
-                        >
-                          <FieldIcon className="h-3 w-3 mr-1 opacity-70" />
-                          {field.label}
-                        </Badge>
-                      </motion.div>
-                    );
-                  }
-                )}
-                {!isExpanded && template.fields.length > 3 && (
-                  <motion.div layout>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed cursor-pointer hover:bg-secondary hover:text-foreground transition-colors h-6 flex items-center"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onToggleExpand(e);
-                      }}
-                    >
-                      +{template.fields.length - 3}
-                    </Badge>
-                  </motion.div>
-                )}
-              </div>
-            </Link>
-
-            {/* Footer Action Bar */}
-            <div className={dashboardStyles.cardFooter}>
-              <Link
-                href={linkHref}
-                className="group/link flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-              >
-                Use Template
-              </Link>
-
-              <div className={dashboardStyles.cardFooterActions}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onFlip(e);
-                  }}
-                  title="Preview Template"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDuplicate();
-                  }}
-                  title="Duplicate Template"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+              )}
             </div>
+          </Link>
+
+          {/* Footer Action Bar */}
+          <div className={dashboardStyles.cardFooter}>
+            <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
+              Use Template
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDuplicate();
+              }}
+              title="Duplicate Template"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
           </div>
-        </motion.div>
-
-        {/* Back of Card (Preview) */}
-        <motion.div
-          className={cn(
-            "h-full flex flex-col overflow-hidden bg-card border border-primary/20 rounded-2xl shadow-md absolute inset-0 backface-hidden",
-            !isFlipped ? "pointer-events-none" : "pointer-events-auto"
-          )}
-          initial={{ rotateY: 180 }}
-          animate={{
-            rotateY: isFlipped ? 0 : -180,
-            opacity: isFlipped ? 1 : 0,
-          }}
-          transition={cardFlipTransition}
-          style={{ backfaceVisibility: "hidden" }}
-        >
-          <CardContent className="p-5 flex flex-col h-full bg-secondary/5">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-border/50">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5 text-primary" />
-                Included Fields
-              </h4>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-full -mr-2 text-muted-foreground hover:text-primary"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onFlip(e);
-                }}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto custom-scrollbar -mr-2 pr-2 space-y-2">
-              {template.fields.map((field: TemplateField) => {
-                const FieldIcon = fieldTypeIcons[field.type] || Type;
-                return (
-                  <div
-                    key={field.id}
-                    className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border border-border/50 shadow-sm"
-                  >
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <FieldIcon className="h-3.5 w-3.5 opacity-70" />
-                      <span>{field.label}</span>
-                    </div>
-                    {field.required && (
-                      <span className="text-[9px] text-destructive font-medium bg-destructive/5 px-1.5 py-0.5 rounded-md border border-destructive/10">
-                        Req
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-auto pt-4 border-t border-border/40">
-              <Link
-                href={linkHref}
-                className="group/link flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors w-full py-1"
-              >
-                Use Template
-              </Link>
-            </div>
-          </CardContent>
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );
@@ -397,9 +277,8 @@ const TemplateCard = ({
 export default function TemplatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = usePersistence<"grid" | "list">("proofo-view-mode-templates", "grid");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [flippedId, setFlippedId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // User templates state
@@ -585,10 +464,10 @@ export default function TemplatesPage() {
       </div>
 
       {/* User Templates Section */}
-      {filteredUserTemplates.length > 0 && selectedCategory !== "Custom" && (
+      {(filteredUserTemplates.length > 0 || selectedCategory === "All") && selectedCategory !== "Custom" && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Custom Templates
             </h2>
@@ -630,6 +509,10 @@ export default function TemplatesPage() {
                 onToggleExpand={() => setExpandedUserTemplates(prev => ({ ...prev, [template.id]: !prev[template.id] }))}
               />
             ))}
+            {/* Integrated Create Card */}
+            {viewMode === "grid" && (
+              <CreateTemplateCard onClick={() => setCreateModalOpen(true)} />
+            )}
           </motion.div>
         </div>
       )}
@@ -676,7 +559,7 @@ export default function TemplatesPage() {
               ))
             ) : (
               <EmptyState
-                icon={FileText}
+                icon={LayoutTemplate}
                 title="No custom templates yet"
                 description="Create your first template to get started."
                 action={
@@ -688,6 +571,10 @@ export default function TemplatesPage() {
                 className="col-span-full"
               />
             )}
+            {/* Integrated Create Card for Custom Filter */}
+            {filteredUserTemplates.length > 0 && viewMode === "grid" && (
+              <CreateTemplateCard onClick={() => setCreateModalOpen(true)} />
+            )}
           </motion.div>
         </AnimatePresence>
       )}
@@ -695,9 +582,9 @@ export default function TemplatesPage() {
       {/* Built-in Templates Section */}
       {selectedCategory !== "Custom" && (
         <>
-          {filteredUserTemplates.length > 0 && (
+          {selectedCategory === "All" && (
             <div className="flex items-center gap-2 mb-4">
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                 Default Templates
               </h2>
@@ -723,11 +610,6 @@ export default function TemplatesPage() {
                     onToggleExpand={(e) => {
                       e.preventDefault();
                       setExpandedId(expandedId === template.id ? null : template.id);
-                    }}
-                    isFlipped={flippedId === template.id}
-                    onFlip={(e) => {
-                      e.preventDefault();
-                      setFlippedId(flippedId === template.id ? null : template.id);
                     }}
                     onDuplicate={() => {
                       const meta = templateMetadata[template.id] || { category: "General" };
@@ -766,37 +648,7 @@ export default function TemplatesPage() {
         </>
       )}
 
-      {/* Create Custom Template Section - Only show when not in "Custom" filter */}
-      {selectedCategory !== "Custom" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="block w-full group text-left cursor-pointer"
-          >
-            <div className="border-2 border-dashed border-border group-hover:border-primary/30 rounded-2xl p-8 text-center bg-muted/5 group-hover:bg-muted/10 transition-all duration-300 relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="h-14 w-14 rounded-2xl bg-background border shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:border-primary/20">
-                  <Wrench className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
-                  Create Custom Template
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-                  Build a reusable template from scratch with your own fields, terms, and logic.
-                </p>
-                <div className="inline-flex items-center gap-2 text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-xl shadow-sm group-hover:shadow-md group-hover:bg-primary/90 transition-all cursor-pointer">
-                  <Plus className="h-4 w-4" />
-                  Create New
-                </div>
-              </div>
-            </div>
-          </button>
-        </motion.div>
-      )}
+      {/* Verification for spacing: integrated into grid above */}
 
       {/* Create/Edit/Duplicate Template Modal */}
       <CreateTemplateModal
@@ -1072,3 +924,37 @@ const UserTemplateCard = ({
   );
 };
 
+// Integrated "Create New" Card Component
+const CreateTemplateCard = ({ onClick }: { onClick: () => void }) => {
+  return (
+    <motion.div
+      variants={itemVariants}
+      initial="hidden"
+      animate="show"
+      className="h-full"
+    >
+      <button
+        onClick={onClick}
+        className="h-full w-full group text-left transition-all duration-300 cursor-pointer"
+      >
+        <div className="h-full min-h-[280px] border-2 border-dashed border-border group-hover:border-primary/30 rounded-2xl p-6 flex flex-col items-center justify-center text-center bg-muted/5 group-hover:bg-muted/10 transition-all duration-300 relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="h-14 w-14 rounded-2xl bg-background border shadow-sm flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:border-primary/20">
+              <Wrench className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
+              New Template
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-[200px] mx-auto mb-6">
+              Build a reusable pattern from scratch.
+            </p>
+            <div className="inline-flex items-center gap-2 text-xs font-medium bg-secondary text-foreground px-3 py-1.5 rounded-lg border border-border/50 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all">
+              <Plus className="h-3.5 w-3.5" />
+              Start Building
+            </div>
+          </div>
+        </div>
+      </button>
+    </motion.div>
+  );
+};

@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { usePersistence } from "@/hooks/usePersistence";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +21,11 @@ import {
   Inbox as InboxIcon,
   PenLine,
   ExternalLink,
+  Calendar,
 } from "lucide-react";
 import { Deal } from "@/types";
 import { useAppStore } from "@/store";
-import { timeAgo } from "@/lib/crypto";
+import { timeAgo, formatDate } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getUserDealsAction } from "@/app/actions/deal-actions";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,7 @@ import {
 } from "@/lib/dashboard-ui";
 import {
   CopyableId,
+  HorizontalTermsScroll,
   StatCard,
   useSearchShortcut,
   KeyboardHint,
@@ -49,12 +52,113 @@ import {
 
 
 
-const InboxCard = ({ deal, onNavigate }: { deal: Deal; onNavigate: (dealId: string) => void }) => {
+const InboxCard = ({
+  deal,
+  onNavigate,
+  viewMode = "grid",
+}: {
+  deal: Deal;
+  onNavigate: (dealId: string) => void;
+  viewMode?: "grid" | "list";
+}) => {
   const { user } = useAppStore();
   const router = useRouter(); // Use router for direct navigation
   const config = getDealStatusConfig(deal, user?.id, user?.email);
   const Icon = config.icon;
   const isPending = deal.status === "pending";
+
+  if (viewMode === "list") {
+    return (
+      <motion.div variants={itemVariants} layout className="group relative">
+        <Card
+          className={cn(
+            "flex items-center gap-4 p-3 rounded-xl border bg-card hover:bg-muted/40 hover:border-primary/20 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer",
+            deal.status === "voided" && "opacity-60 grayscale-[0.5]",
+            isPending && "ring-1 ring-rose-500/20 border-rose-500/20 shadow-rose-500/5"
+          )}
+          onClick={() => onNavigate(deal.publicId)}
+        >
+          {/* Status Icon */}
+          <div
+            className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+              config.bg,
+              config.border,
+              config.color
+            )}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 pr-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-sm text-foreground truncate">
+                {deal.title}
+              </span>
+              <Badge
+                variant={config.badgeVariant}
+                className="h-4 px-1.5 text-[9px] font-medium border"
+              >
+                {config.label}
+              </Badge>
+              <CopyableId id={deal.publicId} className="bg-secondary/30 border-border/40" />
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground truncate">
+              <div className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                <span>From {deal.creatorName}</span>
+              </div>
+              <span className="hidden sm:inline opacity-50">•</span>
+              <div className="hidden sm:flex items-center gap-1 opacity-60">
+                <Calendar className="h-3 w-3" />
+                <span>{formatDate(deal.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Terms (Fixed-Origin, Right-Aligned with Scroll Arrows) */}
+          <div className="hidden md:flex flex-1 items-center px-4 self-stretch overflow-hidden">
+            <HorizontalTermsScroll>
+              {deal.terms.map((term) => (
+                <Badge
+                  key={term.id}
+                  variant="neutral"
+                  className="font-normal text-[9px] px-2 py-0.5 bg-secondary/40 border-transparent text-muted-foreground whitespace-nowrap shrink-0"
+                >
+                  <span className="opacity-70">{term.label}:</span> {term.value}
+                </Badge>
+              ))}
+            </HorizontalTermsScroll>
+          </div>
+
+          {/* Actions (Fixed Width for Stable Layout) */}
+          <div className="flex items-center justify-end gap-1.5 pl-2 w-[120px] shrink-0" onClick={(e) => e.stopPropagation()}>
+            {isPending ? (
+              <Button
+                size="sm"
+                className="h-8 px-3 text-[10px] bg-rose-500 text-white hover:bg-rose-600 shadow-sm gap-1.5 transition-colors"
+                onClick={() => router.push(`/d/public/${deal.publicId}`)}
+              >
+                <FileSignature className="h-3.5 w-3.5" />
+                Sign Now
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-3 text-[10px] gap-1.5 transition-colors"
+                onClick={() => onNavigate(deal.publicId)}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View
+              </Button>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div variants={itemVariants} layout className="group relative">
@@ -183,7 +287,7 @@ export default function InboxPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"to_sign" | "history">("to_sign");
   const [filterType, setFilterType] = useState<"all" | "pending" | "signed" | "voided">("pending");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = usePersistence<"grid" | "list">("proofo-view-mode-inbox", "grid");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -442,7 +546,12 @@ export default function InboxPage() {
             className={cn(dashboardStyles.gridContainer, getGridClass(viewMode, 3))}
           >
             {filteredDeals.map((deal) => (
-              <InboxCard key={deal.id} deal={deal} onNavigate={handleNavigate} />
+              <InboxCard
+                key={deal.id}
+                deal={deal}
+                onNavigate={handleNavigate}
+                viewMode={viewMode}
+              />
             ))}
           </motion.div>
         ) : (

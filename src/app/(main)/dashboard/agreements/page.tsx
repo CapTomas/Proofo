@@ -22,14 +22,16 @@ import {
   Copy as DuplicateIcon,
   ShieldCheck,
   Smartphone,
+  Calendar,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { usePersistence } from "@/hooks/usePersistence";
 import { toast } from "sonner";
 import { Deal } from "@/types";
 import { useAppStore } from "@/store";
-import { timeAgo } from "@/lib/crypto";
+import { timeAgo, formatDate } from "@/lib/crypto";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   getUserDealsAction,
@@ -58,6 +60,7 @@ import {
 } from "@/lib/dashboard-ui";
 import {
   CopyableId,
+  HorizontalTermsScroll,
   StatCard,
   getDealStatusConfig,
   useSearchShortcut,
@@ -81,6 +84,7 @@ const DealCard = ({
   isVoiding,
   isNudging,
   nudgeSuccess,
+  viewMode = "grid",
 }: {
   deal: Deal;
   userId?: string;
@@ -92,11 +96,166 @@ const DealCard = ({
   isVoiding: string | null;
   isNudging: string | null;
   nudgeSuccess: string | null;
+  viewMode?: "grid" | "list";
 }) => {
   const isCreator = deal.creatorId === userId;
   const config = getDealStatusConfig(deal, userId);
   const Icon = config.icon;
   const isStale = isCreator && isStaleDeal(deal);
+
+  if (viewMode === "list") {
+    return (
+      <motion.div variants={itemVariants} layout className="group relative">
+        <Card
+          className={cn(
+            "flex items-center gap-4 p-3 rounded-xl border bg-card hover:bg-muted/40 hover:border-primary/20 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer",
+            deal.status === "voided" && "opacity-60 grayscale-[0.5]",
+            isStale && "border-amber-500/50 shadow-amber-500/10 hover:border-amber-500/75"
+          )}
+          onClick={() => onNavigate(deal.publicId)}
+        >
+          {/* Status Icon */}
+          <div
+            className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center border shadow-sm transition-colors shrink-0",
+              config.bg,
+              config.border,
+              config.color
+            )}
+          >
+            <Icon className="h-5 w-5" />
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 pr-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-sm text-foreground truncate">
+                {deal.title}
+              </span>
+              <Badge
+                variant={config.badgeVariant}
+                className="h-4 px-1.5 text-[9px] font-medium border"
+              >
+                {config.label}
+              </Badge>
+              <CopyableId id={deal.publicId} className="bg-secondary/30 border-border/40" />
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground truncate">
+              <div className="flex items-center gap-1">
+                {isCreator ? (
+                  <Send className="h-3 w-3" />
+                ) : (
+                  <Inbox className="h-3 w-3" />
+                )}
+                <span>{isCreator ? `To ${deal.recipientName}` : `From ${deal.creatorName}`}</span>
+              </div>
+              <span className="hidden sm:inline opacity-50">•</span>
+              <div className="hidden sm:flex items-center gap-1 opacity-60">
+                <Calendar className="h-3 w-3" />
+                <span>{formatDate(deal.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Terms (Fixed-Origin, Right-Aligned with Scroll Arrows) */}
+          <div className="hidden md:flex flex-1 items-center px-4 self-stretch overflow-hidden">
+            <HorizontalTermsScroll>
+              {deal.terms.map((term) => (
+                <Badge
+                  key={term.id}
+                  variant="neutral"
+                  className="font-normal text-[9px] px-2 py-0.5 bg-secondary/40 border-transparent text-muted-foreground whitespace-nowrap shrink-0"
+                >
+                  <span className="opacity-70">{term.label}:</span> {term.value}
+                </Badge>
+              ))}
+            </HorizontalTermsScroll>
+          </div>
+
+          {/* Actions (Fixed Width for Stable Layout) */}
+          <div className="flex items-center justify-end gap-1.5 pl-2 w-[180px] shrink-0" onClick={(e) => e.stopPropagation()}>
+            {deal.status === "pending" && isCreator && (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant={nudgeSuccess === deal.id ? "default" : "secondary"}
+                    className={cn(
+                      "h-8 text-[10px] px-2.5 transition-all shadow-sm",
+                      nudgeSuccess === deal.id && "bg-emerald-500/20 hover:bg-emerald-600/30 text-white",
+                      isStale && nudgeSuccess !== deal.id && "bg-amber-500/20 border-amber-500/50 text-amber-900 dark:text-amber-200 hover:bg-amber-500/30"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNudge(deal);
+                    }}
+                    disabled={isNudging === deal.id}
+                  >
+                    {isNudging === deal.id ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Mail className="h-3 w-3 mr-1" />
+                    )}
+                    {nudgeSuccess === deal.id ? "Sent" : "Nudge"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {isStale ? "Stale deal (waiting > 48h)" : "Send reminder email"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate(deal);
+              }}
+              title="Duplicate Deal"
+            >
+              <DuplicateIcon className="h-4 w-4" />
+            </Button>
+
+            {deal.status === "pending" && isCreator && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onVoid(deal.id);
+                }}
+                disabled={isVoiding === deal.id}
+                title="Void Deal"
+              >
+                {isVoiding === deal.id ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+
+            {deal.status === "confirmed" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2.5 text-[10px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onVerify(deal.publicId);
+                }}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" /> Verify
+              </Button>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div variants={itemVariants} layout className="group relative">
@@ -320,7 +479,7 @@ export default function AgreementsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   const [filterType, setFilterType] = useState<"all" | "active" | "completed" | "voided">("active");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = usePersistence<"grid" | "list">("proofo-view-mode-agreements", "grid");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
@@ -645,6 +804,7 @@ export default function AgreementsPage() {
                 isVoiding={isVoiding}
                 isNudging={isNudging}
                 nudgeSuccess={nudgeSuccess}
+                viewMode={viewMode}
               />
             ))}
           </motion.div>

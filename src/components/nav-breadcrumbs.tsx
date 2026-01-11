@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/store";
 
 export interface BreadcrumbItem {
   label: string;
@@ -16,6 +17,7 @@ interface NavBreadcrumbsProps {
 
 export function NavBreadcrumbs({ customItems, mobileItems }: NavBreadcrumbsProps) {
   const pathname = usePathname();
+  const { user } = useAppStore();
 
   // 1. Determine the trail items based on desktop vs mobile requirements
   const getDefaultItems = (isMobile: boolean): BreadcrumbItem[] => {
@@ -46,9 +48,11 @@ export function NavBreadcrumbs({ customItems, mobileItems }: NavBreadcrumbsProps
       });
     } else if (segments[0] === "deal" && segments[1] === "new") {
       // Dashboard/Agreements/New (Desktop) or Home/New (Mobile)
-      items.push({ label: isMobile ? "Home" : "Dashboard", href: "/dashboard" });
-      if (!isMobile) {
-        items.push({ label: "Agreements", href: "/dashboard/agreements" });
+      if (user) {
+        items.push({ label: isMobile ? "Home" : "Dashboard", href: "/dashboard" });
+        if (!isMobile) {
+          items.push({ label: "Agreements", href: "/dashboard/agreements" });
+        }
       }
       items.push({ label: "New", href: "/deal/new" });
     }

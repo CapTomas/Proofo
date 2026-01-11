@@ -93,6 +93,7 @@ export function TrustLevelSelector({
               className={cn(
                 "relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200",
                 "hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                !isDisabled && "cursor-pointer",
                 isSelected
                   ? cn(config.borderColor, config.bgColor, "shadow-sm")
                   : "border-border bg-background hover:border-muted-foreground/30",

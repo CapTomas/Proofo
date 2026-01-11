@@ -176,19 +176,4 @@ export const dealTemplates: DealTemplate[] = [
       },
     ],
   },
-  {
-    id: "custom",
-    name: "Custom Deal",
-    description: "Create a custom agreement with your own terms",
-    icon: "PenLine",
-    fields: [
-      {
-        id: "details",
-        label: "Deal Details",
-        type: "textarea",
-        placeholder: "Describe the full details of your agreement",
-        required: true,
-      },
-    ],
-  },
 ];

@@ -34,6 +34,7 @@ import {
   Loader2,
   AlertCircle,
   FileText,
+  LayoutTemplate,
   Handshake,
   Package,
   ArrowLeftRight,
@@ -291,7 +292,7 @@ export function CreateTemplateModal({
       <DialogContent className="max-w-2xl max-h-[90vh] rounded-2xl [&>button]:cursor-pointer flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
+            <LayoutTemplate className="h-5 w-5 text-primary" />
             {isEditing ? "Edit Template" : isDuplicating ? "Duplicate Template" : "Create Template"}
           </DialogTitle>
           <DialogDescription>
@@ -303,7 +304,7 @@ export function CreateTemplateModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4 overflow-y-auto flex-1">
+        <div className="space-y-6 py-4 px-1 overflow-y-auto flex-1">
           {/* Error Alert */}
           <AnimatePresence>
             {error && (

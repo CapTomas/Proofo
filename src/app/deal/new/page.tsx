@@ -59,6 +59,7 @@ import {
   slideUp,
   springContainerVariants,
   shakeVariant,
+  dashboardStyles,
 } from "@/lib/dashboard-ui";
 import { iconMap } from "@/lib/templates";
 import {
@@ -280,54 +281,6 @@ function NewDealContent() {
     }
   }, [currentStep]);
 
-  // Restoration Logic
-  useEffect(() => {
-    if (!user && (selectedTemplate || recipientName || recipientEmail || Object.keys(formData).length > 0)) {
-      const progressData = {
-        selectedTemplate: selectedTemplate?.id,
-        recipientName,
-        recipientEmail,
-        formData,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem("proofo-guest-form-progress", JSON.stringify(progressData));
-    }
-  }, [selectedTemplate, recipientName, recipientEmail, formData, user]);
-
-  useEffect(() => {
-    if (!user && !sourceId) {
-      const savedProgress = localStorage.getItem("proofo-guest-form-progress");
-      if (savedProgress) {
-        try {
-          const progress = JSON.parse(savedProgress);
-          if (Date.now() - progress.timestamp < 86400000) {
-            let restoredAny = false;
-            if (progress.selectedTemplate) {
-              const template = dealTemplates.find((t) => t.id === progress.selectedTemplate);
-              if (template) {
-                setSelectedTemplate(template);
-                setCurrentStep("details");
-                restoredAny = true;
-              }
-            }
-            if (progress.recipientName) { setRecipientName(progress.recipientName); restoredAny = true; }
-            if (progress.recipientEmail) { setRecipientEmail(progress.recipientEmail); restoredAny = true; }
-            if (progress.formData) { setFormData(progress.formData); restoredAny = true; }
-
-            if (restoredAny && !restored) {
-               setRestored(true);
-               toast("Draft Restored", { description: "We brought back your previous work." });
-            }
-          } else {
-            localStorage.removeItem("proofo-guest-form-progress");
-          }
-        } catch (e) {
-          console.error("Failed to restore form progress", e);
-        }
-      }
-    }
-  }, [user, sourceId, restored]);
-
   // Unsaved Changes Guard
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -498,6 +451,19 @@ function NewDealContent() {
          toast.error("Please enter a recipient name.");
          return;
        }
+       // Validate required fields
+       if (selectedTemplate) {
+         const missingRequiredFields = selectedTemplate.fields
+           .filter(field => field.required && !formData[field.id]?.trim())
+           .map(field => field.label);
+
+         if (missingRequiredFields.length > 0) {
+           setShake(true);
+           setTimeout(() => setShake(false), 500);
+           toast.error(`Please fill in required field${missingRequiredFields.length > 1 ? 's' : ''}: ${missingRequiredFields.join(", ")}`);
+           return;
+         }
+       }
        setCurrentStep("review");
     }
     else if (currentStep === "review") {
@@ -508,7 +474,7 @@ function NewDealContent() {
         handleCreateDeal();
       }
     }
-  }, [currentStep, user, handleCreateDeal, recipientName]);
+  }, [currentStep, user, handleCreateDeal, recipientName, selectedTemplate, formData]);
 
   const handleBack = useCallback(() => {
     if (currentStep === "details") {
@@ -839,7 +805,7 @@ function NewDealContent() {
                       initial="hidden" animate="show" exit="exit"
                       className="space-y-4 sm:space-y-6"
                     >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                         {dealTemplates.map((template, idx) => {
                           const Icon = iconMap[template.icon] || FileCheck;
                           return (
@@ -859,7 +825,7 @@ function NewDealContent() {
                                 onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
                               >
                                 <div className="flex flex-col h-full">
-                                  <div className="flex-1 p-4 pb-0 flex flex-col">
+                                  <div className="flex-1 p-5 pb-0 flex flex-col">
                                     {/* Header */}
                                     <div className="flex justify-between items-start mb-4">
                                       <div
@@ -879,7 +845,7 @@ function NewDealContent() {
                                     </div>
 
                                     {/* Content */}
-                                    <div className="mb-4 min-h-[4rem]">
+                                    <div className="mb-6 min-h-[4.5rem]">
                                       <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
                                         {template.name}
                                       </h3>
@@ -915,7 +881,7 @@ function NewDealContent() {
                                   </div>
 
                                   {/* Footer Action Bar */}
-                                  <div className="mt-auto px-4 py-3 flex items-center justify-between">
+                                  <div className={dashboardStyles.cardFooter}>
                                     <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
                                       Use Template
                                     </span>
@@ -940,7 +906,7 @@ function NewDealContent() {
                               {userTemplates.length}
                             </Badge>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                             {userTemplates.map((template, idx) => {
                               const Icon = iconMap[template.icon] || FileCheck;
                               return (
@@ -954,7 +920,7 @@ function NewDealContent() {
                                   className="h-full"
                                 >
                                   <div
-                                    className="group h-full flex flex-col overflow-hidden bg-card border border-primary/20 hover:border-primary/40 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
+                                    className="group h-full flex flex-col overflow-hidden bg-card border hover:border-primary/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
                                     onClick={() => handleTemplateSelect(template)}
                                     tabIndex={0}
                                     role="button"
@@ -962,27 +928,27 @@ function NewDealContent() {
                                     onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
                                   >
                                     <div className="flex flex-col h-full">
-                                      <div className="flex-1 p-4 pb-0 flex flex-col">
+                                      <div className="flex-1 p-5 pb-0 flex flex-col">
                                         {/* Header */}
                                         <div className="flex justify-between items-start mb-4">
                                           <div
                                             className={cn(
                                               "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
-                                              "bg-primary/5 border-primary/20 text-primary"
+                                              "bg-background border-border/50 text-muted-foreground group-hover:text-foreground group-hover:border-primary/20"
                                             )}
                                           >
                                             <Icon className="h-5 w-5" />
                                           </div>
                                           <Badge
                                             variant="outline"
-                                            className="text-[10px] h-5 px-1.5 font-medium bg-primary/5 text-primary border-primary/20"
+                                            className="text-[10px] h-5 px-1.5 font-medium bg-background text-muted-foreground border-border/50"
                                           >
                                             Custom
                                           </Badge>
                                         </div>
 
                                         {/* Content - Match built-in template height */}
-                                        <div className="mb-4 min-h-[4rem]">
+                                        <div className="mb-6 min-h-[4.5rem]">
                                           <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
                                             {template.name}
                                           </h3>
@@ -1018,7 +984,7 @@ function NewDealContent() {
                                       </div>
 
                                       {/* Footer Action Bar */}
-                                      <div className="mt-auto px-4 py-3 flex items-center justify-between">
+                                      <div className={dashboardStyles.cardFooter}>
                                         <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
                                           Use Template
                                         </span>

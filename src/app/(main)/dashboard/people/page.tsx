@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { usePersistence } from "@/hooks/usePersistence";
 import {
   ArrowRight,
   Users,
@@ -634,7 +635,7 @@ export default function PeoplePage() {
   const [roleFilter, setRoleFilter] = useState<"all" | "recipient" | "creator">("all");
   const [showHidden, setShowHidden] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOption>("recent");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = usePersistence<"grid" | "list">("proofo-view-mode-people", "grid");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newContact, setNewContact] = useState({ name: "", email: "" });
   const [customContacts, setCustomContacts] = useState<Contact[]>([]);

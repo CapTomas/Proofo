@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle, FileSignature, Command } from "lucide-react";
+import { Copy, Check, Clock, RefreshCw, CheckCircle2, XCircle, FileSignature, Command, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { dashboardStyles, getStatCardClass } from "@/lib/dashboard-ui";
@@ -240,6 +240,84 @@ export const CopyableId = ({ id, className }: { id: string; className?: string }
         </div>
       </Badge>
     </motion.div>
+  );
+};
+
+/**
+ * HorizontalTermsScroll - A container that handles horizontal scrolling for terms
+ * Shows left/right arrows when content overflows.
+ */
+export const HorizontalTermsScroll = ({ children }: { children: React.ReactNode }) => {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = React.useState(false);
+  const [showRight, setShowRight] = React.useState(false);
+
+  const checkScroll = React.useCallback(() => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      // Precision margin for floating point errors
+      const isScrollable = scrollWidth > clientWidth + 1;
+
+      // In flex-row-reverse, scrollLeft starts at 0 and grows negatively (in some browsers)
+      // or starts at max and grows towards 0.
+      // To simplify, we check if the actual rendered width is scrollable.
+      setShowRight(scrollLeft > 1 || (scrollLeft < -1)); // Any scroll
+      setShowLeft(isScrollable && Math.abs(scrollLeft) < (scrollWidth - clientWidth - 5));
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) {
+      // Small delay for initial render/badges layout
+      const timer = setTimeout(checkScroll, 100);
+      el.addEventListener("scroll", checkScroll);
+      window.addEventListener("resize", checkScroll);
+      return () => {
+        clearTimeout(timer);
+        el.removeEventListener("scroll", checkScroll);
+        window.removeEventListener("resize", checkScroll);
+      };
+    }
+  }, [checkScroll, children]);
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const scrollAmount = 150;
+      scrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  return (
+    <div className="relative flex items-center group/scroll w-full">
+      {showLeft && (
+        <button
+          onClick={(e) => { e.stopPropagation(); scroll("left"); }}
+          className="absolute -left-2 z-10 h-5 w-5 rounded-full flex items-center justify-center -ml-2.5 text-muted-foreground hover:text-foreground"
+          title="Scroll left"
+        >
+          <ChevronLeft className="h-3 w-3" />
+        </button>
+      )}
+      <div
+        ref={scrollRef}
+        className="flex flex-row-reverse items-center justify-start gap-2 overflow-x-auto no-scrollbar py-1 w-full"
+      >
+        {children}
+      </div>
+      {showRight && (
+        <button
+          onClick={(e) => { e.stopPropagation(); scroll("right"); }}
+          className="absolute -right-2 z-10 h-5 w-5 rounded-full flex items-center justify-center -mr-2.5 text-muted-foreground hover:text-foreground"
+          title="Scroll right"
+        >
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 };
 
