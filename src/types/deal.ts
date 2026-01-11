@@ -54,6 +54,16 @@ export interface TemplateField {
   defaultValue?: string;
 }
 
+export type TemplateTheme = "financial" | "services" | "personal" | "general";
+
+export interface UserTemplate extends DealTemplate {
+  userId: string;
+  isPublic: boolean;
+  theme: TemplateTheme;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface User {
   id: string;
   email: string;

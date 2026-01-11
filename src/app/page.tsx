@@ -1229,7 +1229,8 @@ export default function Home() {
 
         {/* Pricing */}
         <section id="pricing" className="py-24 border-t bg-secondary/10 scroll-mt-24">
-          <div className="container mx-auto px-4 text-center mb-16">
+          <div className="container mx-auto px-4 text-center mb-8
+          ">
             <h2 className="text-3xl font-bold tracking-tight mb-4">Pay for Proof. Not Overheads.</h2>
             <p className="text-muted-foreground">Start for free. Upgrade to seal unlimited deals.</p>
           </div>

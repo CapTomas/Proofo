@@ -43,9 +43,10 @@ import {
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { dealTemplates } from "@/lib/templates";
-import { DealTemplate, TemplateField, Deal, TrustLevel } from "@/types";
+import { DealTemplate, TemplateField, Deal, TrustLevel, UserTemplate } from "@/types";
 import { useAppStore, createNewDeal } from "@/store";
 import { createDealAction, getDealByIdAction, lookupUserByEmailAction } from "@/app/actions/deal-actions";
+import { getUserTemplatesAction, getTemplateByIdAction } from "@/app/actions/template-actions";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { LoginModal } from "@/components/login-modal";
 import { cn, getUserInitials } from "@/lib/utils";
@@ -160,13 +161,55 @@ function NewDealContent() {
   } | null>(null);
   const [isLookingUpEmail, setIsLookingUpEmail] = useState(false);
   const [trustLevel, setTrustLevel] = useState<TrustLevel>("basic");
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
   const { copyToClipboard } = useCopyToClipboard();
 
   const dealCreationInProgressRef = useRef(false);
   const topRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch user templates and handle URL template parameter
+  useEffect(() => {
+    const templateParam = searchParams.get("template");
 
+    const loadTemplates = async () => {
+      // Fetch user templates
+      try {
+        const { templates } = await getUserTemplatesAction();
+        setUserTemplates(templates || []);
+
+        // Handle URL template parameter
+        if (templateParam && !restored) {
+          // Check if it's a user template (format: user:<uuid>)
+          if (templateParam.startsWith("user:")) {
+            const templateId = templateParam.replace("user:", "");
+            const userTemplate = templates?.find(t => t.id === templateId);
+            if (userTemplate) {
+              handleTemplateSelect(userTemplate);
+              return;
+            }
+            // Try fetching directly if not in list
+            const { template } = await getTemplateByIdAction(templateId);
+            if (template) {
+              handleTemplateSelect(template);
+              return;
+            }
+          }
+
+          // Check built-in templates
+          const builtInTemplate = dealTemplates.find(t => t.id === templateParam);
+          if (builtInTemplate) {
+            handleTemplateSelect(builtInTemplate);
+          }
+        }
+      } catch {
+        // Silently fail - user may not be authenticated
+      }
+    };
+
+    loadTemplates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, restored]);
 
   // Auto-focus first input when entering details step
   useEffect(() => {
@@ -589,27 +632,13 @@ function NewDealContent() {
           <div className="relative">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">$</span>
             <Input {...commonProps} type="text" inputMode="decimal" className={cn(commonProps.className, "pl-8")} />
-            {/* Valid Indicator */}
-            {formData[field.id] && (
-               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
-                  <Check className="h-4 w-4" />
-               </motion.div>
-            )}
           </div>
         );
       default:
-        // Text inputs with validation check
-        const hasContent = formData[field.id]?.length > 2;
+        // Text inputs
         return (
           <div className="relative">
              <Input {...commonProps} />
-             <AnimatePresence>
-               {hasContent && (
-                  <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
-                     <Check className="h-4 w-4" />
-                  </motion.div>
-               )}
-             </AnimatePresence>
           </div>
         );
     }
@@ -898,6 +927,111 @@ function NewDealContent() {
                           )
                         })}
                       </div>
+
+                      {/* User Templates Section */}
+                      {userTemplates.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 mt-6 mb-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                              My Custom Templates
+                            </h3>
+                            <Badge variant="secondary" className="text-xs">
+                              {userTemplates.length}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+                            {userTemplates.map((template, idx) => {
+                              const Icon = iconMap[template.icon] || FileCheck;
+                              return (
+                                <motion.div
+                                  key={template.id}
+                                  variants={slideUp}
+                                  initial="hidden"
+                                  animate="show"
+                                  custom={idx + dealTemplates.length}
+                                  layout
+                                  className="h-full"
+                                >
+                                  <div
+                                    className="group h-full flex flex-col overflow-hidden bg-card border border-primary/20 hover:border-primary/40 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 relative cursor-pointer"
+                                    onClick={() => handleTemplateSelect(template)}
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label={`Select ${template.name} template`}
+                                    onKeyDown={(e) => e.key === "Enter" && handleTemplateSelect(template)}
+                                  >
+                                    <div className="flex flex-col h-full">
+                                      <div className="flex-1 p-4 pb-0 flex flex-col">
+                                        {/* Header */}
+                                        <div className="flex justify-between items-start mb-4">
+                                          <div
+                                            className={cn(
+                                              "h-10 w-10 rounded-lg flex items-center justify-center transition-colors border shadow-sm",
+                                              "bg-primary/5 border-primary/20 text-primary"
+                                            )}
+                                          >
+                                            <Icon className="h-5 w-5" />
+                                          </div>
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[10px] h-5 px-1.5 font-medium bg-primary/5 text-primary border-primary/20"
+                                          >
+                                            Custom
+                                          </Badge>
+                                        </div>
+
+                                        {/* Content - Match built-in template height */}
+                                        <div className="mb-4 min-h-[4rem]">
+                                          <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                                            {template.name}
+                                          </h3>
+                                          <p className="text-sm text-muted-foreground line-clamp-2">
+                                            {template.description || "No description"}
+                                          </p>
+                                        </div>
+
+                                        {/* Field Tags - with expandable badge */}
+                                        <div className="flex flex-wrap gap-1.5 mb-4 content-start flex-1 items-start">
+                                          {(expandedTemplates[template.id] ? template.fields : template.fields.slice(0, 3)).map((field) => (
+                                            <Badge
+                                              key={field.id}
+                                              variant="secondary"
+                                              className="text-[10px] px-1.5 py-0.5 font-normal bg-secondary/30 text-muted-foreground border border-transparent group-hover:border-border/50 transition-colors h-6 flex items-center"
+                                            >
+                                              {field.label}
+                                            </Badge>
+                                          ))}
+                                          {!expandedTemplates[template.id] && template.fields.length > 3 && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[10px] px-1.5 py-0.5 font-normal text-muted-foreground border-dashed h-6 flex items-center cursor-pointer hover:bg-secondary hover:text-foreground transition-colors"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setExpandedTemplates(prev => ({ ...prev, [template.id]: true }));
+                                              }}
+                                            >
+                                              +{template.fields.length - 3}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Footer Action Bar */}
+                                      <div className="mt-auto px-4 py-3 flex items-center justify-between">
+                                        <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                                          Use Template
+                                        </span>
+                                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </motion.div>
                   )}
 
@@ -1021,7 +1155,12 @@ function NewDealContent() {
                                 {/* Name second, with Required label */}
                                 <div className="grid gap-1.5">
                                   <Label htmlFor="recipientName" className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground ml-1 flex items-center">
-                                    Name <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-600 border border-red-500/20 font-bold ml-2 uppercase tracking-tight select-none">REQ</span>
+                                    Name <span className={cn(
+                                      "text-[9px] px-1.5 py-0.5 rounded-sm font-bold ml-2 uppercase tracking-tight select-none border transition-colors duration-200",
+                                      recipientName
+                                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                        : "bg-red-500/10 text-red-600 border-red-500/20"
+                                    )}>REQ</span>
                                   </Label>
                                   <Input
                                     id="recipientName"
@@ -1063,7 +1202,14 @@ function NewDealContent() {
                                       )}
                                     </div>
                                     <Label htmlFor={field.id} className="text-sm font-medium pt-1 cursor-pointer flex items-center gap-2">
-                                      {field.label} {field.required && <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-600 border border-red-500/20 font-bold uppercase tracking-tight select-none">REQ</span>}
+                                      {field.label} {field.required && (
+                                        <span className={cn(
+                                          "text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tight select-none border transition-colors duration-200",
+                                          formData[field.id]
+                                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                            : "bg-red-500/10 text-red-600 border-red-500/20"
+                                        )}>REQ</span>
+                                      )}
                                     </Label>
                                   </div>
                                   <div className="w-full">

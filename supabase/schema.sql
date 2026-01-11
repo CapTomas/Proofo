@@ -195,6 +195,20 @@ CREATE TABLE IF NOT EXISTS public.verification_codes (
   UNIQUE(deal_id, verification_type)
 );
 
+-- User Templates table (for custom templates)
+CREATE TABLE IF NOT EXISTS public.user_templates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  icon TEXT DEFAULT 'file-text',
+  theme TEXT DEFAULT 'general',
+  fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_public BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ============================================
 -- 3b. COLUMN MIGRATIONS (for existing databases)
 -- ============================================
@@ -223,6 +237,9 @@ ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS compact_mode BOOLEA
 ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS font_scale NUMERIC(3,2) DEFAULT 1.00;
 ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS reduced_motion BOOLEAN DEFAULT FALSE;
 
+-- User templates new columns
+ALTER TABLE public.user_templates ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'general';
+
 -- ============================================
 -- 4. INDEXES
 -- ============================================
@@ -243,6 +260,7 @@ CREATE INDEX IF NOT EXISTS idx_deal_verifications_deal_id ON public.deal_verific
 CREATE INDEX IF NOT EXISTS idx_verification_codes_deal_id ON public.verification_codes(deal_id);
 CREATE INDEX IF NOT EXISTS idx_verification_codes_expires ON public.verification_codes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_phone ON public.profiles(phone);
+CREATE INDEX IF NOT EXISTS idx_user_templates_user_id ON public.user_templates(user_id);
 
 -- ============================================
 -- 5. ROW LEVEL SECURITY
@@ -255,6 +273,7 @@ ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deal_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verification_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_templates ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- 6. RLS POLICIES
@@ -352,6 +371,17 @@ CREATE POLICY "Users can view deal verifications" ON public.deal_verifications F
 -- Verification Codes (very restrictive - use RPC functions)
 DROP POLICY IF EXISTS "No direct access to verification codes" ON public.verification_codes;
 CREATE POLICY "No direct access to verification codes" ON public.verification_codes FOR ALL USING (false);
+
+-- User Templates
+DROP POLICY IF EXISTS "Users can view their own templates" ON public.user_templates;
+DROP POLICY IF EXISTS "Users can create their own templates" ON public.user_templates;
+DROP POLICY IF EXISTS "Users can update their own templates" ON public.user_templates;
+DROP POLICY IF EXISTS "Users can delete their own templates" ON public.user_templates;
+
+CREATE POLICY "Users can view their own templates" ON public.user_templates FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can create their own templates" ON public.user_templates FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own templates" ON public.user_templates FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own templates" ON public.user_templates FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================
 -- 7. FUNCTIONS & TRIGGERS
