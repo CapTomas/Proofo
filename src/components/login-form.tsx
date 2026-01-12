@@ -35,6 +35,7 @@ interface LoginFormProps {
   title?: string;
   description?: string;
   onSuccess?: () => void;
+  onClose?: () => void;
   redirectTo?: string;
   className?: string;
 }
@@ -43,6 +44,7 @@ export function LoginForm({
   title = "Welcome back",
   description = "Sign in to manage your deals",
   onSuccess,
+  onClose,
   redirectTo,
   className,
 }: LoginFormProps) {
@@ -354,7 +356,11 @@ export function LoginForm({
           <div className="pt-2">
             <p className="text-center text-sm text-muted-foreground">
               New to Proofo?{" "}
-              <Link href="/#how-it-works" className="text-primary font-medium hover:underline">
+              <Link
+                href="/#how-it-works"
+                className="text-primary font-medium hover:underline"
+                onClick={() => onClose?.()}
+              >
                 Discover how it works
               </Link>
             </p>

@@ -52,6 +52,7 @@ export function LoginModal({
           title={title}
           description={description}
           redirectTo={redirectTo}
+          onClose={() => onOpenChange(false)}
           onSuccess={() => {
             onOpenChange(false);
             onSuccess?.();

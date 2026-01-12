@@ -340,7 +340,7 @@ export default function DemoPage() {
                         </div>
 
                         <Button
-                            className="w-full h-14 text-base font-semibold shadow-lg shadow-primary/20 rounded-xl"
+                            className="w-full h-14 border shadow-sm hover:text-accent-foreground text-base bg-emerald-soft border-emerald-border text-emerald-text hover:bg-emerald-soft hover:border-emerald-border/60 hover:shadow-lg hover:shadow-emerald-soft/20 hover:scale-[1.02]"
                             size="lg"
                             onClick={() => setCurrentStep("sign")}
                         >
@@ -446,7 +446,7 @@ export default function DemoPage() {
                                 Back to Terms
                             </Button>
                             <Button
-                                className="w-full rounded-xl shadow-lg shadow-emerald-soft/20 gap-2 text-base font-bold h-12 order-1 sm:order-2 bg-emerald-soft border border-emerald-border text-emerald-muted hover:bg-emerald-soft/80"
+                                className="w-full rounded-xl shadow-sm hover:text-accent-foreground shadow-emerald-soft/20 gap-2 text-base font-bold h-12 order-1 sm:order-2 bg-emerald-soft border-emerald-border border text-emerald-text hover:bg-emerald-soft hover:border-emerald-border/60 hover:shadow-lg hover:shadow-emerald-soft/20 hover:scale-[1.02]"
                                 onClick={handleSign}
                                 disabled={!signature}
                             >
@@ -491,7 +491,7 @@ export default function DemoPage() {
                         </div>
 
                          {/* Success Card */}
-                         <div className="bg-emerald-muted/10 border border-emerald-muted/30 rounded-lg p-3 flex items-center gap-3">
+                         <div className="bg-emerald-muted/10 border border-emerald-muted/30 rounded-xl p-3 flex items-center gap-3">
                              <div className="h-6 w-6 rounded-full bg-emerald-muted/20 flex items-center justify-center text-emerald-muted shrink-0">
                                  <Sparkles className="h-3.5 w-3.5" />
                              </div>
