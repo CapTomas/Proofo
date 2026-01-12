@@ -18,6 +18,7 @@ import { signInWithEmail, signInWithGoogle, isSupabaseConfigured } from "@/lib/s
 import { useAppStore } from "@/store";
 
 import { LoginForm } from "./login-form";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
 interface LoginModalProps {
   open: boolean;
@@ -43,6 +44,10 @@ export function LoginModal({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent hideClose className="sm:max-w-md p-0 border-none bg-transparent shadow-none">
+        <VisuallyHidden>
+          <DialogTitle>{title || "Sign In"}</DialogTitle>
+          <DialogDescription>{description || "Sign in to manage your deals"}</DialogDescription>
+        </VisuallyHidden>
         <LoginForm
           title={title}
           description={description}
