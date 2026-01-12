@@ -254,9 +254,9 @@ function VerifyContent() {
             >
               <Badge
                 variant="secondary"
-                className="mb-6 px-4 py-1.5 bg-secondary/50 border-0 text-foreground"
+                className="mb-6 px-4 py-1.5 bg-emerald-soft border border-emerald-border text-emerald-muted"
               >
-                <Shield className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                <Shield className="h-3.5 w-3.5 mr-1.5 text-emerald-muted" />
                 Deal Verification
               </Badge>
 
@@ -278,16 +278,33 @@ function VerifyContent() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="hidden lg:block pt-4"
               >
-              <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm">
+              <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm group">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
                   <div className="relative z-10">
-                  <h3 className="text-2xl font-bold mb-3">Ready to proof it?</h3>
-                  <p className="text-muted-foreground mb-8 text-base">
+                  <h3 className="text-2xl font-bold mb-3">
+                    Ready to{" "}
+                    <span className="relative inline-block">
+                        <motion.span
+                            className="absolute inset-0 bg-emerald-muted/20 rounded-lg"
+                            style={{
+                                marginInline: 'calc(var(--spacing) * -1)',
+                                paddingInline: 'var(--spacing)'
+                            }}
+                            initial={{ scaleX: 0, originX: 0 }}
+                            whileInView={{ scaleX: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                        />
+                        <span className="relative text-emerald-muted">proof it?</span>
+                    </span>
+                  </h3>
+                  <p className="text-muted-foreground mb-8 text-base leading-relaxed">
                       Stop hoping they&apos;ll keep their word. Start proving they agreed.
                   </p>
                   <Link href="/deal/new">
                       <Button
                       size="xl"
-                      className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
+                      className="w-full text-base rounded-2xl shadow-lg shadow-emerald-soft/20 h-14 bg-foreground text-background hover:bg-foreground/90 transition-all font-bold"
                       >
                       Create Your First Deal
                       <ArrowRight className="ml-2 h-5 w-5" />
@@ -403,7 +420,6 @@ function VerifyContent() {
                       <div className="mt-4 pt-4 border-t border-border/40">
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <PlayCircle className="h-4 w-4 text-primary" />
                             <span>Want to see how verification works?</span>
                           </div>
                           <Button
@@ -411,9 +427,12 @@ function VerifyContent() {
                             size="sm"
                             onClick={() => performSearch(DEMO_DEAL_ID, true)}
                             disabled={isSearching}
-                            className="h-9 px-4 text-xs gap-2 rounded-lg border-primary/20 hover:bg-primary/5 hover:border-primary/40 transition-all group w-full sm:w-auto"
+                            className="h-9 px-4 text-xs gap-2 rounded-lg border-emerald-border/40 bg-emerald-soft/30 hover:bg-emerald-soft/50 hover:border-emerald-border transition-all group w-full sm:w-auto text-emerald-muted font-bold"
                           >
-                            <PlayCircle className="h-3.5 w-3.5 text-primary group-hover:scale-110 transition-transform" />
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-muted opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-muted"></span>
+                            </span>
                             Try Demo Verification
                             <ArrowRight className="h-3 w-3 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                           </Button>
@@ -425,7 +444,7 @@ function VerifyContent() {
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                         <div className={cn(
                           "h-1.5 w-1.5 rounded-full transition-all duration-500",
-                          isSearching ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                          isSearching ? "bg-amber-500 animate-pulse" : "bg-emerald-muted"
                         )} />
                         {isSearching ? "Cryptographic calculation in progress..." : "Verification service active & ready"}
                       </div>

@@ -1883,13 +1883,17 @@ export default function Home() {
                     viewport={{ once: false, margin: "-20%" }}
                   >
                     <motion.span
-                      className="absolute inset-0 bg-emerald-muted/30 rounded-lg -mx-4 px-4"
+                      className="absolute inset-0 bg-emerald-muted/30 rounded-lg"
+                      style={{
+                        marginInline: 'calc(var(--spacing) * -1)',
+                        paddingInline: 'var(--spacing)'
+                      }}
                       initial={{ scaleX: 0, originX: 0 }}
                       whileInView={{ scaleX: 1 }}
                       viewport={{ once: false, margin: "-20%" }}
                       transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
                     />
-                    <span className="relative text-emerald-text">proof it?</span>
+                    <span className="relative text-emerald-muted font-bold">proof it?</span>
                   </motion.span>
                 </h2>
                 <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">

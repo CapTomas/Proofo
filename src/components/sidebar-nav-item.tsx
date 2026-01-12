@@ -64,7 +64,7 @@ export function SidebarNavItem({
             <Icon className={cn(
               "h-4.5 w-4.5 transition-colors",
               isActive ? "text-primary" :
-              isCompleted ? "text-emerald-500 dark:text-emerald-500/60" :
+              isCompleted ? "text-emerald-muted" :
               "text-muted-foreground group-hover:text-foreground"
             )} />
             {hasNotification && (
@@ -89,7 +89,7 @@ export function SidebarNavItem({
           <div className={cn(
             "h-5 w-5 flex items-center justify-center text-xs font-medium shrink-0 transition-all",
             isActive ? "text-primary" :
-            isCompleted ? "text-emerald-500" : "text-muted-foreground"
+            isCompleted ? "text-emerald-muted" : "text-muted-foreground"
           )}>
              {isCompleted && children ? children : <span>{index + 1}</span>}
           </div>

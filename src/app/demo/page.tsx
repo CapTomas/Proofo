@@ -29,7 +29,8 @@ import {
   RefreshCw,
   Copy,
   Check,
-  Calendar
+  Calendar,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -112,9 +113,9 @@ export default function DemoPage() {
                 >
                 <Badge
                     variant="secondary"
-                    className="mb-6 px-4 py-1.5 bg-secondary/50 border-0 text-foreground"
+                    className="mb-6 px-4 py-1.5 bg-emerald-muted/10 border-emerald-muted/30 text-emerald-muted"
                 >
-                    <PlayCircle className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                    <Zap className="h-3.5 w-3.5 mr-1.5 text-emerald-muted fill-emerald-muted/20" />
                     Interactive Demo
                 </Badge>
 
@@ -135,16 +136,33 @@ export default function DemoPage() {
                 transition={{ delay: 0.2, duration: 0.5 }}
                 className="hidden lg:block pt-4"
                 >
-                <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm">
+                <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm group">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
                     <div className="relative z-10">
-                    <h3 className="text-2xl font-bold mb-3">Ready to proof it?</h3>
-                    <p className="text-muted-foreground mb-8 text-base">
+                    <h3 className="text-2xl font-bold mb-3">
+                        Ready to{" "}
+                        <span className="relative inline-block">
+                            <motion.span
+                                className="absolute inset-0 bg-emerald-muted/20 rounded-lg"
+                                style={{
+                                    marginInline: 'calc(var(--spacing) * -1)',
+                                    paddingInline: 'var(--spacing)'
+                                }}
+                                initial={{ scaleX: 0, originX: 0 }}
+                                whileInView={{ scaleX: 1 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                            />
+                            <span className="relative text-emerald-muted">proof it?</span>
+                        </span>
+                    </h3>
+                    <p className="text-muted-foreground mb-8 text-base leading-relaxed">
                         Stop hoping they&apos;ll keep their word. Start proving they agreed.
                     </p>
                     <Link href="/deal/new">
                         <Button
                         size="xl"
-                        className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
+                        className="w-full text-base rounded-2xl shadow-lg shadow-emerald-soft/20 h-14 bg-foreground text-background hover:bg-foreground/90 transition-all font-bold"
                         >
                         Create Your First Deal
                         <ArrowRight className="ml-2 h-5 w-5" />
@@ -178,7 +196,7 @@ export default function DemoPage() {
                                 <div>
                                     <h1 className="text-xl font-bold tracking-tight">Review Agreement</h1>
                                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/10">
+                                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider">
                                             Step 1 of 2
                                         </Badge>
                                         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -308,14 +326,14 @@ export default function DemoPage() {
                         {/* Trust Indicators */}
                         <div className="flex flex-wrap justify-center gap-6 my-6 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                    <Shield className="h-4 w-4 text-emerald-600" />
+                                <div className="h-8 w-8 rounded-full bg-emerald-muted/10 flex items-center justify-center">
+                                    <Shield className="h-4 w-4 text-emerald-muted" />
                                 </div>
                                 <span>Encrypted</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                    <Lock className="h-4 w-4 text-emerald-600" />
+                                <div className="h-8 w-8 rounded-full bg-emerald-muted/10 flex items-center justify-center">
+                                    <Lock className="h-4 w-4 text-emerald-muted" />
                                 </div>
                                 <span>Sealed</span>
                             </div>
@@ -351,7 +369,7 @@ export default function DemoPage() {
                                 <div>
                                     <h1 className="text-2xl font-bold tracking-tight">Sign Agreement</h1>
                                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/10">
+                                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider">
                                             Step 2 of 2
                                         </Badge>
                                         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -428,7 +446,7 @@ export default function DemoPage() {
                                 Back to Terms
                             </Button>
                             <Button
-                                className="w-full rounded-xl shadow-lg shadow-primary/20 gap-2 text-base font-bold h-12 order-1 sm:order-2"
+                                className="w-full rounded-xl shadow-lg shadow-emerald-soft/20 gap-2 text-base font-bold h-12 order-1 sm:order-2 bg-emerald-soft border border-emerald-border text-emerald-muted hover:bg-emerald-soft/80"
                                 onClick={handleSign}
                                 disabled={!signature}
                             >
@@ -451,13 +469,13 @@ export default function DemoPage() {
                          {/* Header - Resized to match Step 1 */}
                          <div className="pl-1 mb-2">
                              <div className="flex items-center gap-3 mb-2">
-                                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                                <div className="h-10 w-10 rounded-xl bg-emerald-muted/10 flex items-center justify-center text-emerald-muted border border-emerald-muted/30">
                                     <Handshake className="h-5 w-5" />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-3">
                                         <h1 className="text-xl font-bold tracking-tight">Deal Sealed</h1>
-                                        <Badge variant="outline" className="gap-1.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 h-6 px-2.5">
+                                        <Badge variant="outline" className="gap-1.5 bg-emerald-muted/10 border-emerald-muted/30 text-emerald-muted h-6 px-2.5">
                                             <CheckCircle2 className="h-3.5 w-3.5" /> Verified
                                         </Badge>
                                     </div>
@@ -473,12 +491,12 @@ export default function DemoPage() {
                         </div>
 
                          {/* Success Card */}
-                         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 flex items-center gap-3">
-                             <div className="h-6 w-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-600 shrink-0">
+                         <div className="bg-emerald-muted/10 border border-emerald-muted/30 rounded-lg p-3 flex items-center gap-3">
+                             <div className="h-6 w-6 rounded-full bg-emerald-muted/20 flex items-center justify-center text-emerald-muted shrink-0">
                                  <Sparkles className="h-3.5 w-3.5" />
                              </div>
                              <div>
-                                 <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">All parties have signed successfully.</p>
+                                 <p className="text-sm font-semibold text-emerald-muted">All parties have signed successfully.</p>
                              </div>
                          </div>
 

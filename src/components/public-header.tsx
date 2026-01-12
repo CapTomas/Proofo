@@ -164,7 +164,7 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
               <div className="h-4 w-px bg-border/50 mx-1" />
 
               <Link href="/demo" className={getLinkClass("demo", true)}>
-                <Sparkles className="h-3.5 w-3.5" />
+                <Zap className="h-3.5 w-3.5" />
                 Demo
               </Link>
               <Link href="/verify" className={getLinkClass("verify", true)}>

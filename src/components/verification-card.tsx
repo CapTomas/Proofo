@@ -81,9 +81,9 @@ const getStatusConfig = (status: VerificationStatus) => {
     case "valid":
       return {
         label: "Authentic & Verified",
-        color: "text-emerald-600 dark:text-emerald-400",
-        bg: "bg-emerald-50 dark:bg-emerald-950/20",
-        border: "border-emerald-200 dark:border-emerald-800",
+        color: "text-emerald-muted",
+        bg: "bg-emerald-soft",
+        border: "border-emerald-border/50",
         icon: CheckCircle2,
         description: "Cryptographic proof matches our ledger.",
         spin: false,
@@ -199,7 +199,7 @@ export const VerificationCard = ({
           <div className="p-5 flex flex-col sm:flex-row items-start gap-4">
               <div className={cn(
                 "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border shadow-sm",
-                verificationStatus === "valid" ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "bg-background"
+                verificationStatus === "valid" ? "bg-emerald-soft text-emerald-muted border-emerald-border" : "bg-background"
               )}>
                 <StatusIcon className={cn("h-5 w-5", config.color, config.spin && "animate-spin")} />
               </div>
@@ -214,7 +214,7 @@ export const VerificationCard = ({
                   </p>
 
                   {verificationStatus === "valid" && (
-                    <div className="flex items-center gap-2 pt-2 mt-2 border-t border-emerald-200/50 dark:border-emerald-800/30 text-xs text-emerald-700/80 dark:text-emerald-400/80">
+                    <div className="flex items-center gap-2 pt-2 mt-2 border-t border-emerald-border/30 text-xs text-emerald-muted">
                         <Check className="h-3.5 w-3.5" />
                         <span>Cryptographically Verified • Immutable • Signed by all parties</span>
                     </div>
@@ -225,23 +225,23 @@ export const VerificationCard = ({
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className={cn("h-1 w-full origin-left", verificationStatus === "valid" ? "bg-emerald-500" : verificationStatus === "invalid" ? "bg-destructive" : "bg-primary")}
+            className={cn("h-1 w-full origin-left", verificationStatus === "valid" ? "bg-emerald-muted" : verificationStatus === "invalid" ? "bg-destructive" : "bg-primary")}
           />
         </Card>
 
         {/* 2.5 Verified Identity Attributes */}
         {deal.verifications && deal.verifications.length > 0 && (
-          <Card className="border border-emerald-500/20 shadow-sm bg-emerald-500/5 rounded-xl overflow-hidden">
+          <Card className="border border-emerald-border/20 shadow-sm bg-emerald-soft/50 rounded-xl overflow-hidden">
             <CardContent className="p-5 md:p-6">
-              <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-4">
+              <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-emerald-muted mb-4">
                 <ShieldCheck className="h-4 w-4" />
                 Verified Identity Attributes
               </div>
               <div className="space-y-3">
                 {deal.verifications.map((v, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background border border-emerald-500/10">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background border border-emerald-border/20">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <div className="h-8 w-8 rounded-full bg-emerald-soft flex items-center justify-center text-emerald-muted">
                         {v.verification_type === "email" ? (
                           <Mail className="h-4 w-4" />
                         ) : (
@@ -335,7 +335,7 @@ export const VerificationCard = ({
         {/* 4. Cryptographic Proof */}
         <Card className={cn(
           "shadow-sm bg-card rounded-xl overflow-hidden border transition-all duration-500",
-          verificationStatus === "valid" ? "border-emerald-200 dark:border-emerald-800 shadow-lg shadow-emerald-500/5" : "border-border"
+          verificationStatus === "valid" ? "border-emerald-border shadow-lg shadow-emerald-soft/50" : "border-border"
         )}>
           <CardContent className="p-5 md:p-6">
               <div className="space-y-4">
@@ -399,7 +399,7 @@ export const VerificationCard = ({
                               key="matched"
                               initial={{ opacity: 0, x: 10 }}
                               animate={{ opacity: 1, x: 0 }}
-                              className="text-[9px] text-emerald-600 font-bold flex items-center gap-1 tracking-widest bg-emerald-500/10 px-1.5 py-0.5 rounded"
+                              className="text-[9px] text-emerald-muted font-bold flex items-center gap-1 tracking-widest bg-emerald-soft px-1.5 py-0.5 rounded border border-emerald-border/50"
                             >
                               <Check className="h-2.5 w-2.5" />
                               MATCHED
@@ -420,13 +420,13 @@ export const VerificationCard = ({
                     </div>
                     <div className={cn(
                       "p-3 rounded-xl border transition-all duration-500",
-                      verificationStatus === "valid" ? "bg-emerald-500/5 border-emerald-500/30 shadow-inner" :
+                      verificationStatus === "valid" ? "bg-emerald-soft border-emerald-border/50 shadow-inner" :
                       verificationStatus === "invalid" ? "bg-destructive/5 border-destructive/30 shadow-inner" :
                       "bg-secondary/30 border-border/50"
                     )}>
                       <code className={cn(
                         "text-[10px] font-mono break-all block",
-                        verificationStatus === "valid" ? "text-emerald-600 font-medium" :
+                        verificationStatus === "valid" ? "text-emerald-muted font-medium" :
                         verificationStatus === "invalid" ? "text-destructive font-medium" :
                         "text-muted-foreground"
                       )}>
@@ -442,18 +442,18 @@ export const VerificationCard = ({
                 <div className="flex items-center justify-between pt-3 border-t border-border/10">
                   <div className={cn(
                     "flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors",
-                    verificationStatus === "valid" ? "text-emerald-600" : "text-muted-foreground/60"
+                    verificationStatus === "valid" ? "text-emerald-muted" : "text-muted-foreground/60"
                   )}>
                     <Lock className={cn(
                       "h-3 w-3",
-                      verificationStatus === "valid" ? "text-emerald-500 animate-[pulse_2s_infinite]" : ""
+                      verificationStatus === "valid" ? "text-emerald-muted animate-pulse" : ""
                     )} />
                     SHA-256 Handshake Protocol
                   </div>
                   {verificationStatus === "valid" && (
                     <div className="flex items-center gap-2">
-                       <span className="text-[10px] text-emerald-600/60 font-medium">100% Confidence</span>
-                       <Badge variant="outline" className="text-[9px] h-4 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-1.5 font-bold">
+                       <span className="text-[10px] text-emerald-muted/60 font-medium">100% Confidence</span>
+                       <Badge variant="outline" className="text-[9px] h-4 bg-emerald-soft text-emerald-muted border-emerald-border px-1.5 font-bold">
                         VERIFIED
                       </Badge>
                     </div>

@@ -759,7 +759,7 @@ function NewDealContent() {
             {/* Secure & Immutable Agreements (Banner Style) */}
             <div
               className={cn(
-                "rounded-xl bg-linear-to-br from-emerald-500/5 via-emerald-500/10 to-transparent border border-emerald-500/10 transition-all duration-300 overflow-hidden",
+                "rounded-xl bg-emerald-soft border border-emerald-border transition-all duration-300 overflow-hidden",
                 isSidebarCollapsed ? "p-0" : "p-4"
               )}
             >
@@ -768,7 +768,7 @@ function NewDealContent() {
                   <TooltipTrigger asChild>
                     <div className="w-full h-10 flex items-center justify-center shrink-0">
                       <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                        <Shield className="h-4 w-4 text-emerald-500" />
+                        <Shield className="h-4 w-4 text-emerald-muted" />
                       </div>
                     </div>
                   </TooltipTrigger>
@@ -779,10 +779,10 @@ function NewDealContent() {
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-8 h-8 flex items-center justify-center shrink-0">
                       <div className="p-1.5 rounded-lg bg-background shadow-sm">
-                        <Shield className="h-3.5 w-3.5 text-emerald-500" />
+                        <Shield className="h-3.5 w-3.5 text-emerald-muted" />
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-tight text-emerald-600">Secure Protocol</span>
+                    <span className="text-[10px] font-bold uppercase tracking-tight text-emerald-muted">Secure Protocol</span>
                   </div>
                   <div className="pl-11 pr-2">
                     <p className="text-[10px] text-muted-foreground leading-relaxed">

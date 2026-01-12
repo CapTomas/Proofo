@@ -175,13 +175,13 @@ export function SealedDealView({
               <div className="flex items-center gap-1.5 mt-4 pt-4 border-t border-border/50">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Identity Verified:</span>
                 {deal.verifications.some(v => v.verification_type === "email") && (
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-soft border border-emerald-border text-emerald-muted">
                     <Mail className="h-2.5 w-2.5" />
                     <span className="text-[9px] font-medium uppercase tracking-wider">Email</span>
                   </div>
                 )}
                 {deal.verifications.some(v => v.verification_type === "phone") && (
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-soft border border-emerald-border text-emerald-muted">
                     <Smartphone className="h-2.5 w-2.5" />
                     <span className="text-[9px] font-medium uppercase tracking-wider">Phone</span>
                   </div>
@@ -235,7 +235,7 @@ export function SealedDealView({
       {showSignatureSeal && isSealed && (deal.signatureUrl || deal.dealSeal) && (
         <motion.div variants={slideUp} className="mt-4">
           <Card className={`shadow-sm bg-card rounded-xl overflow-hidden border ${
-            isRecipient ? "border-sky-500/20" : "border-emerald-500/20"
+            isRecipient ? "border-sky-500/20" : "border-emerald-border"
           }`}>
             <CardContent className="p-5 md:p-6">
               <div className="grid sm:grid-cols-2 gap-6">
@@ -272,7 +272,7 @@ export function SealedDealView({
                       </code>
                       <div className="flex items-center justify-between mt-2">
                         <div className={`flex items-center gap-1.5 text-xs ${
-                          isRecipient ? "text-sky-600" : "text-emerald-600"
+                          isRecipient ? "text-sky-600" : "text-emerald-muted"
                         }`}>
                           <Lock className="h-3 w-3" />
                           SHA-256
@@ -293,17 +293,17 @@ export function SealedDealView({
       {/* Verified Identity Attributes Card (for sealed deals) */}
       {isSealed && deal.verifications && deal.verifications.length > 0 && (
         <motion.div variants={slideUp} className="mt-4">
-          <Card className="border border-emerald-500/20 shadow-sm bg-emerald-500/5 rounded-xl overflow-hidden">
+          <Card className="border border-emerald-border shadow-sm bg-emerald-soft rounded-xl overflow-hidden">
             <CardContent className="p-5 md:p-6">
-              <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-4">
+              <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-emerald-muted mb-4">
                 <ShieldCheck className="h-4 w-4" />
                 Verified Identity Attributes
               </div>
               <div className="space-y-3">
                 {deal.verifications.map((v, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background border border-emerald-500/10">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background border border-emerald-border/20">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <div className="h-8 w-8 rounded-full bg-emerald-soft flex items-center justify-center text-emerald-muted">
                         {v.verification_type === "email" ? (
                           <Mail className="h-4 w-4" />
                         ) : (
