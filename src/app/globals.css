@@ -27,6 +27,11 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
 
+  --color-emerald-soft: var(--emerald-soft);
+  --color-emerald-border: var(--emerald-border);
+  --color-emerald-text: var(--emerald-text);
+  --color-emerald-muted: var(--emerald-muted);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -40,8 +45,10 @@
 
 :root {
   /* Light Mode: Warm Paper */
-  --background: #f9f9f9; /* Slightly warmer than pure white */
-  --foreground: #111111; /* Soft black */
+  --background: #f9f9f9;
+  /* Slightly warmer than pure white */
+  --foreground: #111111;
+  /* Soft black */
 
   --card: #ffffff;
   --card-foreground: #111111;
@@ -52,7 +59,8 @@
   --primary: #111111;
   --primary-foreground: #ffffff;
 
-  --secondary: #f2f2f2; /* Very light grey */
+  --secondary: #f2f2f2;
+  /* Very light grey */
   --secondary-foreground: #111111;
 
   --muted: #f4f4f5;
@@ -78,7 +86,16 @@
   --foreground-rgb: 17, 17, 17;
   --background-rgb: 249, 249, 249;
 
-  --radius: 0.5rem; /* Tighter radius for a more technical feel */
+  --radius: 0.5rem;
+  /* Tighter radius for a more technical feel */
+
+  /* Unified Emerald Tokens */
+  --emerald-soft: rgba(16, 185, 129, 0.1);
+  --emerald-border: rgba(16, 185, 129, 0.3);
+  --emerald-text: #064e3b;
+  /* emerald-900 */
+  --emerald-muted: #047857;
+  /* emerald-700 */
 }
 
 .dark {
@@ -86,7 +103,8 @@
   --background: #0a0a0a;
   --foreground: #ededed;
 
-  --card: #121212; /* Distinct from background */
+  --card: #121212;
+  /* Distinct from background */
   --card-foreground: #ededed;
 
   --popover: #121212;
@@ -113,32 +131,46 @@
   --warning: #d97706;
   --warning-foreground: #ffffff;
 
-  --border: #262626; /* Subtle dark border */
+  --border: #262626;
+  /* Subtle dark border */
   --input: #262626;
   --ring: #555555;
 
   --primary-rgb: 237, 237, 237;
   --foreground-rgb: 237, 237, 237;
   --background-rgb: 10, 10, 10;
+
+  /* Unified Emerald Tokens */
+  --emerald-soft: rgba(16, 185, 129, 0.08);
+  /* Slightly more transparent for dark mode */
+  --emerald-border: rgba(16, 185, 129, 0.25);
+  --emerald-text: #34d399;
+  /* emerald-400 */
+  --emerald-muted: #10b981;
+  /* emerald-500 */
 }
 
 @layer base {
   html {
     scrollbar-gutter: stable;
   }
+
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
-    background: transparent; /* Completely clear track */
+    background: transparent;
+    /* Completely clear track */
   }
 
   ::-webkit-scrollbar-track {
@@ -146,7 +178,8 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: transparent; /* Hidden by default */
+    background-color: transparent;
+    /* Hidden by default */
     border-radius: 20px;
     /* This creates the logic to show it only when scrolling or hovering,
        simulated by making it match the background or be transparent until hover */
@@ -177,12 +210,14 @@
   .shadow-subtle {
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   }
+
   /* Architectural layering */
   .shadow-card {
     box-shadow:
       0 2px 8px -2px rgba(0, 0, 0, 0.05),
       0 0 1px rgba(0, 0, 0, 0.1);
   }
+
   .dark .shadow-card {
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.05),
@@ -242,15 +277,15 @@ html.compact-mode {
   gap: 1.25rem;
 }
 
-.compact-mode .space-y-4 > * + * {
+.compact-mode .space-y-4>*+* {
   margin-top: 0.75rem;
 }
 
-.compact-mode .space-y-6 > * + * {
+.compact-mode .space-y-6>*+* {
   margin-top: 1rem;
 }
 
-.compact-mode .space-y-8 > * + * {
+.compact-mode .space-y-8>*+* {
   margin-top: 1.25rem;
 }
 
@@ -275,6 +310,7 @@ html.reduced-motion *::after {
 
 /* Respect system preference for reduced motion when class not explicitly set */
 @media (prefers-reduced-motion: reduce) {
+
   html:not(.reduced-motion-off) *,
   html:not(.reduced-motion-off) *::before,
   html:not(.reduced-motion-off) *::after {
@@ -289,6 +325,7 @@ html.reduced-motion *::after {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

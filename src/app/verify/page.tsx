@@ -272,30 +272,30 @@ function VerifyContent() {
             </motion.div>
 
             {/* CTA Box */}
-            <motion.div
+              <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
               className="hidden lg:block pt-4"
-            >
+              >
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm">
-                <div className="relative z-10">
+                  <div className="relative z-10">
                   <h3 className="text-2xl font-bold mb-3">Ready to proof it?</h3>
                   <p className="text-muted-foreground mb-8 text-base">
-                    Stop hoping they&apos;ll keep their word. Start proving they agreed.
+                      Stop hoping they&apos;ll keep their word. Start proving they agreed.
                   </p>
-                  <Link href="/dashboard">
-                    <Button
+                  <Link href="/deal/new">
+                      <Button
                       size="xl"
                       className="w-full text-base rounded-2xl shadow-lg shadow-primary/10 h-14"
-                    >
-                      Create a Deal
+                      >
+                      Create Your First Deal
                       <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
+                      </Button>
                   </Link>
-                </div>
+                  </div>
               </div>
-            </motion.div>
+              </motion.div>
           </div>
 
           {/* RIGHT COLUMN: Interactive Verification Card */}

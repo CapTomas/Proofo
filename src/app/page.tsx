@@ -105,23 +105,6 @@ const GrainOverlay = () => (
   </div>
 );
 
-// 2b. Inline Grain for emerald elements
-const EmeraldGrain = () => (
-  <div className="absolute inset-0 pointer-events-none opacity-[0.15] mix-blend-overlay rounded-[inherit] overflow-hidden">
-    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-      <filter id="emerald-noise">
-        <feTurbulence
-          type="fractalNoise"
-          baseFrequency="0.8"
-          numOctaves="4"
-          stitchTiles="stitch"
-        />
-        <feColorMatrix type="saturate" values="0" />
-      </filter>
-      <rect width="100%" height="100%" filter="url(#emerald-noise)" />
-    </svg>
-  </div>
-);
 
 
 // 3. Scroll Progress Line
@@ -177,10 +160,10 @@ const SignatureBox = () => {
   return (
     <motion.div
       ref={boxRef}
-      className={`rounded-xl p-4 flex items-center justify-center h-40 relative overflow-hidden transition-all duration-700 ${
+      className={`rounded-xl p-4 flex items-center justify-center h-40 relative overflow-hidden transition-all duration-700 border ${
         isComplete
-          ? "bg-emerald-500/5 border border-emerald-500/30"
-          : "bg-secondary/20 border border-dashed border-border"
+          ? "bg-emerald-soft border-emerald-border"
+          : "bg-secondary/20 border-dashed border-border/60"
       }`}
       animate={isComplete ? { rotate: -2 } : { rotate: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
@@ -282,7 +265,7 @@ const AnimatedCheck = ({ delay = 0, className }: { delay?: number; className?: s
     strokeWidth="3"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className={className || "text-emerald-600 mr-1.5"}
+    className={className || "text-emerald-muted mr-1.5"}
   >
     <motion.polyline
       points="20 6 9 17 4 12"
@@ -361,10 +344,10 @@ const InteractiveHash = () => {
     <motion.div
       ref={containerRef}
       onClick={handleCopy}
-      className={`group relative cursor-pointer text-[10px] font-mono p-2 rounded overflow-hidden transition-all duration-700 ${
+      className={`group relative cursor-pointer text-[10px] font-mono p-2 rounded overflow-hidden transition-all duration-700 border ${
         isComplete
-          ? "bg-emerald-500/5 border border-emerald-500/30 text-emerald-700/60 dark:text-emerald-400/60"
-          : "text-muted-foreground/60 bg-secondary/30 border border-border/50 hover:bg-secondary/50"
+          ? "bg-emerald-soft border-emerald-border text-emerald-muted"
+          : "text-muted-foreground/60 bg-secondary/30 border-border/50 hover:bg-secondary/50"
       }`}
     >
       <div className="flex items-center justify-between">
@@ -373,7 +356,7 @@ const InteractiveHash = () => {
           ...
         </span>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+          {copied ? <Check className="h-3 w-3 text-emerald-muted" /> : <Copy className="h-3 w-3" />}
         </div>
       </div>
     </motion.div>
@@ -755,7 +738,7 @@ const WorkflowSection = () => (
           viewport={{ once: true }}
           transition={{ delay: i * 0.1 }}
         >
-          <div className="bg-background h-20 w-20 rounded-2xl border border-border/50 shadow-sm flex items-center justify-center mb-6 mx-auto group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/5 group-hover:shadow-lg group-hover:scale-[1.02] transition-all duration-500">
+          <div className="bg-background h-20 w-20 rounded-2xl border border-border/50 shadow-sm flex items-center justify-center mb-6 mx-auto group-hover:border-emerald-border group-hover:shadow-emerald-soft group-hover:shadow-lg group-hover:scale-[1.02] transition-all duration-500">
             <step.icon />
           </div>
           <div className="text-center px-2">
@@ -903,7 +886,7 @@ const InteractiveRealWorldSection = () => {
               key={i}
               className={`relative flex gap-4 items-start group cursor-pointer p-3 rounded-xl transition-all duration-300 border overflow-hidden ${
                 activeIndex === i
-                  ? "bg-emerald-500/5 border-emerald-500/30 shadow-sm"
+                  ? "bg-emerald-soft border-emerald-border shadow-sm"
                   : "bg-transparent border-transparent hover:bg-secondary/50 hover:border-border/50"
               }`}
               initial={{ opacity: 0, x: -10 }}
@@ -913,18 +896,17 @@ const InteractiveRealWorldSection = () => {
               onMouseEnter={() => handleUseCaseHover(i)}
               onMouseLeave={handleUseCaseLeave}
             >
-              {activeIndex === i && <EmeraldGrain />}
               <div
                 className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-300 ${
                   activeIndex === i
-                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    ? "bg-emerald-soft border-emerald-border"
                     : "bg-secondary/80 border-border/50 group-hover:bg-secondary"
                 }`}
               >
                 <HoverIcon type={item.anim}>
                   <item.icon
                     className={`h-5 w-5 transition-colors duration-300 ${
-                      activeIndex === i ? "text-emerald-600 dark:text-emerald-400" : "text-foreground/60"
+                      activeIndex === i ? "text-emerald-muted" : "text-foreground/60"
                     }`}
                   />
                 </HoverIcon>
@@ -932,7 +914,7 @@ const InteractiveRealWorldSection = () => {
               <div>
                 <h3
                   className={`font-medium transition-colors duration-300 ${
-                    activeIndex === i ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"
+                    activeIndex === i ? "text-emerald-text" : "text-foreground"
                   }`}
                 >
                   {item.title}
@@ -951,7 +933,7 @@ const InteractiveRealWorldSection = () => {
               onClick={() => setActiveIndex(i)}
               className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
                 activeIndex === i
-                  ? "w-8 bg-emerald-500"
+                  ? "w-8 bg-emerald-muted"
                   : "w-1.5 bg-border hover:bg-muted-foreground/30"
               }`}
             />
@@ -1005,10 +987,10 @@ const InteractiveRealWorldSection = () => {
                         </motion.span>
                       </AnimatePresence>
                       <span>•</span>
-                      <span className="text-emerald-600 dark:text-emerald-400">Verified</span>
+                      <span className="text-emerald-muted">Verified</span>
                     </div>
                   </div>
-                  <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-soft flex items-center justify-center text-emerald-muted border border-emerald-border">
                     <Check className="h-5 w-5" />
                   </div>
                 </div>
@@ -1066,7 +1048,7 @@ const InteractiveRealWorldSection = () => {
                       </motion.div>
                     </AnimatePresence>
                     <div className="min-w-0">
-                      <p className="text-[9px] uppercase font-bold text-muted-foreground text-emerald-600">
+                      <p className="text-[9px] uppercase font-bold text-emerald-muted">
                         Signed
                       </p>
                       <AnimatePresence mode="wait">
@@ -1125,14 +1107,14 @@ const InteractiveRealWorldSection = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.3 }}
-                className="bg-card rounded-xl border shadow-sm border-emerald-500/20 bg-emerald-500/[0.02] p-4 flex gap-4 items-center"
+                className="bg-card rounded-xl border shadow-sm border-emerald-border bg-emerald-soft p-4 flex gap-4 items-center"
               >
                 <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-muted">
                     <ShieldCheck className="h-3 w-3" />
                     Cryptographic Seal
                   </div>
-                  <div className="font-mono text-[9px] text-emerald-800/60 dark:text-emerald-400/60 break-all leading-tight h-6">
+                  <div className="font-mono text-[9px] text-emerald-muted/60 break-all leading-tight h-6">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={`seal-${activeIndex}`}
@@ -1146,7 +1128,7 @@ const InteractiveRealWorldSection = () => {
                     </AnimatePresence>
                   </div>
                 </div>
-                <div className="w-20 h-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded border border-emerald-500/10 rotate-[-2deg]">
+                <div className="w-20 h-10 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded border border-emerald-border/20 rotate-[-2deg]">
                   <SignatureAnimation />
                 </div>
               </motion.div>
@@ -1267,7 +1249,7 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
             className={`px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 flex items-center gap-2 cursor-pointer ${billingCycle === 'yearly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Yearly
-            <span className="bg-emerald-500/10 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/20">2 Months Free</span>
+            <span className="bg-emerald-soft text-emerald-text text-[10px] px-2 py-0.5 rounded-full border border-emerald-border">2 Months Free</span>
           </button>
         </div>
       </div>
@@ -1316,7 +1298,7 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
                   {/* Fixed space for annual discount text */}
                   <div className="h-4 mt-0.5">
                     {tier.price !== 0 && billingCycle === 'monthly' && (
-                      <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+                      <span className="text-[10px] text-emerald-muted font-bold uppercase tracking-wider">
                          Get 2 Months Free Yearly
                       </span>
                     )}
@@ -1334,7 +1316,7 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
                     <div key={i} className="flex justify-between items-center text-[12px]">
                       <span className="text-muted-foreground uppercase font-bold tracking-wider text-[10px]">{m.label}</span>
                       <span className={`font-bold tracking-tight ${m.inactive ? 'text-muted-foreground/40' : 'text-foreground'}`}>
-                        {m.value} {m.highlight && <span className="text-[12px] text-emerald-600 ml-1 font-bold">({m.highlight})</span>}
+                        {m.value} {m.highlight && <span className="text-[12px] text-emerald-muted ml-1 font-bold">({m.highlight})</span>}
                       </span>
                     </div>
                   ))}
@@ -1357,7 +1339,7 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
                         className={`flex items-start gap-2.5 text-xs ${feature.included ? "text-foreground font-medium" : "text-muted-foreground/30"}`}
                       >
                         {feature.included ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <Check className="h-3.5 w-3.5 text-emerald-muted shrink-0 mt-0.5" />
                         ) : (
                           <span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] shrink-0 text-muted-foreground/20 mt-0.5">✕</span>
                         )}
@@ -1370,7 +1352,7 @@ const Pricing = ({ onStartClick }: { onStartClick: () => void }) => {
                 <div className="pt-4 mt-auto">
                   <Button
                     variant={tier.variant}
-                    className={`w-full h-11 rounded-full transition-all duration-300 flex items-center justify-center font-bold tracking-tight ${tier.popular ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border/50 hover:bg-secondary'}`}
+                    className={`w-full h-11 rounded-full transition-all duration-300 flex items-center justify-center font-bold tracking-tight hover:-translate-y-1 hover:shadow-xl ${tier.popular ? 'bg-foreground text-background hover:bg-foreground/90' : 'border-border/50 hover:bg-secondary'}`}
                     onClick={onStartClick}
                   >
                     <span>{tier.buttonText}</span>
@@ -1436,7 +1418,7 @@ export default function Home() {
             transition={{ duration: 0.5 }}
           >
             <div className="inline-flex items-center gap-2 rounded-full border bg-secondary/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-8">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-muted animate-pulse"></span>
               The Operating System for the Digital Handshake
             </div>
 
@@ -1468,9 +1450,8 @@ export default function Home() {
                   <Button
                     size="xl"
                     variant="outline"
-                    className="h-14 px-8 text-base rounded-full bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all relative overflow-hidden"
+                    className="h-14 px-8 text-base rounded-full bg-emerald-soft border-emerald-border text-emerald-text hover:bg-emerald-soft hover:border-emerald-border/60 hover:shadow-lg hover:shadow-emerald-soft/20 hover:scale-[1.02] transition-all relative overflow-hidden"
                   >
-                    <EmeraldGrain />
                     <span className="relative z-10">Try Interactive Demo</span>
                   </Button>
                 </div>
@@ -1550,13 +1531,13 @@ export default function Home() {
                     viewport={{ once: false, margin: "-20%" }}
                   >
                     <motion.span
-                      className="absolute inset-0 bg-emerald-500/20 rounded-lg -mx-2 px-2"
+                      className="absolute inset-0 bg-emerald-muted/30 rounded-lg -mx-4 px-4"
                       initial={{ scaleX: 0, originX: 0 }}
                       whileInView={{ scaleX: 1 }}
                       viewport={{ once: false, margin: "-20%" }}
                       transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
                     />
-                    <span className="relative text-emerald-700 dark:text-emerald-300">proof it?</span>
+                    <span className="relative text-emerald-text">proof it?</span>
                   </motion.span>
                 </h2>
                 <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
