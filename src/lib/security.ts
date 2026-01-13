@@ -12,6 +12,9 @@ import { logger } from "./logger";
 // Only include localhost in development mode for security
 const ALLOWED_ORIGINS = [
   process.env.NEXT_PUBLIC_APP_URL,
+  // Production domains - both www and non-www variants
+  "https://proofo.app",
+  "https://www.proofo.app",
   // Only allow localhost in development
   ...(process.env.NODE_ENV === "development"
     ? ["http://localhost:3000", "http://localhost:3001"]
