@@ -1002,10 +1002,10 @@ const WorkflowSection = () => {
             <motion.button
               key={step.id}
               onClick={() => handleStepClick(i)}
-              className={`w-full group text-left p-4 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+              className={`w-full group text-left p-3 rounded-xl border transition-all duration-300 relative overflow-hidden ${
                 activeStep === i
-                  ? "bg-card border-emerald-border shadow-lg shadow-emerald-soft/20"
-                  : "bg-transparent border-transparent hover:bg-secondary/30 hover:border-border/50"
+                  ? "bg-emerald-soft border-emerald-border shadow-sm"
+                  : "bg-transparent border-transparent hover:bg-secondary/50 hover:border-border/50"
               }`}
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -1026,10 +1026,10 @@ const WorkflowSection = () => {
               <div className="flex items-center gap-4">
                 {/* Step number */}
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-300 ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm transition-all duration-300 ${
                     activeStep === i
                       ? "bg-emerald-soft border border-emerald-border text-emerald-text"
-                      : "bg-secondary/50 border border-border/50 text-muted-foreground group-hover:border-border"
+                      : "bg-secondary/80 border border-border/50 text-muted-foreground group-hover:border-border"
                   }`}
                 >
                   {i + 1}
@@ -1059,6 +1059,21 @@ const WorkflowSection = () => {
               </div>
           </motion.button>
           ))}
+
+          {/* Progress Dots Indicator - Matched with Operating System section style */}
+          <div className="flex gap-2 pt-2 px-1">
+            {workflowSteps.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => handleStepClick(i)}
+                className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
+                  activeStep === i
+                    ? "w-8 bg-emerald-muted"
+                    : "w-1.5 bg-border hover:bg-muted-foreground/30"
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Left: Interactive Preview */}
@@ -1179,14 +1194,14 @@ const useCaseExamples = [
 
 const InteractiveRealWorldSection = () => {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
   // Auto-rotation effect
   useEffect(() => {
-    if (!isInView || isPaused) {
+    if (!isInView || !isAutoPlaying) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -1203,15 +1218,13 @@ const InteractiveRealWorldSection = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPaused]);
+  }, [isInView, isAutoPlaying]);
 
-  const handleUseCaseHover = (index: number) => {
-    setIsPaused(true);
+  const handleUseCaseClick = (index: number) => {
     setActiveIndex(index);
-  };
-
-  const handleUseCaseLeave = () => {
-    setIsPaused(false);
+    setIsAutoPlaying(false);
+    // Resume auto-play after 10 seconds of inactivity
+    setTimeout(() => setIsAutoPlaying(true), 10000);
   };
 
   const activeExample = useCaseExamples[activeIndex];
@@ -1234,6 +1247,7 @@ const InteractiveRealWorldSection = () => {
           {useCaseExamples.map((item, i) => (
             <motion.div
               key={i}
+              onClick={() => handleUseCaseClick(i)}
               className={`relative flex gap-4 items-start group cursor-pointer p-3 rounded-xl transition-all duration-300 border overflow-hidden ${
                 activeIndex === i
                   ? "bg-emerald-soft border-emerald-border shadow-sm"
@@ -1243,9 +1257,17 @@ const InteractiveRealWorldSection = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              onMouseEnter={() => handleUseCaseHover(i)}
-              onMouseLeave={handleUseCaseLeave}
             >
+              {/* Progress bar for active card */}
+              {activeIndex === i && isAutoPlaying && (
+                <motion.div
+                  className="absolute bottom-0 left-0 h-0.5 bg-emerald-muted/50"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 8, ease: "linear" }}
+                  key={`progress-${activeIndex}`}
+                />
+              )}
               <div
                 className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border transition-all duration-300 ${
                   activeIndex === i
