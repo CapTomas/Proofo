@@ -799,22 +799,23 @@ const SharePreview = () => {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="bg-secondary/30 rounded-xl p-5 border border-border/50">
-        <div className="flex items-center gap-3">
+    <div className="space-y-4 min-w-0 overflow-hidden">
+      <div className="bg-secondary/30 rounded-xl p-4 sm:p-5 border border-border/50 overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="flex-1 font-mono text-xs sm:text-sm text-muted-foreground truncate min-w-0">
             proofo.app/deal/xK9mQ2...
           </div>
           <motion.button
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 shrink-0 ${
               copied
                 ? "bg-emerald-soft border border-emerald-border text-emerald-text"
-                : "bg-secondary border border-border/50"
+                : "bg-secondary border border-border/50 hover:bg-secondary/80"
             }`}
             animate={copied ? { scale: [1, 1.05, 1] } : {}}
+            onClick={() => setCopied(true)}
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copied ? "Copied!" : "Copy"}
+            <span className="hidden sm:inline">{copied ? "Copied!" : "Copy"}</span>
           </motion.button>
         </div>
       </div>
@@ -995,9 +996,9 @@ const WorkflowSection = () => {
 
   return (
     <div ref={containerRef} className="max-w-4xl mx-auto">
-      <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+      <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center min-w-0">
         {/* Right: Step Selector */}
-        <div className="order-2 space-y-2">
+        <div className="order-2 space-y-2 min-w-0">
           {workflowSteps.map((step, i) => (
             <motion.button
               key={step.id}
@@ -1077,7 +1078,7 @@ const WorkflowSection = () => {
         </div>
 
         {/* Left: Interactive Preview */}
-        <div className="order-1">
+        <div className="order-1 min-w-0 overflow-hidden">
           <motion.div
             className="bg-card rounded-2xl border border-border/60 shadow-xl p-4 sm:p-6 relative overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
@@ -1783,7 +1784,7 @@ export default function Home() {
 
       <main className="relative pt-24 md:pt-32 pb-20">
         {/* Hero */}
-        <div className="container mx-auto px-4 max-w-4xl text-center mb-16 md:mb-32">
+        <div className="container mx-auto px-4 max-w-4xl text-center mt-16 mb-16 md:mb-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
