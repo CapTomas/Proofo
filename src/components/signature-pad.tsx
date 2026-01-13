@@ -42,7 +42,24 @@ export function SignaturePad({
     const observer = new ResizeObserver(updateSize);
     if (containerRef.current) observer.observe(containerRef.current);
 
-    return () => observer.disconnect();
+    // Prevent scrolling when touching the canvas on mobile
+    const preventScroll = (e: TouchEvent) => {
+      if (e.target instanceof HTMLCanvasElement) {
+        e.preventDefault();
+      }
+    };
+
+    const canvas = sigCanvas.current?.getCanvas();
+    if (canvas) {
+      canvas.addEventListener('touchmove', preventScroll, { passive: false });
+    }
+
+    return () => {
+      observer.disconnect();
+      if (canvas) {
+        canvas.removeEventListener('touchmove', preventScroll);
+      }
+    };
   }, []);
 
   const handleClear = useCallback(() => {

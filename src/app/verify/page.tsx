@@ -281,23 +281,23 @@ function VerifyContent() {
               <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm group">
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
                   <div className="relative z-10">
-                  <h3 className="text-2xl font-bold mb-3">
-                    Ready to{" "}
-                    <span className="relative inline-block">
-                        <motion.span
-                            className="absolute inset-0 bg-emerald-muted/20 rounded-lg"
-                            style={{
-                                marginInline: 'calc(var(--spacing) * -1)',
-                                paddingInline: 'var(--spacing)'
-                            }}
-                            initial={{ scaleX: 0, originX: 0 }}
-                            whileInView={{ scaleX: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                        />
-                        <span className="relative text-emerald-muted">proof it?</span>
-                    </span>
-                  </h3>
+                    <h3 className="text-2xl font-bold mb-3">
+                      Ready to{" "}
+                      <span className="relative inline-block">
+                          <motion.span
+                              className="absolute inset-0 bg-emerald-muted/20 rounded-lg"
+                              style={{
+                                  marginInline: 'calc(var(--spacing) * -1)',
+                                  paddingInline: 'var(--spacing)'
+                              }}
+                              initial={{ scaleX: 0, originX: 0 }}
+                              whileInView={{ scaleX: 1 }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                          />
+                          <span className="relative text-emerald-muted font-bold">proof it?</span>
+                      </span>
+                    </h3>
                   <p className="text-muted-foreground mb-8 text-base leading-relaxed">
                       Stop hoping they&apos;ll keep their word. Start proving they agreed.
                   </p>
@@ -596,20 +596,37 @@ function VerifyContent() {
           </motion.div>
 
           {/* Mobile Only CTA (Bottom) */}
-          <div className="lg:hidden pb-12">
-            <div className="bg-secondary/30 rounded-3xl p-6 border border-border relative overflow-hidden">
+          <div className="lg:hidden py-12">
+            <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm group">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
               <div className="relative z-10 text-center">
-                <h3 className="text-xl font-bold mb-2">Ready to create real deals?</h3>
-                <p className="text-muted-foreground mb-4 text-sm">
-                  Start creating enforceable agreements in seconds.
+                <h3 className="text-2xl font-bold mb-3">
+                  Ready to{" "}
+                  <span className="relative inline-block">
+                    <motion.span
+                      className="absolute inset-0 bg-emerald-muted/20 rounded-lg"
+                      style={{
+                        marginInline: 'calc(var(--spacing) * -1)',
+                        paddingInline: 'var(--spacing)'
+                      }}
+                      initial={{ scaleX: 0, originX: 0 }}
+                      whileInView={{ scaleX: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                    />
+                    <span className="relative text-emerald-muted font-bold">proof it?</span>
+                  </span>
+                </h3>
+                <p className="text-muted-foreground mb-8 text-base leading-relaxed">
+                  Stop hoping they&apos;ll keep their word. Start proving they agreed.
                 </p>
-                <Link href="/dashboard">
+                <Link href="/deal/new">
                   <Button
-                    size="lg"
-                    className="w-full text-base rounded-xl shadow-lg shadow-primary/10 h-12"
+                    size="xl"
+                    className="w-full text-base rounded-2xl shadow-lg shadow-emerald-soft/20 h-14 bg-foreground text-background hover:bg-foreground/90 transition-all font-bold"
                   >
-                    Create Your First Proof
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    Create Your First Deal
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
               </div>

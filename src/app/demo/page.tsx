@@ -89,8 +89,8 @@ export default function DemoPage() {
       <PublicHeader currentPage="demo" />
 
       {/* Increased bottom padding to prevent buttons from being hidden on smaller screens */}
-      <main className="relative pt-28 pb-32 w-full z-10 transition-all duration-300 px-4 sm:px-6 lg:px-[112px]">
-        <div className="max-w-7xl mx-auto w-full">
+      <main className="relative pt-28 pb-32 w-full z-10 transition-all duration-300 px-4 sm:px-6 lg:px-[112px] min-w-0 overflow-hidden">
+        <div className="max-w-7xl mx-auto w-full min-w-0 overflow-hidden">
             {/* Back Navigation */}
             <div className="mb-8">
             <Link
@@ -153,7 +153,7 @@ export default function DemoPage() {
                                 viewport={{ once: true }}
                                 transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
                             />
-                            <span className="relative text-emerald-muted">proof it?</span>
+                            <span className="relative text-emerald-muted font-bold">proof it?</span>
                         </span>
                     </h3>
                     <p className="text-muted-foreground mb-8 text-base leading-relaxed">
@@ -168,13 +168,24 @@ export default function DemoPage() {
                         <ArrowRight className="ml-2 h-5 w-5" />
                         </Button>
                     </Link>
+                    <div className="mt-4 text-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground h-9 text-xs w-full"
+                            onClick={() => window.location.reload()}
+                        >
+                            <RefreshCw className="h-3 w-3 mr-1.5" />
+                            Restart Demo
+                        </Button>
+                    </div>
                     </div>
                 </div>
                 </motion.div>
             </div>
 
             {/* RIGHT COLUMN */}
-            <div className="relative w-full">
+            <div className="relative w-full min-w-0 overflow-hidden">
                  <AnimatePresence mode="wait">
 
                     {/* STEP 1: REVIEW */}
@@ -208,10 +219,10 @@ export default function DemoPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-4 min-w-0 overflow-hidden">
                             {/* Parties Card */}
-                            <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
-                                <CardContent className="p-5">
+                            <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden min-w-0">
+                                <CardContent className="p-4 sm:p-5">
                                     <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
                                         <Users className="h-4 w-4" />
                                         Parties
@@ -264,8 +275,8 @@ export default function DemoPage() {
                             </Card>
 
                             {/* Deal Info */}
-                            <Card className="border border-border shadow-sm rounded-xl overflow-hidden">
-                                <CardContent className="p-5">
+                            <Card className="border border-border shadow-sm rounded-xl overflow-hidden min-w-0">
+                                <CardContent className="p-4 sm:p-5">
                                     <div className="flex items-start gap-4">
                                         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 shadow-sm">
                                             <Handshake className="h-6 w-6 text-primary" />
@@ -293,8 +304,8 @@ export default function DemoPage() {
                             </Card>
 
                              {/* Terms */}
-                             <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden">
-                                <CardContent className="p-5">
+                             <Card className="border border-border shadow-sm bg-card rounded-xl overflow-hidden min-w-0">
+                                <CardContent className="p-4 sm:p-5">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-2 font-semibold text-sm uppercase tracking-wider text-muted-foreground">
                                             <FileText className="h-4 w-4" />
@@ -304,17 +315,17 @@ export default function DemoPage() {
                                             {TERMS.length} terms
                                         </Badge>
                                     </div>
-                                    <div className="space-y-2">
+                                     <div className="space-y-2 min-w-0 overflow-hidden">
                                         {TERMS.map((term, _index) => (
                                             <motion.div
                                                 key={term.id}
                                                 whileHover={{ scale: 1.01 }}
-                                                className="flex items-center justify-between py-3 px-4 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors cursor-pointer group/term"
+                                                className="flex items-center justify-between py-3 px-3 sm:px-4 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors cursor-pointer group/term min-w-0"
                                             >
-                                                <span className="text-sm text-muted-foreground">{term.label}</span>
-                                                <span className="font-medium text-sm flex items-center gap-2">
+                                                <span className="text-sm text-muted-foreground truncate mr-2">{term.label}</span>
+                                                <span className="font-medium text-sm flex items-center gap-2 min-w-0 shrink-0">
                                                     {term.value}
-                                                    <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/term:opacity-100 transition-opacity" />
+                                                    <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover/term:opacity-100 transition-opacity hidden sm:block" />
                                                 </span>
                                             </motion.div>
                                         ))}
@@ -511,32 +522,61 @@ export default function DemoPage() {
                             />
                         </div>
 
-                        {/* CTA Footer */}
-                        <div className="mt-4 text-center p-4 rounded-xl bg-secondary/30 border border-border/50">
-                            <h3 className="text-sm font-bold mb-2">Ready to create your own?</h3>
-                            <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                <Link href="/deal/new">
-                                    <Button size="sm" className="w-full sm:w-auto rounded-lg shadow-sm h-9 text-xs px-4">
-                                    Create Your First Deal
-                                    </Button>
-                                </Link>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-muted-foreground w-full sm:w-auto h-9 text-xs"
-                                    onClick={() => window.location.reload()}
-                                >
-                                    <RefreshCw className="h-3 w-3 mr-1.5" />
-                                    Restart
-                                </Button>
-                            </div>
-                        </div>
 
                         </motion.div>
                     )}
 
                 </AnimatePresence>
             </div>
+            </div>
+
+            {/* Mobile Only CTA (Bottom) */}
+            <div className="lg:hidden py-12 px-4">
+                <div className="bg-secondary/30 rounded-3xl p-8 border border-border relative overflow-hidden backdrop-blur-sm group">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
+                    <div className="relative z-10 text-center">
+                    <h3 className="text-2xl font-bold mb-3">
+                        Ready to{" "}
+                        <span className="relative inline-block">
+                        <motion.span
+                            className="absolute inset-0 bg-emerald-muted/20 rounded-lg"
+                            style={{
+                            marginInline: 'calc(var(--spacing) * -1)',
+                            paddingInline: 'var(--spacing)'
+                            }}
+                            initial={{ scaleX: 0, originX: 0 }}
+                            whileInView={{ scaleX: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+                        />
+                        <span className="relative text-emerald-muted font-bold">proof it?</span>
+                        </span>
+                    </h3>
+                    <p className="text-muted-foreground mb-8 text-base leading-relaxed">
+                        Stop hoping they&apos;ll keep their word. Start proving they agreed.
+                    </p>
+                    <Link href="/deal/new">
+                        <Button
+                        size="xl"
+                        className="w-full text-base rounded-2xl shadow-lg shadow-emerald-soft/20 h-14 bg-foreground text-background hover:bg-foreground/90 transition-all font-bold"
+                        >
+                        Create Your First Deal
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                        </Button>
+                    </Link>
+                    <div className="mt-4 text-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground h-9 text-xs w-full"
+                            onClick={() => window.location.reload()}
+                        >
+                            <RefreshCw className="h-3 w-3 mr-1.5" />
+                            Restart Demo
+                        </Button>
+                    </div>
+                    </div>
+                </div>
             </div>
         </div>
       </main>
