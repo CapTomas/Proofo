@@ -1492,7 +1492,7 @@ function NewDealContent() {
                             disabled={isCreating}
                           >
                             {isCreating ? (
-                              <><span className="animate-spin mr-2">⏳</span> Minting...</>
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin text-background" /> Minting...</>
                             ) : (
                               <>Generate Secure Link <ArrowRight className="ml-2 h-4 w-4" /></>
                             )}
