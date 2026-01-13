@@ -14,7 +14,7 @@ import {
   X,
   Sparkles,
   ArrowRight,
-  User,
+  Kanban,
   Zap,
   ChevronRight,
   LogIn,
@@ -338,7 +338,7 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
                     </p>
                     <MobileNavLink
                       href="/demo"
-                      icon={Sparkles}
+                      icon={Zap}
                       active={currentPage === "demo"}
                       onClick={() => setMobileMenuOpen(false)}
                       variants={menuItemVariants}
@@ -373,7 +373,7 @@ export function PublicHeader({ currentPage = "home" }: PublicHeaderProps) {
                     </MobileNavLink>
                     <MobileNavLink
                       href="/#how-it-works"
-                      icon={Zap}
+                      icon={Kanban}
                       onClick={() => setMobileMenuOpen(false)}
                       variants={menuItemVariants}
                     >
