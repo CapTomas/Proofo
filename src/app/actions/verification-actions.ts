@@ -583,59 +583,121 @@ export async function checkProofoUserVerification(params: {
 function generateOTPEmailHTML(otp: string): string {
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verification Code - Proofo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100% !important;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      background-color: #0a0a0a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  </style>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+<body style="margin: 0; padding: 0; background-color: #0a0a0a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#0a0a0a">
     <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="width: 100%; max-width: 480px; border-collapse: collapse;">
-
-          <!-- Header -->
+      <td align="center" style="padding: 60px 15px;">
+        <!-- Header / Logo Section -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 440px; margin-bottom: 32px;">
           <tr>
-            <td style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 24px 32px; border-radius: 12px 12px 0 0;">
-              <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">Proofo</h1>
+            <td align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
+                <tr>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <svg width="28" height="28" viewBox="0 0 5765 5765" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                      <g transform="matrix(1 0 0 -1 0 5765)">
+                        <path fill="#ededed" d="M664.2,4920C664.2,4125,664.2,2560,664.2,2560C664.2,2560,664.2,910,664.2,200C664.2,149.2,688.3,95.9,724.2,60C760.1,24.1,813.4,0,864.2,0C1179.2,0,1304.2,0,1534.2,0C1764.2,0,1787.7,-7.8,1914.2,0C2016,6.2,2118.3,25.1,2214.2,60C2370.6,116.9,2516.5,212.3,2634.2,330C2772.3,468.1,2780.5,466.1,2884.2,570C2956.1,642.1,3082.4,776.8,3174.2,870C3231.9,928.6,3259.1,953.2,3334.2,1030C3349.2,1045.4,3398.2,1093.7,3414.2,1110C3426.9,1123,3490.8,1186.3,3504.2,1200C3582.6,1280.3,3663,1370.5,3765.6,1476C3823.9,1535.9,4086.5,1770.4,4154.2,1840C4469.2,2115,4664.2,2315,4772,2540C4819.6,2639.3,4872.7,2739.5,4891,2848C4918.4,3010,4918.4,3224.5,4918.4,3413C4918.4,3635,4911.4,3859.1,4862,4075C4839,4175.4,4796,4272.5,4740,4359C4613.9,4553.6,4445.2,4720.5,4268,4870C4122.8,4992.6,3934.8,5086.8,3745,5097C3319.2,5120,3718,5117,2339,5120C2339,5120,1334.2,5120,864.2,5120C812,5120,760.3,5097.7,724.2,5060C691.2,5025.5,664.2,4967.7,664.2,4920ZM3644.2,4420C3886,4402.1,4084.6,4156.8,4189,3938C4265.1,3778.6,4260,3718,4260,3413C4260,3170,4248,3038,4220,2965C4114,2687,3931.2,2520,3644.2,2410C3557.2,2376,3594.2,2381,3044.2,2380C3044.2,2380,2674.2,2380,2534.2,2380C2483.4,2380,2430,2356,2394.2,2320C2358.5,2284.1,2335,2230.7,2335,2180C2335,2015,2334.3,1873.3,2335,1670C2335.6,1483,2337.6,1293.9,2304.2,1110C2291.1,1038.1,2259.4,967.4,2214.2,910C2162.9,845,2099.9,783.6,2024.2,750C1842.7,669.6,1714.2,670,1534.2,670C1483.4,670,1430.1,694.1,1394.2,730C1358.3,765.9,1334.2,819.2,1334.2,870C1334.2,1110,1334.2,556,1334.2,2560C1334.2,4308,1334.2,3980,1334.2,4250C1334.2,4302.7,1346.9,4362.7,1384.2,4400C1421.4,4437.3,1481.5,4450,1534.2,4450C1809.2,4450,2339,4450,2339,4450C2339,4450,3239.2,4450,3644.2,4420Z" />
+                      </g>
+                    </svg>
+                  </td>
+                  <td valign="middle">
+                    <span style="color: #ededed; font-size: 20px; font-weight: 700; letter-spacing: -0.02em;">Proofo</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+        </table>
 
-          <!-- Content -->
+        <!-- Main Card: Bento Style with Subtle Unified Border -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 440px; background-color: #121212; border-radius: 20px; border-collapse: separate; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.5);">
           <tr>
-            <td style="background-color: #ffffff; padding: 32px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
-
-              <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700; color: #1f2937;">
+            <td style="padding: 40px 32px;">
+              <!-- Heading -->
+              <h1 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #ededed; text-align: center;">
                 Verify your email
-              </h2>
-              <p style="margin: 0 0 24px 0; font-size: 15px; color: #6b7280; line-height: 1.5;">
-                Enter this code to verify your email address and sign the agreement.
+              </h1>
+
+              <!-- Subtext -->
+              <p style="margin: 0 0 32px 0; font-size: 14px; line-height: 1.6; color: #888888; text-align: center;">
+                Enter the code below to verify your email address and sign the agreement. This code expires in ${OTP_EXPIRY_MINUTES} minutes.
               </p>
 
-              <!-- OTP Code -->
-              <div style="background-color: #f3f4f6; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
-                <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1f2937; font-family: monospace;">
-                  ${otp}
-                </span>
-              </div>
+              <!-- OTP Code Box -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center">
+                    <div style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 24px; text-align: center;">
+                      <span style="font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 36px; font-weight: 700; letter-spacing: 0.4em; color: #10b981;">
+                        ${otp}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
 
-              <p style="margin: 0; font-size: 13px; color: #9ca3af; text-align: center;">
-                This code expires in ${OTP_EXPIRY_MINUTES} minutes.
-              </p>
-
+              <!-- Action Buttons -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center">
+                    <p style="margin: 32px 0 0 0; font-size: 13px; color: #666666; text-align: center;">
+                      If you didn't request this code, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer (Trust indicator) -->
           <tr>
-            <td style="background-color: #f9fafb; padding: 20px 32px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
-              <p style="margin: 0; font-size: 12px; color: #9ca3af; text-align: center;">
-                If you didn't request this code, you can safely ignore this email.
-              </p>
+            <td style="background-color: #1a1a1a; padding: 16px; border-top: 1px solid #262626; text-align: center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
+                <tr>
+                  <td valign="middle" style="padding-right: 10px;">
+                    <!-- Visible Emerald Dot -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 8px; height: 8px; background-color: #10b981; border-radius: 50%;">
+                      <tr>
+                        <td style="width: 8px; height: 8px; background-color: #10b981; border-radius: 4px; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); font-size: 1px; line-height: 1px;">&nbsp;</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td valign="middle">
+                    <span style="font-size: 13px; color: #777777; font-weight: 500; display: block; line-height: 1;">
+                      Secure, encrypted verification
+                    </span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
+        </table>
 
+        <!-- Exterior Footer -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 440px; margin-top: 32px;">
+          <tr>
+            <td align="center" style="color: #444444; font-size: 12px; line-height: 1.5;">
+              <p style="margin: 0;">© ${new Date().getFullYear()} Proofo Inc. Evidence that holds up.</p>
+            </td>
+          </tr>
         </table>
       </td>
     </tr>
@@ -659,5 +721,6 @@ If you didn't request this code, you can safely ignore this email.
 
 ---
 Proofo - Evidence that holds up
+© ${new Date().getFullYear()} Proofo Inc.
   `.trim();
 }
