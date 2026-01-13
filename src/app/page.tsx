@@ -802,7 +802,7 @@ const SharePreview = () => {
     <div className="space-y-4">
       <div className="bg-secondary/30 rounded-xl p-5 border border-border/50">
         <div className="flex items-center gap-3">
-          <div className="flex-1 font-mono text-sm text-muted-foreground truncate">
+          <div className="flex-1 font-mono text-xs sm:text-sm text-muted-foreground truncate min-w-0">
             proofo.app/deal/xK9mQ2...
           </div>
           <motion.button
@@ -819,7 +819,7 @@ const SharePreview = () => {
         </div>
       </div>
 
-      <div className="flex justify-center gap-6 pt-2">
+      <div className="flex justify-center gap-4 sm:gap-6 pt-2">
         {[
           { Icon: Smartphone, label: "Text", delay: 0.2 },
           { Icon: FileCheck, label: "Email", delay: 0.4 },
@@ -930,7 +930,7 @@ const ProofPreview = () => {
             className="flex-1 bg-secondary/30 rounded-lg p-3 border border-border/50"
           >
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded bg-secondary flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center">
                 <FileCheck className="w-3.5 h-3.5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
@@ -1079,7 +1079,7 @@ const WorkflowSection = () => {
         {/* Left: Interactive Preview */}
         <div className="order-1">
           <motion.div
-            className="bg-card rounded-3xl border border-border/60 shadow-xl p-6 relative overflow-hidden"
+            className="bg-card rounded-2xl border border-border/60 shadow-xl p-4 sm:p-6 relative overflow-hidden"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -1230,7 +1230,7 @@ const InteractiveRealWorldSection = () => {
   const activeExample = useCaseExamples[activeIndex];
 
   return (
-    <div ref={containerRef} className="grid md:grid-cols-2 gap-16 items-center">
+    <div ref={containerRef} className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
       {/* Left Column: Context & List */}
       <div className="space-y-10">
         <div className="space-y-4">
@@ -1316,7 +1316,7 @@ const InteractiveRealWorldSection = () => {
       {/* Right Column: Visual Anchor */}
       <div className="relative">
         {/* Background Container */}
-        <div className="bg-secondary/30 rounded-3xl p-8 border border-border/50 relative overflow-hidden">
+        <div className="bg-secondary/30 rounded-2xl p-4 sm:p-8 border border-border/50 relative overflow-hidden">
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
@@ -1781,9 +1781,9 @@ export default function Home() {
 
       <PublicHeader currentPage="home" />
 
-      <main className="relative pt-32 pb-20">
+      <main className="relative pt-24 md:pt-32 pb-20">
         {/* Hero */}
-        <div className="container mx-auto px-4 max-w-4xl text-center mb-32">
+        <div className="container mx-auto px-4 max-w-4xl text-center mb-16 md:mb-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1857,7 +1857,7 @@ export default function Home() {
         </section>
 
         {/* Workflow Steps */}
-        <section id="how-it-works" className="py-40 border-y bg-secondary/10 scroll-mt-24">
+        <section id="how-it-works" className="py-20 md:py-40 border-y bg-secondary/10 scroll-mt-24">
           <div className="container mx-auto px-4 max-w-5xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight mb-4">
@@ -1872,7 +1872,7 @@ export default function Home() {
         </section>
 
         {/* Real World Use Cases */}
-        <section className="py-40">
+        <section className="py-20 md:py-40">
           <div className="container mx-auto px-4 max-w-6xl">
             <InteractiveRealWorldSection />
           </div>
@@ -1891,12 +1891,12 @@ export default function Home() {
         </section>
 
         {/* CTA */}
-        <section className="py-40">
+        <section className="py-20 md:py-40">
           <div className="container mx-auto px-4 text-center max-w-3xl">
-            <div className="bg-secondary/20 rounded-[40px] p-20 border border-border/50 relative overflow-hidden group">
+            <div className="bg-secondary/20 rounded-[40px] p-8 sm:p-20 border border-border/50 relative overflow-hidden group">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.03),transparent)] pointer-events-none" />
               <div className="relative z-10 space-y-8">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
                   Ready to{" "}
                   <motion.span
                     className="relative inline-block"

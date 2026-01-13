@@ -115,7 +115,12 @@ export function SignaturePad({
   return (
     <div className={cn("space-y-4 w-full", className)} ref={containerRef}>
       <div
-        style={{ height: canvasSize.height > 0 ? canvasSize.height : 180 }}
+        style={{
+          height: canvasSize.height > 0 ? canvasSize.height : 180,
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none"
+        }}
         className={cn(
           "relative w-full rounded-xl border-2 border-dashed bg-white overflow-hidden transition-all duration-200",
           disabled
