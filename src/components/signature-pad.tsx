@@ -1,11 +1,22 @@
 "use client";
 
-import React, { useRef, useCallback, useEffect, useState } from "react";
+import React, { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
 import { Eraser, Check, PenLine, Download, Maximize2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
+
+// Helper to compute fullscreen canvas dimensions
+function getFullscreenDimensions() {
+  if (typeof window === "undefined") {
+    return { width: 768, height: 300 }; // SSR fallback
+  }
+  const padding = 32;
+  const maxWidth = Math.min(window.innerWidth - padding * 2, 800);
+  const maxHeight = Math.min(window.innerHeight * 0.5, 400);
+  return { width: maxWidth, height: maxHeight };
+}
 
 interface SignaturePadProps {
   onSignatureChange?: (signatureData: string | null) => void;
@@ -27,7 +38,8 @@ export function SignaturePad({
   const fullscreenWrapperRef = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-  const [fullscreenCanvasSize, setFullscreenCanvasSize] = useState({ width: 0, height: 0 });
+  // Initialize with computed dimensions to prevent flash from 0,0 -> actual size
+  const [fullscreenCanvasSize, setFullscreenCanvasSize] = useState(() => getFullscreenDimensions());
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -50,19 +62,23 @@ export function SignaturePad({
     };
   }, []);
 
-  // Handle sizing for fullscreen mode
+  // Handle sizing for fullscreen mode - only update on actual window resize
   useEffect(() => {
     if (!isFullscreen) return;
 
     const updateFullscreenSize = () => {
-      // Use most of the viewport, with padding
-      const padding = 32;
-      const maxWidth = Math.min(window.innerWidth - padding * 2, 800);
-      const maxHeight = Math.min(window.innerHeight * 0.5, 400);
-      setFullscreenCanvasSize({ width: maxWidth, height: maxHeight });
+      const newDimensions = getFullscreenDimensions();
+      // Only update state if dimensions actually changed to avoid unnecessary re-renders
+      setFullscreenCanvasSize(prev => {
+        if (prev.width === newDimensions.width && prev.height === newDimensions.height) {
+          return prev; // Return same reference to prevent re-render
+        }
+        return newDimensions;
+      });
     };
 
-    updateFullscreenSize();
+    // No need to call immediately - we already have valid dimensions from initialization
+    // Only listen for resize events
     window.addEventListener('resize', updateFullscreenSize);
 
     // Prevent body scroll when in fullscreen

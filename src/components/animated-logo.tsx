@@ -96,3 +96,49 @@ export function AnimatedLogo({ size = 28, className }: AnimatedLogoProps) {
     </motion.div>
   );
 }
+
+/**
+ * A logo variant that continuously loops the open/close animation.
+ * Perfect for loading states where you want to show activity.
+ */
+interface LoadingLogoProps {
+  size?: number;
+  className?: string;
+}
+
+export function LoadingLogo({ size = 48, className }: LoadingLogoProps) {
+  // Create a progress value that animates continuously
+  const progress = useMotionValue(0);
+
+  React.useEffect(() => {
+    // Animate from closed (0) to open (5), then mirror back continuously
+    const controls = animate(progress, 5, {
+      duration: 1.2, // Time to go from closed to open
+      ease: "easeInOut",
+      repeat: Infinity,
+      repeatType: "mirror", // This makes it go 0->5->0->5... smoothly
+      repeatDelay: 0.2, // Small pause at each end
+    });
+
+    return () => controls.stop();
+  }, [progress]);
+
+  const pathIndices = pathKeyframes.map((_, i) => i);
+  const pathD = useTransform(progress, pathIndices, pathKeyframes);
+
+  return (
+    <motion.div
+      className={`flex items-center justify-center ${className || ""}`}
+      style={{ width: size, height: size }}
+    >
+      <motion.svg
+        viewBox="0 0 5765 5765"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full"
+        style={{ display: "block", transform: "scaleY(-1)" }}
+      >
+        <motion.path d={pathD} className="fill-current" />
+      </motion.svg>
+    </motion.div>
+  );
+}

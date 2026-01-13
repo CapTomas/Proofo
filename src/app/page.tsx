@@ -8,12 +8,13 @@ import {
   useSpring,
   useInView,
   useMotionValue,
+  Variants,
 } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AnimatedLogo } from "@/components/animated-logo";
+import { AnimatedLogo, LoadingLogo } from "@/components/animated-logo";
 import {
   Shield,
   FileCheck,
@@ -562,6 +563,53 @@ const HoverIcon = ({
     <motion.div whileHover={animations[type]} transition={{ duration: 0.5 }}>
       {children}
     </motion.div>
+  );
+};
+
+// 11. Letter By Letter Animation
+const LetterByLetter = ({ text, className }: { text: string; className?: string }) => {
+  const letters = Array.from(text);
+
+  const container: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.05, delayChildren: 0.2 },
+    },
+  };
+
+  const child: Variants = {
+    visible: {
+      opacity: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: {
+        type: "spring",
+        damping: 12,
+        stiffness: 200,
+      },
+    },
+    hidden: {
+      opacity: 0,
+      y: 20,
+      filter: "blur(4px)",
+    },
+  };
+
+  return (
+    <motion.span
+      className={className}
+      variants={container}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+    >
+      {letters.map((letter, index) => (
+        <motion.span variants={child} key={index} style={{ display: "inline-block" }}>
+          {letter === " " ? "\u00A0" : letter}
+        </motion.span>
+      ))}
+    </motion.span>
   );
 };
 
@@ -1765,9 +1813,7 @@ export default function Home() {
   if (!isReady || user) {
     return (
       <div className="min-h-screen w-full bg-background flex items-center justify-center">
-        <div className="animate-pulse">
-          <AnimatedLogo size={48} className="text-foreground/50" />
-        </div>
+        <LoadingLogo size={48} className="text-foreground/50" />
       </div>
     );
   }
@@ -1797,7 +1843,7 @@ export default function Home() {
 
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-8 text-foreground leading-[1.1]">
               Proof Any Deal. <br className="hidden sm:block" />
-              <span className="text-muted-foreground">Instantly.</span>
+              <LetterByLetter text="Instantly." className="text-muted-foreground" />
             </h1>
 
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed max-w-2xl mx-auto">
