@@ -1784,7 +1784,7 @@ export default function Home() {
 
       <main className="relative pt-24 md:pt-32 pb-20">
         {/* Hero */}
-        <div className="container mx-auto px-4 max-w-4xl text-center mt-16 mb-16 md:mb-32">
+        <div className="container mx-auto px-4 max-w-4xl text-center mt-0 md:mt-16 mb-16 md:mb-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
