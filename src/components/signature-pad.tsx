@@ -42,25 +42,32 @@ export function SignaturePad({
     const observer = new ResizeObserver(updateSize);
     if (containerRef.current) observer.observe(containerRef.current);
 
-    // Prevent scrolling when touching the canvas on mobile
-    const preventScroll = (e: TouchEvent) => {
-      if (e.target instanceof HTMLCanvasElement) {
-        e.preventDefault();
-      }
-    };
-
-    const canvas = sigCanvas.current?.getCanvas();
-    if (canvas) {
-      canvas.addEventListener('touchmove', preventScroll, { passive: false });
-    }
-
     return () => {
       observer.disconnect();
-      if (canvas) {
-        canvas.removeEventListener('touchmove', preventScroll);
-      }
     };
   }, []);
+
+  // Prevent page scrolling when drawing on mobile - separate effect to ensure canvas is mounted
+  useEffect(() => {
+    if (canvasSize.width === 0) return; // Wait for canvas to be sized
+
+    const canvas = sigCanvas.current?.getCanvas();
+    if (!canvas) return;
+
+    // Prevent scrolling when touching the canvas on mobile
+    const preventScroll = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+
+    // Add both touchstart and touchmove prevention for complete scroll blocking
+    canvas.addEventListener('touchstart', preventScroll, { passive: false });
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('touchstart', preventScroll);
+      canvas.removeEventListener('touchmove', preventScroll);
+    };
+  }, [canvasSize.width]); // Re-run when canvas size changes (canvas remounts)
 
   const handleClear = useCallback(() => {
     sigCanvas.current?.clear();
